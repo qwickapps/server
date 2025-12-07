@@ -15,3 +15,6 @@ export type { ConfigPluginConfig } from './config-plugin.js';
 
 export { createDiagnosticsPlugin } from './diagnostics-plugin.js';
 export type { DiagnosticsPluginConfig } from './diagnostics-plugin.js';
+
+export { createFrontendAppPlugin } from './frontend-app-plugin.js';
+export type { FrontendAppPluginConfig } from './frontend-app-plugin.js';

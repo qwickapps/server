@@ -12,6 +12,13 @@ export { createControlPanel } from './core/control-panel.js';
 export { createGateway } from './core/gateway.js';
 export { HealthManager } from './core/health-manager.js';
 
+// Guards exports
+export {
+  createRouteGuard,
+  isAuthenticated,
+  getAuthenticatedUser,
+} from './core/guards.js';
+
 // Logging exports
 export {
   initializeLogging,
@@ -33,6 +40,15 @@ export type {
   ConfigDisplayOptions,
   Logger,
   DiagnosticsReport,
+  // New mount path and guard types
+  RouteGuardType,
+  RouteGuardConfig,
+  BasicAuthGuardConfig,
+  SupabaseAuthGuardConfig,
+  Auth0GuardConfig,
+  NoAuthGuardConfig,
+  MountConfig,
+  FrontendAppConfig,
 } from './core/types.js';
 export type {
   GatewayConfig,
@@ -46,10 +62,12 @@ export {
   createLogsPlugin,
   createConfigPlugin,
   createDiagnosticsPlugin,
+  createFrontendAppPlugin,
 } from './plugins/index.js';
 export type {
   HealthPluginConfig,
   LogsPluginConfig,
   ConfigPluginConfig,
   DiagnosticsPluginConfig,
+  FrontendAppPluginConfig,
 } from './plugins/index.js';

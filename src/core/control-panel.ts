@@ -14,7 +14,8 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { HealthManager } from './health-manager.js';
-import { initializeLogging, getControlPanelLogger, getLoggingSubsystem, type LoggingConfig } from './logging.js';
+import { initializeLogging, getControlPanelLogger, type LoggingConfig } from './logging.js';
+import { createRouteGuard } from './guards.js';
 import type {
   ControlPanelConfig,
   ControlPanelPlugin,
@@ -94,35 +95,15 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
   }
   app.use(compression());
 
-  // Basic auth middleware if configured
-  if (config.auth?.enabled && config.auth.provider === 'basic' && config.auth.users) {
-    app.use((req, res, next) => {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Basic ')) {
-        res.set('WWW-Authenticate', 'Basic realm="Control Panel"');
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const base64Credentials = authHeader.substring(6);
-      const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-      const [username, password] = credentials.split(':');
-
-      const validUser = config.auth!.users!.find(
-        (u) => u.username === username && u.password === password
-      );
-
-      if (!validUser) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
-
-      next();
-    });
+  // Apply route guard if configured
+  if (config.guard && config.guard.type !== 'none') {
+    const guardMiddleware = createRouteGuard(config.guard);
+    app.use(guardMiddleware);
   }
 
-  // Custom auth middleware
-  if (config.auth?.enabled && config.auth.provider === 'custom' && config.auth.customMiddleware) {
-    app.use(config.auth.customMiddleware);
-  }
+  // Get mount path (defaults to /cpanel)
+  const mountPath = config.mountPath || '/cpanel';
+  const apiBasePath = mountPath === '/' ? '/api' : `${mountPath}/api`;
 
   // Request logging
   app.use((req, _res, next) => {
@@ -130,8 +111,8 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     next();
   });
 
-  // Mount router
-  app.use('/api', router);
+  // Mount router at the configured path
+  app.use(apiBasePath, router);
 
   // Built-in routes
 
@@ -173,7 +154,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
   });
 
   /**
-   * Serve dashboard UI
+   * Serve dashboard UI at the configured mount path
    *
    * Priority:
    * 1. If useRichUI is true and dist-ui exists, serve React SPA
@@ -185,25 +166,33 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     const hasRichUI = existsSync(effectiveUiPath);
     const useRichUI = config.useRichUI !== false && hasRichUI;
 
-    logger.debug(`Dashboard config: __dirname=${__dirname}, effectiveUiPath=${effectiveUiPath}, hasRichUI=${hasRichUI}, useRichUI=${useRichUI}`);
+    logger.debug(`Dashboard config: mountPath=${mountPath}, effectiveUiPath=${effectiveUiPath}, hasRichUI=${hasRichUI}, useRichUI=${useRichUI}`);
 
     if (useRichUI) {
-      logger.info(`Serving rich React UI from ${effectiveUiPath}`);
-      // Serve static assets from dist-ui
-      app.use(express.static(effectiveUiPath));
+      logger.info(`Serving rich React UI from ${effectiveUiPath} at ${mountPath}`);
+      // Serve static assets from dist-ui at the mount path
+      app.use(mountPath, express.static(effectiveUiPath));
 
-      // SPA fallback - serve index.html for all non-API routes
-      app.get('*', (req: Request, res: Response, next) => {
-        // Skip API routes (must check for /api/ with trailing slash to avoid matching /api-keys etc)
-        if (req.path.startsWith('/api/') || req.path === '/api') {
+      // SPA fallback - serve index.html for all non-API routes under the mount path
+      app.get(`${mountPath}/*`, (req: Request, res: Response, next) => {
+        // Skip API routes
+        if (req.path.startsWith(apiBasePath)) {
           return next();
         }
         res.sendFile(join(effectiveUiPath, 'index.html'));
       });
+
+      // Also serve the mount path root
+      if (mountPath !== '/') {
+        app.get(mountPath, (_req: Request, res: Response) => {
+          res.sendFile(join(effectiveUiPath, 'index.html'));
+        });
+      }
     } else {
-      logger.info('Serving basic HTML dashboard');
-      app.get('/', (_req: Request, res: Response) => {
-        const html = generateDashboardHtml(config, healthManager.getResults());
+      logger.info(`Serving basic HTML dashboard at ${mountPath}`);
+      const dashboardPath = mountPath === '/' ? '/' : mountPath;
+      app.get(dashboardPath, (_req: Request, res: Response) => {
+        const html = generateDashboardHtml(config, healthManager.getResults(), mountPath);
         res.type('html').send(html);
       });
     }
@@ -288,9 +277,9 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     return new Promise((resolve) => {
       server = app.listen(config.port, () => {
         logger.info(`Control panel started on port ${config.port}`);
-        logger.info(`Dashboard: http://localhost:${config.port}`);
-        logger.info(`Health: http://localhost:${config.port}/api/health`);
-        logger.info(`Diagnostics: http://localhost:${config.port}/api/diagnostics`);
+        logger.info(`Dashboard: http://localhost:${config.port}${mountPath}`);
+        logger.info(`Health: http://localhost:${config.port}${apiBasePath}/health`);
+        logger.info(`Diagnostics: http://localhost:${config.port}${apiBasePath}/diagnostics`);
         resolve();
       });
     });
@@ -334,8 +323,10 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
  */
 function generateDashboardHtml(
   config: ControlPanelConfig,
-  health: Record<string, { status: string; latency?: number; lastChecked: Date }>
+  health: Record<string, { status: string; latency?: number; lastChecked: Date }>,
+  mountPath: string = '/cpanel'
 ): string {
+  const apiBasePath = mountPath === '/' ? '/api' : `${mountPath}/api`;
   const healthEntries = Object.entries(health);
   const overallStatus = healthEntries.every((e) => e[1].status === 'healthy')
     ? 'healthy'
@@ -478,9 +469,9 @@ function generateDashboardHtml(
 
     <div class="api-links">
       <strong>API:</strong>
-      <a href="/api/health">Health</a>
-      <a href="/api/info">Info</a>
-      <a href="/api/diagnostics">Diagnostics</a>
+      <a href="${apiBasePath}/health">Health</a>
+      <a href="${apiBasePath}/info">Info</a>
+      <a href="${apiBasePath}/diagnostics">Diagnostics</a>
     </div>
   </div>
 

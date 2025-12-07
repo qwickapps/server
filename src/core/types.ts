@@ -4,7 +4,110 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import type { Application, RequestHandler, Router } from 'express';
+import type { Application, RequestHandler, Router, Request, Response, NextFunction } from 'express';
+
+/**
+ * Route guard types for protecting routes
+ */
+export type RouteGuardType = 'none' | 'basic' | 'supabase' | 'auth0';
+
+/**
+ * Basic auth guard configuration
+ */
+export interface BasicAuthGuardConfig {
+  type: 'basic';
+  /** Username for basic auth */
+  username: string;
+  /** Password for basic auth */
+  password: string;
+  /** Realm name for the WWW-Authenticate header */
+  realm?: string;
+  /** Paths to exclude from authentication (e.g., ['/health']) */
+  excludePaths?: string[];
+}
+
+/**
+ * Supabase auth guard configuration
+ */
+export interface SupabaseAuthGuardConfig {
+  type: 'supabase';
+  /** Supabase project URL */
+  supabaseUrl: string;
+  /** Supabase anon key */
+  supabaseAnonKey: string;
+  /** Paths to exclude from authentication */
+  excludePaths?: string[];
+}
+
+/**
+ * Auth0 guard configuration
+ */
+export interface Auth0GuardConfig {
+  type: 'auth0';
+  /** Auth0 domain (e.g., 'myapp.auth0.com') */
+  domain: string;
+  /** Auth0 client ID */
+  clientId: string;
+  /** Auth0 client secret */
+  clientSecret: string;
+  /** Base URL of the application */
+  baseUrl: string;
+  /** Session secret for cookie encryption */
+  secret: string;
+  /** Auth routes configuration */
+  routes?: {
+    login?: string;
+    logout?: string;
+    callback?: string;
+  };
+  /** Paths to exclude from authentication */
+  excludePaths?: string[];
+}
+
+/**
+ * No authentication guard
+ */
+export interface NoAuthGuardConfig {
+  type: 'none';
+}
+
+/**
+ * Union type for all guard configurations
+ */
+export type RouteGuardConfig =
+  | NoAuthGuardConfig
+  | BasicAuthGuardConfig
+  | SupabaseAuthGuardConfig
+  | Auth0GuardConfig;
+
+/**
+ * Mount path configuration for applications
+ */
+export interface MountConfig {
+  /** Path where this app is mounted (e.g., '/', '/cpanel', '/app') */
+  path: string;
+  /** Route guard configuration for this mount point */
+  guard?: RouteGuardConfig;
+}
+
+/**
+ * Frontend app configuration
+ */
+export interface FrontendAppConfig {
+  /** Mount configuration */
+  mount: MountConfig;
+  /** Redirect to another URL instead of serving content */
+  redirectUrl?: string;
+  /** Path to static files to serve */
+  staticPath?: string;
+  /** Landing page HTML (used if no staticPath or redirectUrl) */
+  landingPage?: {
+    title: string;
+    heading?: string;
+    description?: string;
+    links?: Array<{ label: string; url: string }>;
+  };
+}
 
 /**
  * Control Panel Configuration
@@ -26,14 +129,17 @@ export interface ControlPanelConfig {
     favicon?: string;
   };
 
-  /** Optional: Authentication configuration */
-  auth?: {
-    enabled: boolean;
-    provider: 'basic' | 'jwt' | 'custom';
-    users?: Array<{ username: string; password: string }>;
-    jwtSecret?: string;
-    customMiddleware?: RequestHandler;
-  };
+  /**
+   * Mount path for the control panel.
+   * Defaults to '/cpanel'.
+   */
+  mountPath?: string;
+
+  /**
+   * Route guard for the control panel.
+   * Defaults to basic auth in production.
+   */
+  guard?: RouteGuardConfig;
 
   /** Optional: CORS configuration */
   cors?: {

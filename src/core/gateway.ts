@@ -23,7 +23,6 @@ import type { ControlPanelConfig, ControlPanelPlugin, Logger } from './types.js'
 import { createControlPanel } from './control-panel.js';
 import { initializeLogging, getControlPanelLogger, type LoggingConfig } from './logging.js';
 import { createProxyMiddleware, type Options } from 'http-proxy-middleware';
-import { randomBytes } from 'crypto';
 import express from 'express';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
@@ -56,8 +55,38 @@ export interface GatewayConfig {
   /** Quick links for the control panel */
   links?: ControlPanelConfig['links'];
 
-  /** Path to custom React UI dist folder */
+  /** Path to custom React UI dist folder for the control panel */
   customUiPath?: string;
+
+  /**
+   * Mount path for the control panel.
+   * Defaults to '/cpanel'.
+   */
+  controlPanelPath?: string;
+
+  /**
+   * Route guard for the control panel.
+   * Defaults to auto-generated basic auth.
+   */
+  controlPanelGuard?: ControlPanelConfig['guard'];
+
+  /**
+   * Frontend app configuration for the root path (/).
+   * If not provided, root path is not handled by the gateway.
+   */
+  frontendApp?: {
+    /** Redirect to another URL */
+    redirectUrl?: string;
+    /** Path to static files to serve */
+    staticPath?: string;
+    /** Landing page configuration */
+    landingPage?: {
+      title: string;
+      heading?: string;
+      description?: string;
+      links?: Array<{ label: string; url: string }>;
+    };
+  };
 
   /**
    * API paths to proxy to the internal service.
@@ -66,21 +95,7 @@ export interface GatewayConfig {
    */
   proxyPaths?: string[];
 
-  /**
-   * Authentication mode for the control panel (not the API).
-   * - 'none': No authentication (not recommended for production)
-   * - 'basic': HTTP Basic Auth with username/password
-   * - 'auto': Auto-generate password on startup (default)
-   */
-  authMode?: 'none' | 'basic' | 'auto';
-
-  /** Basic auth username (defaults to 'admin') */
-  basicAuthUser?: string;
-
-  /** Basic auth password (required if authMode is 'basic') */
-  basicAuthPassword?: string;
-
-  /** Logger instance (deprecated: use logging config instead) */
+  /** Logger instance */
   logger?: Logger;
 
   /** Logging configuration */
@@ -131,63 +146,106 @@ export interface GatewayInstance {
 
 
 /**
- * Basic auth middleware for gateway protection (control panel only)
- * - Skips localhost requests
- * - Skips API routes (/api/v1/*) - they have their own service auth
- * - Skips health endpoints - these should be public
- * - Requires valid credentials for non-localhost control panel access
+ * Generate landing page HTML for the frontend app
  */
-function createBasicAuthMiddleware(
-  username: string,
-  password: string,
-  apiPaths: string[]
-) {
-  const expectedAuth = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+function generateLandingPageHtml(
+  config: NonNullable<GatewayConfig['frontendApp']>['landingPage'],
+  controlPanelPath: string
+): string {
+  if (!config) return '';
 
-  return (req: Request, res: Response, next: NextFunction) => {
-    const path = req.path;
+  const primaryColor = '#6366f1';
 
-    // Skip auth for API routes - they use their own authentication
-    for (const apiPath of apiPaths) {
-      if (path.startsWith(apiPath)) {
-        return next();
-      }
+  const links = config.links || [
+    { label: 'Control Panel', url: controlPanelPath },
+  ];
+
+  const linksHtml = links
+    .map(
+      (link) =>
+        `<a href="${link.url}" class="link">${link.label}</a>`
+    )
+    .join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${config.title}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-
-    // Skip auth for health endpoints - these should be publicly accessible
-    if (path === '/health' || path === '/api/health') {
-      return next();
+    .container {
+      text-align: center;
+      max-width: 600px;
+      padding: 2rem;
     }
-
-    // Allow localhost without auth
-    const remoteAddress = req.ip || req.socket?.remoteAddress || '';
-    const host = req.hostname || req.headers.host || '';
-    const isLocalhost =
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host.startsWith('localhost:') ||
-      host.startsWith('127.0.0.1:') ||
-      remoteAddress === '127.0.0.1' ||
-      remoteAddress === '::1' ||
-      remoteAddress === '::ffff:127.0.0.1';
-
-    if (isLocalhost) {
-      return next();
+    h1 {
+      font-size: 2.5rem;
+      color: ${primaryColor};
+      margin-bottom: 1rem;
     }
-
-    // Check for valid basic auth
-    const authHeader = req.headers.authorization;
-    if (authHeader === expectedAuth) {
-      return next();
+    p {
+      font-size: 1.125rem;
+      color: #94a3b8;
+      margin-bottom: 2rem;
+      line-height: 1.6;
     }
-
-    // Request authentication
-    res.setHeader('WWW-Authenticate', 'Basic realm="Control Panel"');
-    res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Authentication required.',
-    });
-  };
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .link {
+      display: inline-block;
+      padding: 0.875rem 2rem;
+      background: ${primaryColor};
+      color: white;
+      text-decoration: none;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+    .footer {
+      position: fixed;
+      bottom: 1rem;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+    .footer a {
+      color: ${primaryColor};
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>${config.heading || config.title}</h1>
+    ${config.description ? `<p>${config.description}</p>` : ''}
+    ${linksHtml ? `<div class="links">${linksHtml}</div>` : ''}
+  </div>
+  <div class="footer">
+    Powered by <a href="https://qwickapps.com" target="_blank">QwickApps</a>
+  </div>
+</body>
+</html>`;
 }
 
 /**
@@ -238,12 +296,11 @@ export function createGateway(
   const servicePort = config.servicePort || parseInt(process.env.SERVICE_PORT || '3100', 10);
   const nodeEnv = process.env.NODE_ENV || 'development';
 
-  // Auth configuration
-  const authMode = config.authMode || 'auto';
-  const basicAuthUser = config.basicAuthUser || process.env.BASIC_AUTH_USER || 'admin';
-  const providedPassword = config.basicAuthPassword || process.env.BASIC_AUTH_PASSWORD;
-  const basicAuthPassword = providedPassword || (authMode === 'auto' ? randomBytes(16).toString('base64url') : '');
-  const isPasswordAutoGenerated = !providedPassword && authMode === 'auto';
+  // Control panel mount path (defaults to /cpanel)
+  const controlPanelPath = config.controlPanelPath || '/cpanel';
+
+  // Guard configuration for control panel
+  const guardConfig = config.controlPanelGuard;
 
   // API paths to proxy
   const proxyPaths = config.proxyPaths || ['/api/v1'];
@@ -260,18 +317,17 @@ export function createGateway(
       cors: config.corsOrigins ? { origins: config.corsOrigins } : undefined,
       // Skip body parsing for proxied paths
       skipBodyParserPaths: [...proxyPaths, '/health'],
-      // Disable built-in dashboard if custom UI is provided
-      disableDashboard: !!config.customUiPath,
+      // Mount path for control panel
+      mountPath: controlPanelPath,
+      // Route guard
+      guard: guardConfig,
+      // Custom UI path
+      customUiPath: config.customUiPath,
       links: config.links,
     },
     plugins: config.plugins || [],
     logger,
   });
-
-  // Add basic auth middleware if enabled
-  if (authMode === 'basic' || authMode === 'auto') {
-    controlPanel.app.use(createBasicAuthMiddleware(basicAuthUser, basicAuthPassword, proxyPaths));
-  }
 
   // Setup proxy middleware for API paths
   const setupProxyMiddleware = () => {
@@ -325,18 +381,41 @@ export function createGateway(
     controlPanel.app.use(createProxyMiddleware(healthProxyOptions));
   };
 
-  // Serve custom React UI if provided
-  const setupCustomUI = () => {
-    if (config.customUiPath && existsSync(config.customUiPath)) {
-      logger.info(`Serving custom UI from ${config.customUiPath}`);
-      controlPanel.app.use(express.static(config.customUiPath));
+  // Setup frontend app at root path
+  const setupFrontendApp = () => {
+    if (!config.frontendApp) {
+      return;
+    }
 
-      // SPA fallback
-      controlPanel.app.get('*', (req, res, next) => {
-        if (req.path.startsWith('/api/') || req.path === '/api') {
-          return next();
-        }
-        res.sendFile(resolve(config.customUiPath!, 'index.html'));
+    const { redirectUrl, staticPath, landingPage } = config.frontendApp;
+
+    // Priority 1: Redirect
+    if (redirectUrl) {
+      logger.info(`Frontend app: Redirecting / to ${redirectUrl}`);
+      controlPanel.app.get('/', (_req, res) => {
+        res.redirect(redirectUrl);
+      });
+      return;
+    }
+
+    // Priority 2: Serve static files
+    if (staticPath && existsSync(staticPath)) {
+      logger.info(`Frontend app: Serving static files from ${staticPath}`);
+      controlPanel.app.use('/', express.static(staticPath));
+
+      // SPA fallback for root
+      controlPanel.app.get('/', (_req, res) => {
+        res.sendFile(resolve(staticPath, 'index.html'));
+      });
+      return;
+    }
+
+    // Priority 3: Landing page
+    if (landingPage) {
+      logger.info(`Frontend app: Serving landing page`);
+      controlPanel.app.get('/', (_req, res) => {
+        const html = generateLandingPageHtml(landingPage, controlPanelPath);
+        res.type('html').send(html);
       });
     }
   };
@@ -352,11 +431,14 @@ export function createGateway(
     // 2. Setup proxy middleware (after service is started)
     setupProxyMiddleware();
 
-    // 3. Setup custom UI (after proxy middleware)
-    setupCustomUI();
+    // 3. Setup frontend app at root path
+    setupFrontendApp();
 
     // 4. Start control panel gateway
     await controlPanel.start();
+
+    // Calculate API base path
+    const apiBasePath = controlPanelPath === '/' ? '/api' : `${controlPanelPath}/api`;
 
     // Log startup info
     logger.info('');
@@ -368,25 +450,24 @@ export function createGateway(
     logger.info(`  Service Port:  ${servicePort} (internal)`);
     logger.info('');
 
-    if (authMode === 'basic' || authMode === 'auto') {
+    if (guardConfig && guardConfig.type === 'basic') {
       logger.info('  Control Panel Auth: HTTP Basic Auth');
       logger.info('  ----------------------------------------');
-      logger.info(`    Username: ${basicAuthUser}`);
-      if (isPasswordAutoGenerated) {
-        logger.info(`    Password: ${basicAuthPassword}`);
-        logger.info('    (auto-generated, set BASIC_AUTH_PASSWORD to use a fixed password)');
-      } else {
-        logger.info('    Password: ********** (from environment)');
-      }
+      logger.info(`    Username: ${guardConfig.username}`);
       logger.info('  ----------------------------------------');
+    } else if (guardConfig && guardConfig.type !== 'none') {
+      logger.info(`  Control Panel Auth: ${guardConfig.type}`);
     } else {
       logger.info('  Control Panel Auth: None (not recommended)');
     }
 
     logger.info('');
     logger.info('  Endpoints:');
-    logger.info(`    GET  /                    - Control Panel UI`);
-    logger.info(`    GET  /api/health          - Gateway health`);
+    if (config.frontendApp) {
+      logger.info(`    GET  /                    - Frontend App`);
+    }
+    logger.info(`    GET  ${controlPanelPath.padEnd(20)} - Control Panel UI`);
+    logger.info(`    GET  ${apiBasePath}/health          - Gateway health`);
     logger.info(`    GET  /health              - Service health (proxied)`);
     for (const apiPath of proxyPaths) {
       logger.info(`    *    ${apiPath}/*             - Service API (proxied)`);

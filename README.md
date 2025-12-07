@@ -5,12 +5,12 @@ A flexible, pluggable control panel framework for QwickApps services. Provides a
 ## Features
 
 - **Gateway Pattern**: Production-ready gateway that proxies API requests while keeping control panel always responsive
-- **Authentication**: Support for multiple auth providers (Supabase OAuth, Basic Auth, JWT, Custom)
-- **Localhost Bypass**: Automatic auth bypass for local development
+- **Configurable Mount Paths**: Control panel mounts at `/cpanel` by default, reserving root for frontend apps
+- **Route Guards**: Unified authentication system supporting Basic Auth, Supabase OAuth, and Auth0
 - **Plugin System**: Extensible architecture for adding custom functionality
 - **Health Monitoring**: Built-in health check management with customizable checks
+- **Frontend App Support**: Handle root path with redirect, static files, or landing page
 - **Theming**: Customizable branding and styling
-- **Proxy Support**: Skip body parsing for specific paths to enable proxy middleware
 
 ## Installation
 
@@ -28,16 +28,13 @@ const controlPanel = createControlPanel({
     productName: 'My Service',
     port: 3101,
     version: '1.0.0',
-    auth: {
-      enabled: true,
-      provider: 'supabase',
-      skipAuthForLocalhost: true,
-      supabase: {
-        url: process.env.SUPABASE_URL!,
-        anonKey: process.env.SUPABASE_ANON_KEY!,
-        provider: 'google',
-        allowedEmails: ['admin@example.com'],
-      },
+    mountPath: '/cpanel',
+    guard: {
+      type: 'basic',
+      username: 'admin',
+      password: process.env.ADMIN_PASSWORD!,
+      realm: 'My Service Control Panel',
+      excludePaths: ['/api/health'],
     },
   },
   plugins: [
@@ -55,7 +52,7 @@ const controlPanel = createControlPanel({
 });
 
 await controlPanel.start();
-console.log(`Control panel running at http://localhost:3101`);
+console.log(`Control panel running at http://localhost:3101/cpanel`);
 ```
 
 ## Gateway Pattern
@@ -74,9 +71,14 @@ const gateway = createGateway(
     productName: 'My Service',
     gatewayPort: 3101,  // Public port (control panel)
     servicePort: 3100,  // Internal port (API)
-    authMode: 'basic',
-    basicAuthUser: 'admin',
-    basicAuthPassword: process.env.ADMIN_PASSWORD,
+    controlPanelPath: '/cpanel',
+    controlPanelGuard: {
+      type: 'basic',
+      username: 'admin',
+      password: process.env.ADMIN_PASSWORD!,
+      realm: 'My Service Control Panel',
+      excludePaths: ['/health', '/api/v1'],
+    },
     proxyPaths: ['/api/v1'],
     plugins: [
       createHealthPlugin({
@@ -106,9 +108,9 @@ await gateway.start();
 ```
 Internet → Gateway (3101, public) → API Service (3100, internal)
                 ↓
-         Control Panel UI
-         /api/health
-         /api/diagnostics
+         Control Panel UI (/cpanel)
+         /cpanel/api/health
+         /cpanel/api/diagnostics
 ```
 
 The gateway is always responsive even if the internal API service crashes, allowing you to view diagnostics and error information.
@@ -122,75 +124,112 @@ The gateway is always responsive even if the internal API service crashes, allow
 | `productName` | `string` | Yes | Name displayed in the dashboard |
 | `port` | `number` | Yes | Port to run the control panel on |
 | `version` | `string` | No | Product version to display |
+| `mountPath` | `string` | No | Path to mount control panel (default: `/cpanel`) |
+| `guard` | `RouteGuardConfig` | No | Authentication guard configuration |
 | `branding` | `object` | No | Logo, primary color, favicon |
-| `auth` | `AuthConfig` | No | Authentication configuration |
 | `cors` | `object` | No | CORS origins configuration |
 | `links` | `array` | No | Quick links for the dashboard |
 | `skipBodyParserPaths` | `string[]` | No | Paths to skip body parsing (for proxy) |
 
-### Authentication Providers
+### Route Guards
 
-#### Supabase OAuth (Recommended)
+The unified guard system provides authentication for the control panel. All guards support `excludePaths` to allow unauthenticated access to specific routes.
+
+#### No Authentication
 
 ```typescript
-auth: {
-  enabled: true,
-  provider: 'supabase',
-  skipAuthForLocalhost: true,
-  supabase: {
-    url: 'https://xxx.supabase.co',
-    anonKey: 'your-anon-key',
-    provider: 'google', // or 'github', 'azure', 'gitlab'
-    allowedEmails: ['admin@company.com'], // Optional whitelist
-    redirectUrl: '/auth/callback', // Default
-  },
-}
+guard: { type: 'none' }
 ```
 
 #### Basic Auth
 
 ```typescript
-auth: {
-  enabled: true,
-  provider: 'basic',
-  users: [
-    { username: 'admin', password: 'secret' },
-  ],
+guard: {
+  type: 'basic',
+  username: 'admin',
+  password: process.env.ADMIN_PASSWORD!,
+  realm: 'Control Panel',
+  excludePaths: ['/api/health'],
 }
 ```
 
-#### Custom Middleware
+#### Supabase OAuth
 
 ```typescript
-auth: {
-  enabled: true,
-  provider: 'custom',
-  customMiddleware: (req, res, next) => {
-    // Your auth logic
-    next();
+guard: {
+  type: 'supabase',
+  supabaseUrl: process.env.SUPABASE_URL!,
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY!,
+  excludePaths: ['/api/health'],
+}
+```
+
+#### Auth0 OpenID Connect
+
+Requires `express-openid-connect` as a peer dependency.
+
+```typescript
+guard: {
+  type: 'auth0',
+  domain: process.env.AUTH0_DOMAIN!,
+  clientId: process.env.AUTH0_CLIENT_ID!,
+  clientSecret: process.env.AUTH0_CLIENT_SECRET!,
+  baseUrl: 'https://myapp.example.com',
+  secret: process.env.AUTH0_SECRET!,
+  routes: {
+    login: '/login',
+    logout: '/logout',
+    callback: '/callback',
   },
+  excludePaths: ['/api/health'],
 }
 ```
 
-### Localhost Bypass
+### Mount Paths
 
-When `skipAuthForLocalhost` is `true` (default), requests from `localhost` or `127.0.0.1` skip authentication. This is useful for local development.
-
-### Proxy Support
-
-When using the control panel as a gateway with proxy middleware, configure `skipBodyParserPaths` to prevent body parsing from consuming the request body:
+By default, the control panel mounts at `/cpanel`, reserving the root path (`/`) for frontend applications:
 
 ```typescript
+// Control panel at /cpanel
 config: {
-  // ... other config
-  skipBodyParserPaths: ['/api/v1', '/health'],
+  mountPath: '/cpanel',  // Dashboard at /cpanel, API at /cpanel/api/*
 }
 
-// Then add proxy middleware
-controlPanel.app.use(createProxyMiddleware({
-  target: 'http://localhost:3100',
-  pathFilter: '/api/v1/**',
-}));
+// Or mount at root (legacy behavior)
+config: {
+  mountPath: '/',  // Dashboard at /, API at /api/*
+}
+```
+
+### Frontend App Plugin
+
+Handle the root path when control panel is mounted elsewhere:
+
+```typescript
+import { createFrontendAppPlugin } from '@qwickapps/server';
+
+// Redirect to external URL
+createFrontendAppPlugin({
+  redirectUrl: 'https://myapp.example.com',
+})
+
+// Serve static files
+createFrontendAppPlugin({
+  staticPath: './dist',
+})
+
+// Show landing page with links
+createFrontendAppPlugin({
+  landingPage: {
+    title: 'My Service',
+    heading: 'Welcome',
+    description: 'Select a destination',
+    links: [
+      { label: 'Control Panel', url: '/cpanel' },
+      { label: 'API Docs', url: '/docs' },
+    ],
+  },
+})
 ```
 
 ## Plugins
@@ -217,11 +256,43 @@ createHealthPlugin({
       name: 'custom',
       type: 'custom',
       check: async () => ({
-        status: 'healthy',
+        healthy: true,
         details: { message: 'All good' },
       }),
       interval: 30000,
     },
+  ],
+});
+```
+
+#### Diagnostics Plugin
+
+```typescript
+import { createDiagnosticsPlugin } from '@qwickapps/server';
+
+createDiagnosticsPlugin({});
+```
+
+#### Config Plugin
+
+```typescript
+import { createConfigPlugin } from '@qwickapps/server';
+
+createConfigPlugin({
+  show: ['NODE_ENV', 'PORT', 'DATABASE_URL'],
+  mask: ['SECRET', 'PASSWORD', 'KEY', 'TOKEN'],
+});
+```
+
+#### Logs Plugin
+
+```typescript
+import { createLogsPlugin } from '@qwickapps/server';
+
+createLogsPlugin({
+  sources: [
+    { name: 'app', type: 'file', path: './logs/app.log' },
+    { name: 'error', type: 'file', path: './logs/error.log' },
   ],
 });
 ```
@@ -270,28 +341,56 @@ interface ControlPanelInstance {
 }
 ```
 
+### createRouteGuard(config)
+
+Creates authentication middleware from guard configuration.
+
+```typescript
+import { createRouteGuard } from '@qwickapps/server';
+
+const guard = createRouteGuard({
+  type: 'basic',
+  username: 'admin',
+  password: 'secret',
+});
+
+app.use(guard);
+```
+
+### isAuthenticated(req)
+
+Check if current request is authenticated.
+
+```typescript
+import { isAuthenticated } from '@qwickapps/server';
+
+if (isAuthenticated(req)) {
+  // User is authenticated
+}
+```
+
+### getAuthenticatedUser(req)
+
+Get authenticated user information.
+
+```typescript
+import { getAuthenticatedUser } from '@qwickapps/server';
+
+const user = getAuthenticatedUser(req);
+// { id: string; email?: string; name?: string; }
+```
+
 ### Built-in Routes
+
+Routes are mounted at the configured `mountPath` (default `/cpanel`):
 
 | Route | Method | Description |
 |-------|--------|-------------|
-| `/` | GET | Dashboard UI |
-| `/auth/login` | GET | OAuth login page (Supabase) |
-| `/auth/callback` | GET | OAuth callback handler |
-| `/auth/logout` | GET | Logout and clear session |
-| `/api/health` | GET | Aggregated health status |
-| `/api/diagnostics` | GET | System diagnostics |
-
-## Environment Variables
-
-```env
-# Supabase OAuth
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-ALLOWED_EMAILS=admin@example.com,user@example.com
-
-# Development
-SKIP_AUTH_LOCALHOST=true
-```
+| `{mountPath}/` | GET | Dashboard UI |
+| `{mountPath}/api/health` | GET | Aggregated health status |
+| `{mountPath}/api/diagnostics` | GET | System diagnostics |
+| `{mountPath}/api/config` | GET | Configuration (if plugin enabled) |
+| `{mountPath}/api/logs` | GET | Log viewer (if plugin enabled) |
 
 ## License
 
