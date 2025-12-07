@@ -1,0 +1,29 @@
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--theme-background, #0f172a);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border, #334155);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-text-secondary, #64748b);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better focus styles */
+:focus-visible {
+  outline: 2px solid var(--theme-primary, #6366f1);
+  outline-offset: 2px;
+}
