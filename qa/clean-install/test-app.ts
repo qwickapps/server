@@ -74,7 +74,7 @@ function testCustomPlugin(): void {
       },
     ],
     onInit: async (context: PluginContext) => {
-      context.logger.info('Test plugin initialized');
+      context.logger.debug('Test plugin initialized');
     },
     onShutdown: async () => {
       console.log('Test plugin shutdown');

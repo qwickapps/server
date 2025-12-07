@@ -63,6 +63,18 @@ export {
   createConfigPlugin,
   createDiagnosticsPlugin,
   createFrontendAppPlugin,
+  // Database plugins
+  createPostgresPlugin,
+  getPostgres,
+  hasPostgres,
+  // Backward compatibility aliases (deprecated)
+  createPostgresPlugin as createDatabasePlugin,
+  getPostgres as getDatabase,
+  hasPostgres as hasDatabase,
+  // Cache plugins
+  createCachePlugin,
+  getCache,
+  hasCache,
 } from './plugins/index.js';
 export type {
   HealthPluginConfig,
@@ -70,4 +82,14 @@ export type {
   ConfigPluginConfig,
   DiagnosticsPluginConfig,
   FrontendAppPluginConfig,
+  // Database plugin types
+  PostgresPluginConfig,
+  PostgresInstance,
+  TransactionCallback,
+  // Backward compatibility aliases (deprecated)
+  PostgresPluginConfig as DatabasePluginConfig,
+  PostgresInstance as DatabaseInstance,
+  // Cache plugin types
+  CachePluginConfig,
+  CacheInstance,
 } from './plugins/index.js';

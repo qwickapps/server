@@ -169,7 +169,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     logger.debug(`Dashboard config: mountPath=${mountPath}, effectiveUiPath=${effectiveUiPath}, hasRichUI=${hasRichUI}, useRichUI=${useRichUI}`);
 
     if (useRichUI) {
-      logger.info(`Serving rich React UI from ${effectiveUiPath} at ${mountPath}`);
+      logger.debug(`Serving React UI from ${effectiveUiPath}`);
       // Serve static assets from dist-ui at the mount path
       app.use(mountPath, express.static(effectiveUiPath));
 
@@ -189,7 +189,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
         });
       }
     } else {
-      logger.info(`Serving basic HTML dashboard at ${mountPath}`);
+      logger.debug(`Serving basic HTML dashboard`);
       const dashboardPath = mountPath === '/' ? '/' : mountPath;
       app.get(dashboardPath, (_req: Request, res: Response) => {
         const html = generateDashboardHtml(config, healthManager.getResults(), mountPath);
@@ -209,7 +209,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
 
   // Register plugin
   const registerPlugin = async (plugin: ControlPanelPlugin): Promise<void> => {
-    logger.info(`Registering plugin: ${plugin.name}`);
+    logger.debug(`Registering plugin: ${plugin.name}`);
 
     // Register routes
     if (plugin.routes) {
@@ -238,7 +238,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     }
 
     registeredPlugins.push(plugin);
-    logger.info(`Plugin registered: ${plugin.name}`);
+    logger.debug(`Plugin registered: ${plugin.name}`);
   };
 
   // Get diagnostics report
@@ -276,10 +276,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
 
     return new Promise((resolve) => {
       server = app.listen(config.port, () => {
-        logger.info(`Control panel started on port ${config.port}`);
-        logger.info(`Dashboard: http://localhost:${config.port}${mountPath}`);
-        logger.info(`Health: http://localhost:${config.port}${apiBasePath}/health`);
-        logger.info(`Diagnostics: http://localhost:${config.port}${apiBasePath}/diagnostics`);
+        logger.info(`Control panel listening on port ${config.port}`);
         resolve();
       });
     });

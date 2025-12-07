@@ -29,7 +29,7 @@ export function createHealthPlugin(config: HealthPluginConfig): ControlPanelPlug
         registerHealthCheck(check);
       }
 
-      logger.info(`[HealthPlugin] Registered ${config.checks.length} health checks`);
+      logger.debug(`Registered ${config.checks.length} health checks`);
     },
   };
 }

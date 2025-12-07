@@ -135,12 +135,8 @@ class LoggingSubsystem {
     }
 
     this.initialized = true;
-    this.rootLogger.info('Logging subsystem initialized', {
-      logDir: this.config.logDir,
+    this.rootLogger.debug('Logging initialized', {
       level: this.config.level,
-      fileLogging: this.config.fileLogging,
-      consoleOutput: this.config.consoleOutput,
-      usingPino: this.rootLogger.isUsingPino(),
     });
   }
 

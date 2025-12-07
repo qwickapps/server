@@ -156,9 +156,7 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): ControlPanelPlu
 
     async onInit(context: PluginContext): Promise<void> {
       const sources = getSources();
-      context.logger.info(`Initialized with ${sources.length} sources`, {
-        sources: sources.map((s) => ({ name: s.name, type: s.type, path: s.path })),
-      });
+      context.logger.debug(`Logs plugin initialized with ${sources.length} sources`);
     },
   };
 }

@@ -441,39 +441,27 @@ export function createGateway(
     const apiBasePath = controlPanelPath === '/' ? '/api' : `${controlPanelPath}/api`;
 
     // Log startup info
-    logger.info('');
-    logger.info('========================================');
-    logger.info(`  ${config.productName} Gateway`);
-    logger.info('========================================');
-    logger.info('');
-    logger.info(`  Gateway Port:  ${gatewayPort} (public)`);
-    logger.info(`  Service Port:  ${servicePort} (internal)`);
-    logger.info('');
-
+    logger.info(`${config.productName} Gateway`);
+    logger.info(`Gateway Port:  ${gatewayPort} (public)`);
+    logger.info(`Service Port:  ${servicePort} (internal)`);
+    
     if (guardConfig && guardConfig.type === 'basic') {
-      logger.info('  Control Panel Auth: HTTP Basic Auth');
-      logger.info('  ----------------------------------------');
-      logger.info(`    Username: ${guardConfig.username}`);
-      logger.info('  ----------------------------------------');
+      logger.info(`Control Panel Auth: HTTP Basic Auth - Username: ${guardConfig.username}`);
     } else if (guardConfig && guardConfig.type !== 'none') {
-      logger.info(`  Control Panel Auth: ${guardConfig.type}`);
+      logger.info(`Control Panel Auth: ${guardConfig.type}`);
     } else {
-      logger.info('  Control Panel Auth: None (not recommended)');
+      logger.info('Control Panel Auth: None (not recommended)');
     }
 
-    logger.info('');
-    logger.info('  Endpoints:');
     if (config.frontendApp) {
-      logger.info(`    GET  /                    - Frontend App`);
+      logger.info(`Frontend App: GET  /`);
     }
-    logger.info(`    GET  ${controlPanelPath.padEnd(20)} - Control Panel UI`);
-    logger.info(`    GET  ${apiBasePath}/health          - Gateway health`);
-    logger.info(`    GET  /health              - Service health (proxied)`);
+    logger.info(`Control Panel UI: GET ${controlPanelPath.padEnd(20)}`);
+    logger.info(`Gateway Health: GET ${apiBasePath}/health`);
+    logger.info(`Service Health: GET /health`);
     for (const apiPath of proxyPaths) {
-      logger.info(`    *    ${apiPath}/*             - Service API (proxied)`);
+      logger.info(`Service API: * ${apiPath}/*`);
     }
-    logger.info('========================================');
-    logger.info('');
   };
 
   const stop = async (): Promise<void> => {

@@ -83,7 +83,7 @@ describe('Health Plugin', () => {
     expect(mockRegisterHealthCheck).toHaveBeenCalledTimes(2);
     expect(mockRegisterHealthCheck).toHaveBeenCalledWith(checks[0]);
     expect(mockRegisterHealthCheck).toHaveBeenCalledWith(checks[1]);
-    expect(mockLogger.info).toHaveBeenCalledWith(
+    expect(mockLogger.debug).toHaveBeenCalledWith(
       expect.stringContaining('Registered 2 health checks')
     );
   });
@@ -96,7 +96,7 @@ describe('Health Plugin', () => {
     await plugin.onInit?.(mockContext);
 
     expect(mockRegisterHealthCheck).not.toHaveBeenCalled();
-    expect(mockLogger.info).toHaveBeenCalledWith(
+    expect(mockLogger.debug).toHaveBeenCalledWith(
       expect.stringContaining('Registered 0 health checks')
     );
   });
@@ -346,8 +346,8 @@ describe('Config Plugin', () => {
 
     await plugin.onInit?.(mockContext);
 
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      expect.stringContaining('3 visible vars')
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('3 vars')
     );
   });
 });

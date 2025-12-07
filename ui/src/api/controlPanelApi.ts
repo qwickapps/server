@@ -59,7 +59,7 @@ export interface LogEntry {
   timestamp: string;
   level: string;
   message: string;
-  source?: string;
+  namespace?: string;
 }
 
 export interface LogsResponse {

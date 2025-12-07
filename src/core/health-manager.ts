@@ -40,10 +40,7 @@ export class HealthManager {
 
     this.intervals.set(check.name, timer);
 
-    this.logger.info(`[HealthManager] Registered health check: ${check.name}`, {
-      type: check.type,
-      interval,
-    });
+    this.logger.debug(`Health check registered: ${check.name} (${check.type}, ${interval}ms)`)
   }
 
   /**
@@ -101,10 +98,7 @@ export class HealthManager {
         lastChecked: new Date(),
       });
 
-      this.logger.warn(`[HealthManager] Health check failed: ${name}`, {
-        error: message,
-        latency,
-      });
+      this.logger.warn(`Health check failed: ${name} - ${message}`);
     }
   }
 
@@ -222,6 +216,6 @@ export class HealthManager {
       clearInterval(timer);
     }
     this.intervals.clear();
-    this.logger.info('[HealthManager] Shutdown complete');
+    this.logger.debug('Health manager shutdown complete');
   }
 }

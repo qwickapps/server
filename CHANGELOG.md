@@ -5,6 +5,29 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7] - 2025-12-07
+
+### Added
+
+- **PostgreSQL Plugin** (`createPostgresPlugin`)
+  - Connection pooling with configurable max connections
+  - Transaction support with `withTransaction()` callback
+  - Built-in health checks with configurable intervals
+  - Named instances for multi-database support
+  - Exports: `getPostgres()`, `hasPostgres()`
+
+- **Cache Plugin** (`createCachePlugin`)
+  - Redis-based caching using ioredis
+  - Key prefixing and configurable default TTL
+  - Full cache API: `get`, `set`, `delete`, `deletePattern`, `keys`, `flush`, `getStats`
+  - Built-in health checks
+  - Exports: `getCache()`, `hasCache()`
+
+### Changed
+
+- Renamed internal database plugin to postgres-plugin for clarity
+- Added backward compatibility aliases (`createDatabasePlugin`, `getDatabase`)
+
 ## [1.1.6] - 2025-12-07
 
 ### Added

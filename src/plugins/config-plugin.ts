@@ -101,7 +101,7 @@ export function createConfigPlugin(config: ConfigPluginConfig): ControlPanelPlug
     ],
 
     async onInit(context: PluginContext): Promise<void> {
-      context.logger.info(`[ConfigPlugin] Initialized with ${config.show.length} visible vars`);
+      context.logger.debug(`Config plugin initialized with ${config.show.length} vars`);
     },
   };
 }

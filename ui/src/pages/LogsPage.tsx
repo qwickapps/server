@@ -202,11 +202,9 @@ export function LogsPage() {
                     <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', width: 100 }}>
                       Level
                     </TableCell>
-                    {sources.length > 0 && (
-                      <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', width: 120 }}>
-                        Source
-                      </TableCell>
-                    )}
+                    <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', width: 120 }}>
+                      Component
+                    </TableCell>
                     <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>
                       Message
                     </TableCell>
@@ -230,11 +228,9 @@ export function LogsPage() {
                           }}
                         />
                       </TableCell>
-                      {sources.length > 0 && (
-                        <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>
-                          {log.source || '-'}
-                        </TableCell>
-                      )}
+                      <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', fontSize: '0.75rem' }}>
+                        {log.namespace || '-'}
+                      </TableCell>
                       <TableCell sx={{ color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)', fontFamily: 'monospace', fontSize: '0.8rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                         {log.message}
                       </TableCell>

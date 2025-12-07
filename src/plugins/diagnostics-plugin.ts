@@ -142,7 +142,7 @@ export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): C
     ],
 
     async onInit(context: PluginContext): Promise<void> {
-      context.logger.info('[DiagnosticsPlugin] Initialized');
+      context.logger.debug('Diagnostics plugin initialized');
     },
   };
 }

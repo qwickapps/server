@@ -41,9 +41,8 @@ describe('HealthManager', () => {
 
       healthManager.register(check);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining('Registered health check: test-check'),
-        expect.any(Object)
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Health check registered: test-check')
       );
     });
 
@@ -73,9 +72,8 @@ describe('HealthManager', () => {
 
       healthManager.register(check);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ interval: 30000 })
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('30000ms')
       );
     });
 
@@ -89,9 +87,8 @@ describe('HealthManager', () => {
 
       healthManager.register(check);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ interval: 10000 })
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('10000ms')
       );
     });
   });
@@ -305,7 +302,7 @@ describe('HealthManager', () => {
 
       healthManager.shutdown();
 
-      expect(mockLogger.info).toHaveBeenCalledWith('[HealthManager] Shutdown complete');
+      expect(mockLogger.debug).toHaveBeenCalledWith('Health manager shutdown complete');
     });
   });
 

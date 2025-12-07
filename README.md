@@ -315,7 +315,7 @@ const myPlugin: ControlPanelPlugin = {
     },
   ],
   initialize: async (context: PluginContext) => {
-    context.logger.info('My plugin initialized');
+    context.logger.debug('My plugin initialized');
   },
   shutdown: async () => {
     // Cleanup
