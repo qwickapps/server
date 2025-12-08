@@ -552,7 +552,7 @@ function generateDefaultLandingPageHtml(
 
   <div class="container">
     ${logoUrl
-      ? `<div class="logo custom"><img src="${logoUrl}" alt="${productName} logo" /></div>`
+      ? `<div class="logo custom"><img src="/logo.svg" alt="${productName} logo" /></div>`
       : `<div class="logo default">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
@@ -595,7 +595,8 @@ function generateDefaultLandingPageHtml(
       const desc = document.getElementById('description');
 
       try {
-        const res = await fetch('${apiBasePath}/health');
+        // Use /health (public, proxied from service) instead of control panel API
+        const res = await fetch('/health');
         const data = await res.json();
 
         badge.classList.remove('loading');
@@ -770,9 +771,20 @@ export function createGateway(
 
   // Setup frontend app at root path
   const setupFrontendApp = () => {
+    // Serve logo at /logo.svg if logoUrl is configured and customUiPath exists
+    if (config.logoUrl && config.customUiPath) {
+      const logoPath = resolve(config.customUiPath, 'logo.svg');
+      if (existsSync(logoPath)) {
+        controlPanel.app.get('/logo.svg', (_req, res) => {
+          res.sendFile(logoPath);
+        });
+        logger.debug('Frontend app: Serving logo at /logo.svg');
+      }
+    }
+
     // If no frontend app configured, serve default landing page with status
     if (!config.frontendApp) {
-      logger.info('Frontend app: Serving default landing page');
+      logger.debug('Frontend app: Serving default landing page');
       controlPanel.app.get('/', (_req, res) => {
         const html = generateDefaultLandingPageHtml(
           config.productName,
@@ -790,7 +802,7 @@ export function createGateway(
 
     // Priority 1: Redirect
     if (redirectUrl) {
-      logger.info(`Frontend app: Redirecting / to ${redirectUrl}`);
+      logger.debug(`Frontend app: Redirecting / to ${redirectUrl}`);
       controlPanel.app.get('/', (_req, res) => {
         res.redirect(redirectUrl);
       });
@@ -799,7 +811,7 @@ export function createGateway(
 
     // Priority 2: Serve static files
     if (staticPath && existsSync(staticPath)) {
-      logger.info(`Frontend app: Serving static files from ${staticPath}`);
+      logger.debug(`Frontend app: Serving static files from ${staticPath}`);
       controlPanel.app.use('/', express.static(staticPath));
 
       // SPA fallback for root
@@ -811,7 +823,7 @@ export function createGateway(
 
     // Priority 3: Landing page
     if (landingPage) {
-      logger.info(`Frontend app: Serving landing page`);
+      logger.debug(`Frontend app: Serving landing page`);
       controlPanel.app.get('/', (_req, res) => {
         const html = generateLandingPageHtml(landingPage, controlPanelPath);
         res.type('html').send(html);
@@ -820,12 +832,12 @@ export function createGateway(
   };
 
   const start = async (): Promise<void> => {
-    logger.info('Starting gateway...');
+    logger.debug('Starting gateway...');
 
     // 1. Start internal service
-    logger.info(`Starting internal service on port ${servicePort}...`);
+    logger.debug(`Starting internal service on port ${servicePort}...`);
     service = await serviceFactory(servicePort);
-    logger.info(`Internal service started on port ${servicePort}`);
+    logger.debug(`Internal service started on port ${servicePort}`);
 
     // 2. Setup proxy middleware (after service is started)
     setupProxyMiddleware();
@@ -836,30 +848,29 @@ export function createGateway(
     // 4. Start control panel gateway
     await controlPanel.start();
 
-    // Log startup info
-    logger.info(`${config.productName} Gateway`);
-    logger.info(`Gateway Port:  ${gatewayPort} (public)`);
-    logger.info(`Service Port:  ${servicePort} (internal)`);
-    
-    if (guardConfig && guardConfig.type === 'basic') {
-      logger.info(`Control Panel Auth: HTTP Basic Auth - Username: ${guardConfig.username}`);
-    } else if (guardConfig && guardConfig.type !== 'none') {
-      logger.info(`Control Panel Auth: ${guardConfig.type}`);
-    } else {
-      logger.info('Control Panel Auth: None (not recommended)');
-    }
+    // Log concise startup info
+    const authInfo = guardConfig?.type === 'basic'
+      ? `(auth: ${guardConfig.username})`
+      : guardConfig?.type && guardConfig.type !== 'none'
+        ? `(auth: ${guardConfig.type})`
+        : '(no auth)';
 
-    logger.info(`Frontend App: GET  /`);
-    logger.info(`Control Panel UI: GET ${controlPanelPath.padEnd(20)}`);
-    logger.info(`Gateway Health: GET ${apiBasePath}/health`);
-    logger.info(`Service Health: GET /health`);
+    logger.info(`${config.productName} started on port ${gatewayPort} ${authInfo}`);
+
+    // Log detailed route info at debug level
+    logger.debug(`Gateway Port:  ${gatewayPort} (public)`);
+    logger.debug(`Service Port:  ${servicePort} (internal)`);
+    logger.debug(`Frontend App: GET  /`);
+    logger.debug(`Control Panel UI: GET ${controlPanelPath}`);
+    logger.debug(`Gateway Health: GET ${apiBasePath}/health`);
+    logger.debug(`Service Health: GET /health`);
     for (const apiPath of proxyPaths) {
-      logger.info(`Service API: * ${apiPath}/*`);
+      logger.debug(`Service API: * ${apiPath}/*`);
     }
   };
 
   const stop = async (): Promise<void> => {
-    logger.info('Shutting down gateway...');
+    logger.debug('Shutting down gateway...');
 
     // Stop control panel
     await controlPanel.stop();
@@ -870,7 +881,7 @@ export function createGateway(
       service.server.close();
     }
 
-    logger.info('Gateway shutdown complete');
+    logger.debug('Gateway shutdown complete');
   };
 
   return {

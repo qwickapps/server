@@ -95,14 +95,15 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
   }
   app.use(compression());
 
-  // Apply route guard if configured
-  if (config.guard && config.guard.type !== 'none') {
-    const guardMiddleware = createRouteGuard(config.guard);
-    app.use(guardMiddleware);
-  }
-
   // Get mount path (defaults to /cpanel)
   const mountPath = config.mountPath || '/cpanel';
+
+  // Apply route guard if configured - only to the control panel mount path
+  if (config.guard && config.guard.type !== 'none') {
+    const guardMiddleware = createRouteGuard(config.guard);
+    // Only protect the control panel path, not the root or other paths
+    app.use(mountPath, guardMiddleware);
+  }
   const apiBasePath = mountPath === '/' ? '/api' : `${mountPath}/api`;
 
   // Request logging
@@ -276,7 +277,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
 
     return new Promise((resolve) => {
       server = app.listen(config.port, () => {
-        logger.info(`Control panel listening on port ${config.port}`);
+        logger.debug(`Control panel listening on port ${config.port}`);
         resolve();
       });
     });
@@ -298,7 +299,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     if (server) {
       return new Promise((resolve) => {
         server!.close(() => {
-          logger.info('Control panel stopped');
+          logger.debug('Control panel stopped');
           resolve();
         });
       });
