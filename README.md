@@ -130,6 +130,7 @@ The gateway is always responsive even if the internal API service crashes, allow
 | `cors` | `object` | No | CORS origins configuration |
 | `links` | `array` | No | Quick links for the dashboard |
 | `skipBodyParserPaths` | `string[]` | No | Paths to skip body parsing (for proxy) |
+| `logoUrl` | `string` | No | Custom logo URL for the landing page |
 
 ### Route Guards
 
@@ -296,6 +297,85 @@ createLogsPlugin({
   ],
 });
 ```
+
+#### PostgreSQL Plugin
+
+Provides connection pooling, transactions, and health checks for PostgreSQL databases.
+
+```typescript
+import { createPostgresPlugin, getPostgres } from '@qwickapps/server';
+
+// Register the plugin
+createPostgresPlugin({
+  connectionString: process.env.DATABASE_URL,
+  // Or individual options:
+  // host: 'localhost',
+  // port: 5432,
+  // database: 'mydb',
+  // user: 'postgres',
+  // password: 'secret',
+  maxConnections: 20,
+  healthCheckInterval: 30000,
+});
+
+// Use in your code
+const pg = getPostgres();
+const result = await pg.query('SELECT * FROM users WHERE id = $1', [userId]);
+
+// With transactions
+await pg.withTransaction(async (client) => {
+  await client.query('INSERT INTO orders ...');
+  await client.query('UPDATE inventory ...');
+});
+```
+
+**Exports:**
+- `createPostgresPlugin(config)` - Create and register the plugin
+- `getPostgres(name?)` - Get a PostgreSQL instance (throws if not registered)
+- `hasPostgres(name?)` - Check if an instance is registered
+- `PostgresInstance` - TypeScript type for the instance
+
+#### Cache Plugin
+
+Redis-based caching with key prefixing, TTL support, and pattern operations.
+
+```typescript
+import { createCachePlugin, getCache } from '@qwickapps/server';
+
+// Register the plugin
+createCachePlugin({
+  url: process.env.REDIS_URL,
+  // Or individual options:
+  // host: 'localhost',
+  // port: 6379,
+  // password: 'secret',
+  keyPrefix: 'myapp:',
+  defaultTTL: 3600, // 1 hour default
+  healthCheckInterval: 30000,
+});
+
+// Use in your code
+const cache = getCache();
+
+// Basic operations
+await cache.set('user:123', userData, 600); // TTL in seconds
+const user = await cache.get('user:123');
+await cache.delete('user:123');
+
+// Pattern operations
+const keys = await cache.keys('user:*');
+await cache.deletePattern('session:*');
+
+// Stats and maintenance
+const stats = await cache.getStats();
+await cache.flush(); // Clear all keys with prefix
+```
+
+**Exports:**
+- `createCachePlugin(config)` - Create and register the plugin
+- `getCache(name?)` - Get a cache instance (throws if not registered)
+- `hasCache(name?)` - Check if an instance is registered
+- `CacheInstance` - TypeScript type for the instance
 
 ### Creating Custom Plugins
 

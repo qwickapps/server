@@ -5,6 +5,20 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-12-08
+
+### Changed
+
+- **Reduced Log Verbosity**
+  - Moved verbose startup messages to debug level
+  - Gateway now logs single concise INFO line: `{productName} started on port {port} (auth: {type})`
+  - Detailed route, port, and configuration info logged at debug level
+  - Control panel start/stop messages moved to debug level
+
+### Notes
+
+This release includes all features from 1.1.7-1.1.9 (PostgreSQL plugin, Cache plugin, Route Guards, Gateway enhancements) which were not published to npm. If upgrading from 1.1.6, see those version entries for full feature list.
+
 ## [1.1.9] - 2025-12-07
 
 ### Added

@@ -2,13 +2,20 @@
 
 ## Overview
 
-The control panel is a reusable Express-based framework for building administrative dashboards with authentication, health monitoring, and extensible plugin architecture.
+@qwickapps/server is a plugin-based application server framework for building websites, APIs, admin dashboards, and full-stack products. It provides a production-ready gateway pattern with built-in health monitoring, authentication, and extensible plugin architecture.
 
 ## System Design
 
+### Gateway Architecture
+
+The gateway pattern separates the control panel from the internal service, ensuring the admin dashboard remains responsive even if the API crashes:
+
 ```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│                        @qwickapps/server                            │
+                                Internet
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        Gateway (Public Port 3101)                          │
 │                                                                            │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
 │  │                         Express Application                          │  │
@@ -17,196 +24,193 @@ The control panel is a reusable Express-based framework for building administrat
 │  │  │   Helmet    │→ │    CORS     │→ │ Body Parser │→ │ Compression │  │  │
 │  │  │ (Security)  │  │ (Origins)   │  │ (Cond.)     │  │             │  │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │  │
-│  │         │                                                            │  │
-│  │         ▼                                                            │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │                    Authentication Layer                         │ │  │
-│  │  │                                                                 │ │  │
-│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐         │ │  │
-│  │  │  │ Supabase │  │  Basic   │  │   JWT    │  │  Custom  │         │ │  │
-│  │  │  │  OAuth   │  │   Auth   │  │   Auth   │  │Middleware│         │ │  │
-│  │  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘         │ │  │
-│  │  │                                                                 │ │  │
-│  │  │  ┌──────────────────────────────────────────────────────────┐   │ │  │
-│  │  │  │              Localhost Bypass (Development)              │   │ │  │
-│  │  │  └──────────────────────────────────────────────────────────┘   │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  │         │                                                            │  │
-│  │         ▼                                                            │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │                      Route Handlers                             │ │  │
-│  │  │                                                                 │ │  │
-│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐         │ │  │
-│  │  │  │Dashboard │  │  Auth    │  │  Health  │  │ Plugins  │         │ │  │
-│  │  │  │   UI     │  │  Routes  │  │   API    │  │  Routes  │         │ │  │
-│  │  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘         │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                      │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐   │  │
+│  │  │                     Route Guards                              │   │  │
+│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │   │  │
+│  │  │  │   None   │  │  Basic   │  │  Auth0   │  │ Supabase │       │   │  │
+│  │  │  │          │  │   Auth   │  │  OIDC    │  │  OAuth   │       │   │  │
+│  │  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘       │   │  │
+│  │  └───────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                      │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐   │  │
+│  │  │                      Route Handlers                           │   │  │
+│  │  │                                                               │   │  │
+│  │  │  /              → Landing Page or Frontend App                │   │  │
+│  │  │  /health        → Health Status (public)                      │   │  │
+│  │  │  /cpanel/*      → Control Panel Dashboard (guarded)           │   │  │
+│  │  │  /cpanel/api/*  → Control Panel API                           │   │  │
+│  │  │  /api/*         → Proxy to Internal Service                   │   │  │
+│  │  └───────────────────────────────────────────────────────────────┘   │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                            │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                         Plugin System                                │  │
-│  │                                                                      │  │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                │  │
-│  │  │Health Plugin │  │  Log Plugin  │  │Custom Plugin │  ...           │  │
-│  │  │              │  │              │  │              │                │  │
-│  │  │• HTTP Checks │  │• Stats       │  │• Custom      │                │  │
-│  │  │• Custom Chks │  │• Logfire     │  │  Routes      │                │  │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘                │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
-│                                                                            │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                       Health Manager                                 │  │
-│  │                                                                      │  │
-│  │  • Registers health checks from plugins                              │  │
-│  │  • Periodic check execution                                          │  │
-│  │  • Aggregated health status                                          │  │
-│  │  • Status caching with TTL                                           │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                        HTTP Proxy Middleware                          │ │
+│  │                                                                       │ │
+│  │  Proxies /api/* requests to Internal Service (localhost:3100)         │ │
+│  │  Returns graceful error responses when service is unavailable         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────────┘
-```
-
-## Component Details
-
-### Authentication System
-
-The authentication layer supports multiple providers with a unified interface:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Authentication Flow                      │
-│                                                             │
-│  Request                                                    │
-│     │                                                       │
-│     ▼                                                       │
-│  ┌──────────────────┐                                       │
-│  │ Localhost Check  │──── Is localhost? ──── Yes ───► Pass  │
-│  └────────┬─────────┘                                       │
-│           │ No                                              │
-│           ▼                                                 │
-│  ┌──────────────────┐                                       │
-│  │ Provider Router  │                                       │
-│  └────────┬─────────┘                                       │
-│           │                                                 │
-│     ┌─────┴─────┬─────────────┬────────────┐                │
-│     ▼           ▼             ▼            ▼                │
-│ ┌────────┐ ┌────────┐   ┌────────┐   ┌────────┐             │
-│ │Supabase│ │ Basic  │   │  JWT   │   │ Custom │             │
-│ │ OAuth  │ │  Auth  │   │  Auth  │   │Midware │             │
-│ └────────┘ └────────┘   └────────┘   └────────┘             │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-#### Supabase OAuth Flow
-
-```text
-1. User visits protected route
-2. Middleware checks for auth cookie
-3. If no cookie, redirect to /auth/login
-4. Login page initiates OAuth with Supabase
-5. User authenticates with provider (Google, GitHub, etc.)
-6. Callback receives tokens, validates email whitelist
-7. Sets secure HTTP-only cookie with JWT
-8. User redirected to original destination
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                    Internal Service (Port 3100, localhost only)            │
+│                                                                            │
+│  Your application's API endpoints, business logic, database connections    │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Plugin System
 
-Plugins extend the control panel with custom functionality:
+Plugins extend the server with custom functionality. Each plugin can register routes, health checks, and lifecycle hooks:
 
-```typescript
-interface ControlPanelPlugin {
-  name: string;           // Unique identifier
-  order?: number;         // Display/init order
-  routes?: Route[];       // Custom API routes
-  initialize?: (ctx) => Promise<void>;
-  shutdown?: () => Promise<void>;
-}
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│                              Plugin System                                  │
+│                                                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        Built-in Plugins                             │   │
+│  │                                                                     │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │   │
+│  │  │Health Plugin │  │ Logs Plugin  │  │Config Plugin │               │   │
+│  │  │              │  │              │  │              │               │   │
+│  │  │• HTTP Checks │  │• File logs   │  │• Env display │               │   │
+│  │  │• Custom Chks │  │• Streaming   │  │• Masking     │               │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
+│  │                                                                     │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │   │
+│  │  │Postgres      │  │Cache Plugin  │  │FrontendApp   │               │   │
+│  │  │Plugin        │  │              │  │Plugin        │               │   │
+│  │  │              │  │              │  │              │               │   │
+│  │  │• Pool mgmt   │  │• Redis cache │  │• Redirects   │               │   │
+│  │  │• Transactions│  │• Key prefix  │  │• Static      │               │   │
+│  │  │• Health chks │  │• TTL support │  │• Landing pg  │               │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        Custom Plugins                               │   │
+│  │                                                                     │   │
+│  │  interface ControlPanelPlugin {                                     │   │
+│  │    name: string;                                                    │   │
+│  │    order?: number;                                                  │   │
+│  │    routes?: Route[];                                                │   │
+│  │    onInit?: (ctx: PluginContext) => Promise<void>;                  │   │
+│  │    onShutdown?: () => Promise<void>;                                │   │
+│  │  }                                                                  │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
-
-Plugin lifecycle:
-
-1. Registration during `createControlPanel()`
-2. Routes mounted on Express app
-3. `initialize()` called with plugin context
-4. Health checks registered via context
-5. `shutdown()` called on server stop
 
 ### Health Manager
 
-Centralized health check orchestration:
+Centralized health check orchestration with caching and aggregation:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│                      Health Manager                          │
-│                                                              │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │                    Check Registry                      │  │
-│  │                                                        │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │  │
-│  │  │HTTP Check│  │TCP Check │  │Custom Fn │  ...         │  │
-│  │  │ interval │  │ interval │  │ interval │              │  │
-│  │  └────┬─────┘  └────┬─────┘  └────┬─────┘              │  │
-│  │       │             │             │                    │  │
-│  └───────┼─────────────┼─────────────┼────────────────────┘  │
-│          │             │             │                       │
-│          ▼             ▼             ▼                       │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │                   Result Cache                         │  │
-│  │                                                        │  │
-│  │  { name: status, latency, lastChecked, details }       │  │
-│  └────────────────────────────────────────────────────────┘  │
-│                              │                               │
-│                              ▼                               │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │              GET /api/health                           │  │
-│  │                                                        │  │
-│  │  { status: "healthy|unhealthy", checks: {...} }        │  │
-│  └────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                        Health Manager                             │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                     Check Registry                          │  │
+│  │                                                             │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │  │
+│  │  │HTTP Check│  │ Postgres │  │  Redis   │  │ Custom   │     │  │
+│  │  │          │  │  Check   │  │  Check   │  │  Check   │     │  │
+│  │  │ 10s int  │  │ 30s int  │  │ 30s int  │  │ N int    │     │  │
+│  │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘     │  │
+│  │       │             │             │             │           │  │
+│  └───────┼─────────────┼─────────────┼─────────────┼───────────┘  │
+│          │             │             │             │              │
+│          ▼             ▼             ▼             ▼              │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                     Result Cache                            │  │
+│  │                                                             │  │
+│  │  { name: status, latency, lastChecked, details }            │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                              │                                    │
+│                              ▼                                    │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                  GET /health                                │  │
+│  │                                                             │  │
+│  │  {                                                          │  │
+│  │    status: "healthy" | "degraded" | "unhealthy",            │  │
+│  │    timestamp: "...",                                        │  │
+│  │    uptime: 12345,                                           │  │
+│  │    checks: { ... }                                          │  │
+│  │  }                                                          │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### Body Parser Bypass
+### Route Guard System
 
-For gateway/proxy use cases, body parsing can be selectively disabled:
+Unified authentication with multiple provider support:
 
 ```text
-Request
-   │
-   ▼
-┌──────────────────┐
-│ Path Check       │
-│                  │
-│ /api/v1/*? ──────┼──── Yes ───► Skip body parsing ───► Proxy
-│ /health?   ──────┼──── Yes ───► Skip body parsing ───► Proxy
-│                  │
-└────────┬─────────┘
-         │ No
-         ▼
-┌──────────────────┐
-│  express.json()  │
-│                  │
-│  Parse body for  │
-│  control panel   │
-│  routes          │
-└──────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Route Guard Flow                          │
+│                                                              │
+│  Request                                                     │
+│     │                                                        │
+│     ▼                                                        │
+│  ┌──────────────────┐                                        │
+│  │ Excluded Path?   │──── Yes ───────────────────────► Pass  │
+│  │ /health, /api/*  │                                        │
+│  └────────┬─────────┘                                        │
+│           │ No                                               │
+│           ▼                                                  │
+│  ┌──────────────────┐                                        │
+│  │  Guard Type?     │                                        │
+│  └────────┬─────────┘                                        │
+│           │                                                  │
+│     ┌─────┴─────┬──────────────┬────────────┐                │
+│     ▼           ▼              ▼            ▼                │
+│ ┌────────┐ ┌────────┐   ┌──────────┐   ┌────────┐            │
+│ │  None  │ │ Basic  │   │  Auth0   │   │Supabase│            │
+│ │        │ │  Auth  │   │   OIDC   │   │  JWT   │            │
+│ │  Pass  │ │        │   │          │   │        │            │
+│ └────────┘ │ Check  │   │ Redirect │   │ Verify │            │
+│            │ Header │   │ to login │   │ Token  │            │
+│            └────────┘   └──────────┘   └────────┘            │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## File Structure
 
 ```text
-qwickapps-control-panel/
+@qwickapps/server/
 ├── src/
+│   ├── index.ts                    # Package entry point
 │   ├── core/
-│   │   ├── index.ts            # Public exports
-│   │   ├── control-panel.ts    # Main factory function
-│   │   ├── types.ts            # TypeScript interfaces
-│   │   ├── health-manager.ts   # Health check orchestration
-│   │   └── supabase-auth.ts    # OAuth implementation
+│   │   ├── index.ts                # Core exports
+│   │   ├── control-panel.ts        # Control panel factory
+│   │   ├── gateway.ts              # Gateway pattern implementation
+│   │   ├── guards.ts               # Route guard implementations
+│   │   ├── health-manager.ts       # Health check orchestration
+│   │   ├── logging.ts              # Logging subsystem
+│   │   └── types.ts                # TypeScript interfaces
 │   │
-│   └── index.ts                # Package entry point
+│   └── plugins/
+│       ├── index.ts                # Plugin exports
+│       ├── health-plugin.ts        # Health monitoring
+│       ├── logs-plugin.ts          # Log viewer
+│       ├── config-plugin.ts        # Configuration display
+│       ├── diagnostics-plugin.ts   # System diagnostics
+│       ├── frontend-app-plugin.ts  # Root path handling
+│       ├── postgres-plugin.ts      # PostgreSQL connection pooling
+│       └── cache-plugin.ts         # Redis caching
 │
-├── dist/                       # Compiled output
+├── ui/                             # React dashboard UI
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── pages/
+│   │   └── components/
+│   └── vite.config.ts
+│
+├── dist/                           # Compiled server code
+├── dist-ui/                        # Built dashboard UI
+├── tests/                          # Test files
 ├── package.json
 ├── tsconfig.json
 ├── README.md
@@ -214,66 +218,133 @@ qwickapps-control-panel/
 └── ARCHITECTURE.md
 ```
 
+## Key Components
+
+### createGateway()
+
+The main factory function for production deployments:
+
+```typescript
+const gateway = createGateway(
+  {
+    productName: 'My Service',
+    gatewayPort: 3101,      // Public port
+    servicePort: 3100,      // Internal API port
+    controlPanelPath: '/cpanel',
+    controlPanelGuard: { type: 'basic', username: 'admin', password: '...' },
+    proxyPaths: ['/api'],
+    plugins: [...],
+  },
+  async (port) => {
+    // Service factory - creates your internal API
+    const app = createMyApp();
+    return { app, server: app.listen(port), shutdown: async () => {} };
+  }
+);
+
+await gateway.start();
+```
+
+### createControlPanel()
+
+Standalone control panel without gateway (for embedding):
+
+```typescript
+const controlPanel = createControlPanel({
+  config: { productName: 'My App', port: 3101, ... },
+  plugins: [...],
+});
+
+await controlPanel.start();
+```
+
+### Plugin Context
+
+Plugins receive a context object with access to the application:
+
+```typescript
+interface PluginContext {
+  config: ControlPanelConfig;
+  app: Express.Application;
+  router: Express.Router;
+  logger: Logger;
+  registerHealthCheck: (check: HealthCheck) => void;
+}
+```
+
 ## Security Considerations
 
 ### Authentication
 
-- Supabase OAuth uses secure token exchange
-- JWT stored in HTTP-only cookies (XSS protection)
-- Email whitelist restricts access to authorized users
-- Localhost bypass only in development
+- Basic auth uses HTTP WWW-Authenticate challenge
+- Auth0 OIDC uses secure token exchange and HTTP-only cookies
+- Supabase validates JWT tokens on each request
+- Guards can exclude specific paths (e.g., `/health`)
 
 ### Headers
 
 - Helmet middleware sets security headers
 - CORS configured with explicit origins
-- Content-Security-Policy allows inline scripts for basic UI
+- Content-Security-Policy allows inline scripts for dashboard UI
 
-### Session Management
+### Network Isolation
 
-- JWT tokens have configurable expiration
-- Logout clears cookies and redirects
-- No sensitive data stored client-side
+- Internal service binds to localhost only
+- Only gateway port is exposed publicly
+- Proxy middleware handles request forwarding securely
 
 ## Usage Patterns
 
-### As Standalone Dashboard
+### Production Gateway
 
 ```typescript
-const controlPanel = createControlPanel({
-  config: { productName: 'My App', port: 3101, ... },
-  plugins: [createHealthPlugin({ ... })],
-});
+import { createGateway, createPostgresPlugin, createCachePlugin } from '@qwickapps/server';
 
-await controlPanel.start();
-```
-
-### As Gateway with Proxy
-
-```typescript
-const controlPanel = createControlPanel({
-  config: {
-    productName: 'API Gateway',
-    port: 3101,
-    skipBodyParserPaths: ['/api/v1'],
-    ...
+const gateway = createGateway(
+  {
+    productName: 'My API',
+    gatewayPort: 3101,
+    servicePort: 3100,
+    controlPanelPath: '/cpanel',
+    controlPanelGuard: {
+      type: 'basic',
+      username: process.env.ADMIN_USER!,
+      password: process.env.ADMIN_PASSWORD!,
+    },
+    proxyPaths: ['/api/v1'],
+    plugins: [
+      createPostgresPlugin({ connectionString: process.env.DATABASE_URL }),
+      createCachePlugin({ url: process.env.REDIS_URL }),
+    ],
   },
-});
+  async (port) => createMyApiService(port)
+);
 
-// Add proxy middleware after control panel creation
-controlPanel.app.use(createProxyMiddleware({
-  target: 'http://localhost:3100',
-  pathFilter: '/api/v1/**',
-}));
-
-await controlPanel.start();
+await gateway.start();
 ```
 
-### Embedded in Existing App
+### Embedded Dashboard
 
 ```typescript
-const controlPanel = createControlPanel({ ... });
+import { createControlPanel } from '@qwickapps/server';
 
-// Use controlPanel.app as middleware
+const controlPanel = createControlPanel({
+  config: { productName: 'Admin', port: 3101 },
+  plugins: [],
+});
+
+// Use as middleware
 myApp.use('/admin', controlPanel.app);
 ```
+
+## Performance Considerations
+
+- Health checks run on configurable intervals (not per-request)
+- Results are cached and served from memory
+- Proxy middleware streams responses (no buffering)
+- PostgreSQL plugin uses connection pooling
+- Cache plugin uses Redis pipelining where applicable
+
+---
+
+Copyright (c) 2025 QwickApps. All rights reserved.
