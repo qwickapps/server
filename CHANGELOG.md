@@ -5,6 +5,31 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.9] - 2025-12-07
+
+### Added
+
+- **Configurable Logo for Landing Page**
+  - New `logoUrl` option in `GatewayConfig` to specify a custom product logo
+  - When set, the landing page displays the custom logo instead of the default icon
+  - Supports SVG, PNG, and other image formats
+
+### Changed
+
+- **Default Landing Page**
+  - Logo container now supports both custom images and the default SVG icon
+  - Added CSS classes `.logo.custom` and `.logo.default` for differentiated styling
+
+## [1.1.8] - 2025-12-07
+
+### Changed
+
+- **Default Landing Page**
+  - Removed "Health Check" button (health can be checked via control panel)
+  - Updated footer to "Powered by QwickApps Server - Version x.y.z"
+  - "QwickApps Server" links to https://qwickapps.com
+  - Version links to https://github.com/qwickapps/server
+
 ## [1.1.7] - 2025-12-07
 
 ### Added

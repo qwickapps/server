@@ -34,7 +34,7 @@ export interface LoggingConfig {
 
 // Default configuration
 const DEFAULT_CONFIG: Required<LoggingConfig> = {
-  namespace: 'ControlPanel',
+  namespace: 'App',
   level: (process.env.LOG_LEVEL as LogLevel) || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
   logDir: process.env.LOG_DIR || './logs',
   fileLogging: process.env.LOG_FILE !== 'false',

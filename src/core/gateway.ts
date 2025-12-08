@@ -43,6 +43,12 @@ export interface GatewayConfig {
   /** Product version */
   version?: string;
 
+  /**
+   * URL to the product logo image (SVG, PNG, etc.).
+   * Used on the default landing page when no frontend app is configured.
+   */
+  logoUrl?: string;
+
   /** Branding configuration */
   branding?: ControlPanelConfig['branding'];
 
@@ -249,6 +255,381 @@ function generateLandingPageHtml(
 }
 
 /**
+ * Generate default landing page HTML when no frontend app is configured
+ * Shows system status with animated background
+ */
+function generateDefaultLandingPageHtml(
+  productName: string,
+  controlPanelPath: string,
+  apiBasePath: string,
+  version: string,
+  logoUrl?: string
+): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${productName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.4);
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --bg-dark: #0a0a0f;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Animated gradient background */
+    .bg-gradient {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+      animation: gradientShift 15s ease-in-out infinite;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% {
+        background-position: 0% 0%, 100% 100%, 50% 50%;
+        opacity: 1;
+      }
+      50% {
+        background-position: 100% 0%, 0% 100%, 50% 50%;
+        opacity: 0.8;
+      }
+    }
+
+    /* Floating particles */
+    .particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--primary);
+      border-radius: 50%;
+      opacity: 0.3;
+      animation: float 20s infinite;
+    }
+
+    .particle:nth-child(1) { left: 10%; animation-delay: 0s; animation-duration: 25s; }
+    .particle:nth-child(2) { left: 20%; animation-delay: 2s; animation-duration: 20s; }
+    .particle:nth-child(3) { left: 30%; animation-delay: 4s; animation-duration: 28s; }
+    .particle:nth-child(4) { left: 40%; animation-delay: 1s; animation-duration: 22s; }
+    .particle:nth-child(5) { left: 50%; animation-delay: 3s; animation-duration: 24s; }
+    .particle:nth-child(6) { left: 60%; animation-delay: 5s; animation-duration: 26s; }
+    .particle:nth-child(7) { left: 70%; animation-delay: 2s; animation-duration: 21s; }
+    .particle:nth-child(8) { left: 80%; animation-delay: 4s; animation-duration: 23s; }
+    .particle:nth-child(9) { left: 90%; animation-delay: 1s; animation-duration: 27s; }
+
+    @keyframes float {
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      10% { opacity: 0.3; }
+      90% { opacity: 0.3; }
+      100% { transform: translateY(-100vh) scale(1); opacity: 0; }
+    }
+
+    /* Grid pattern overlay */
+    .grid-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      max-width: 500px;
+      padding: 3rem 2rem;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: logoFloat 6s ease-in-out infinite;
+    }
+
+    .logo.default {
+      background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px var(--primary-glow);
+    }
+
+    .logo.custom {
+      filter: drop-shadow(0 20px 40px var(--primary-glow));
+    }
+
+    @keyframes logoFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .logo svg {
+      width: 48px;
+      height: 48px;
+      fill: white;
+    }
+
+    .logo img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 100px;
+      margin: 1.5rem 0 2rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 10px var(--success);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.degraded {
+      background: var(--warning);
+      box-shadow: 0 0 10px var(--warning);
+    }
+
+    .status-dot.unhealthy {
+      background: var(--error);
+      box-shadow: 0 0 10px var(--error);
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+
+    .status-text {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    .link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1.75rem;
+      background: var(--primary);
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 500;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px var(--primary-glow);
+    }
+
+    .link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--primary-glow);
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      z-index: 10;
+    }
+
+    .footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Loading state */
+    .loading .status-dot {
+      background: var(--text-secondary);
+      box-shadow: none;
+      animation: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-gradient"></div>
+  <div class="particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+  <div class="grid-overlay"></div>
+
+  <div class="container">
+    ${logoUrl
+      ? `<div class="logo custom"><img src="${logoUrl}" alt="${productName} logo" /></div>`
+      : `<div class="logo default">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+    </div>`}
+
+    <h1>${productName}</h1>
+
+    <div class="status-badge loading" id="status-badge">
+      <div class="status-dot" id="status-dot"></div>
+      <span class="status-text" id="status-text">Checking status...</span>
+    </div>
+
+    <p class="description" id="description">
+      Enterprise-grade service powered by QwickApps
+    </p>
+
+    <div class="links">
+      <a href="${controlPanelPath}" class="link">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        Control Panel
+      </a>
+    </div>
+  </div>
+
+  <div class="footer">
+    Powered by <a href="https://qwickapps.com" target="_blank">QwickApps Server</a> - <a href="https://github.com/qwickapps/server" target="_blank">Version ${version}</a>
+  </div>
+
+  <script>
+    async function checkStatus() {
+      const badge = document.getElementById('status-badge');
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      const desc = document.getElementById('description');
+
+      try {
+        const res = await fetch('${apiBasePath}/health');
+        const data = await res.json();
+
+        badge.classList.remove('loading');
+
+        if (data.status === 'healthy') {
+          dot.className = 'status-dot';
+          text.textContent = 'All systems operational';
+          desc.textContent = 'The service is running smoothly and ready to handle requests.';
+        } else if (data.status === 'degraded') {
+          dot.className = 'status-dot degraded';
+          text.textContent = 'Degraded performance';
+          desc.textContent = 'Some services may be experiencing issues. Core functionality remains available.';
+        } else {
+          dot.className = 'status-dot unhealthy';
+          text.textContent = 'System maintenance';
+          desc.textContent = 'The service is currently undergoing maintenance. Please check back shortly.';
+        }
+      } catch (e) {
+        badge.classList.remove('loading');
+        dot.className = 'status-dot unhealthy';
+        text.textContent = 'Unable to connect';
+        desc.textContent = 'Could not reach the service. Please try again later.';
+      }
+    }
+
+    // Check status on load and every 30 seconds
+    checkStatus();
+    setInterval(checkStatus, 30000);
+  </script>
+</body>
+</html>`;
+}
+
+/**
  * Create a gateway that proxies to an internal service
  *
  * @param config - Gateway configuration
@@ -305,6 +686,9 @@ export function createGateway(
   // API paths to proxy
   const proxyPaths = config.proxyPaths || ['/api/v1'];
 
+  // Version for display
+  const version = config.version || process.env.npm_package_version || '1.0.0';
+
   let service: GatewayInstance['service'] = null;
 
   // Create control panel
@@ -312,7 +696,7 @@ export function createGateway(
     config: {
       productName: config.productName,
       port: gatewayPort,
-      version: config.version || process.env.npm_package_version || '1.0.0',
+      version,
       branding: config.branding,
       cors: config.corsOrigins ? { origins: config.corsOrigins } : undefined,
       // Skip body parsing for proxied paths
@@ -381,9 +765,24 @@ export function createGateway(
     controlPanel.app.use(createProxyMiddleware(healthProxyOptions));
   };
 
+  // Calculate API base path for landing page
+  const apiBasePath = controlPanelPath === '/' ? '/api' : `${controlPanelPath}/api`;
+
   // Setup frontend app at root path
   const setupFrontendApp = () => {
+    // If no frontend app configured, serve default landing page with status
     if (!config.frontendApp) {
+      logger.info('Frontend app: Serving default landing page');
+      controlPanel.app.get('/', (_req, res) => {
+        const html = generateDefaultLandingPageHtml(
+          config.productName,
+          controlPanelPath,
+          apiBasePath,
+          version,
+          config.logoUrl
+        );
+        res.type('html').send(html);
+      });
       return;
     }
 
@@ -437,9 +836,6 @@ export function createGateway(
     // 4. Start control panel gateway
     await controlPanel.start();
 
-    // Calculate API base path
-    const apiBasePath = controlPanelPath === '/' ? '/api' : `${controlPanelPath}/api`;
-
     // Log startup info
     logger.info(`${config.productName} Gateway`);
     logger.info(`Gateway Port:  ${gatewayPort} (public)`);
@@ -453,9 +849,7 @@ export function createGateway(
       logger.info('Control Panel Auth: None (not recommended)');
     }
 
-    if (config.frontendApp) {
-      logger.info(`Frontend App: GET  /`);
-    }
+    logger.info(`Frontend App: GET  /`);
     logger.info(`Control Panel UI: GET ${controlPanelPath.padEnd(20)}`);
     logger.info(`Gateway Health: GET ${apiBasePath}/health`);
     logger.info(`Service Health: GET /health`);
