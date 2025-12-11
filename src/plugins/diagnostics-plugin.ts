@@ -9,7 +9,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import type { Request, Response } from 'express';
-import type { ControlPanelPlugin, PluginContext } from '../core/types.js';
+import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
 
 export interface DiagnosticsPluginConfig {
   include?: {
@@ -31,7 +31,7 @@ export interface DiagnosticsPluginConfig {
 /**
  * Create a diagnostics plugin for AI agents
  */
-export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): ControlPanelPlugin {
+export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): Plugin {
   const {
     include = { logs: { startup: 100, app: 200 }, health: true, config: true, system: true },
     logPaths = { startup: './logs/startup.log', app: './logs/app.log' },
@@ -39,13 +39,18 @@ export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): C
   } = config;
 
   return {
-    name: 'diagnostics',
-    order: 40,
+    id: 'diagnostics',
+    name: 'Diagnostics Plugin',
+    version: '1.0.0',
 
-    routes: [
-      {
+    async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('diagnostics');
+
+      // Register full diagnostics endpoint
+      registry.addRoute({
         method: 'get',
         path: endpoint,
+        pluginId: 'diagnostics',
         handler: (_req: Request, res: Response) => {
           try {
             const report: Record<string, unknown> = {
@@ -113,10 +118,13 @@ export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): C
             });
           }
         },
-      },
-      {
+      });
+
+      // Register summary diagnostics endpoint
+      registry.addRoute({
         method: 'get',
         path: '/diagnostics/summary',
+        pluginId: 'diagnostics',
         handler: (_req: Request, res: Response) => {
           try {
             const memUsage = process.memoryUsage();
@@ -138,11 +146,13 @@ export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): C
             });
           }
         },
-      },
-    ],
+      });
 
-    async onInit(context: PluginContext): Promise<void> {
-      context.logger.debug('Diagnostics plugin initialized');
+      logger.debug('Diagnostics plugin initialized');
+    },
+
+    async onStop(): Promise<void> {
+      // Nothing to cleanup
     },
   };
 }

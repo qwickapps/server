@@ -10,7 +10,7 @@ import express, { type Application, type Router, type Request, type Response } f
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { HealthManager } from './health-manager.js';
@@ -18,13 +18,17 @@ import { initializeLogging, getControlPanelLogger, type LoggingConfig } from './
 import { createRouteGuard } from './guards.js';
 import type {
   ControlPanelConfig,
-  ControlPanelPlugin,
   ControlPanelInstance,
-  PluginContext,
   DiagnosticsReport,
   HealthCheck,
   Logger,
 } from './types.js';
+import {
+  createPluginRegistry,
+  type Plugin,
+  type PluginConfig,
+  type PluginRegistryImpl,
+} from './plugin-registry.js';
 
 // Get the package root directory for serving UI assets
 const __filename = fileURLToPath(import.meta.url);
@@ -35,9 +39,22 @@ const packageRoot = __dirname.includes('/src/')
   : join(__dirname, '..', '..');
 const uiDistPath = join(packageRoot, 'dist-ui');
 
+// Read @qwickapps/server package version
+let frameworkVersion = '1.0.0';
+try {
+  const packageJsonPath = join(packageRoot, 'package.json');
+  if (existsSync(packageJsonPath)) {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+    frameworkVersion = packageJson.version || '1.0.0';
+  }
+} catch {
+  // Keep default version if reading fails
+}
+
 export interface CreateControlPanelOptions {
   config: ControlPanelConfig;
-  plugins?: ControlPanelPlugin[];
+  /** Plugins to start with the control panel */
+  plugins?: Array<{ plugin: Plugin; config?: PluginConfig }>;
   logger?: Logger;
   /** Logging configuration */
   logging?: LoggingConfig;
@@ -61,9 +78,17 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
   const app: Application = express();
   const router: Router = express.Router();
   const healthManager = new HealthManager(logger);
-  const registeredPlugins: ControlPanelPlugin[] = [];
   let server: ReturnType<typeof app.listen> | null = null;
   const startTime = Date.now();
+
+  // Initialize the new plugin registry
+  const pluginRegistry = createPluginRegistry(
+    app,
+    router,
+    logger,
+    healthManager,
+    getControlPanelLogger
+  );
 
   // Security middleware
   app.use(
@@ -155,6 +180,30 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
   });
 
   /**
+   * GET /api/ui-contributions - UI contributions from all plugins
+   *
+   * Returns menu items, pages, and widgets registered by plugins.
+   * Used by the React UI to build dynamic navigation and pages.
+   */
+  router.get('/ui-contributions', (_req: Request, res: Response) => {
+    res.json({
+      menuItems: pluginRegistry.getMenuItems(),
+      pages: pluginRegistry.getPages(),
+      widgets: pluginRegistry.getWidgets(),
+      plugins: pluginRegistry.listPlugins(),
+    });
+  });
+
+  /**
+   * GET /api/plugins - List all registered plugins
+   */
+  router.get('/plugins', (_req: Request, res: Response) => {
+    res.json({
+      plugins: pluginRegistry.listPlugins(),
+    });
+  });
+
+  /**
    * Serve dashboard UI at the configured mount path
    *
    * Priority:
@@ -171,22 +220,61 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
 
     if (useRichUI) {
       logger.debug(`Serving React UI from ${effectiveUiPath}`);
+
+      // Read index.html template
+      const indexHtmlPath = join(effectiveUiPath, 'index.html');
+      const indexHtmlTemplate = readFileSync(indexHtmlPath, 'utf-8');
+
+      /**
+       * Get index.html with the base path injected.
+       *
+       * The server injects the base path as window.__APP_BASE_PATH__ so the React app
+       * can read it at runtime without complex detection logic. This is the standard
+       * pattern used by frameworks like Next.js (__NEXT_DATA__).
+       *
+       * When served behind a gateway proxy, use X-Forwarded-Prefix to determine
+       * the public path for assets and the React Router basename.
+       */
+      const getIndexHtml = (req: Request): string => {
+        // Determine the effective public path:
+        // - If X-Forwarded-Prefix header is set (proxied), use that
+        // - Otherwise, use the configured mountPath
+        const forwardedPrefix = req.get('X-Forwarded-Prefix');
+        const effectivePath = forwardedPrefix || mountPath;
+        const normalizedPath = effectivePath === '/' ? '' : effectivePath;
+
+        // Inject base path as global variable before other scripts
+        const basePathScript = `<script>window.__APP_BASE_PATH__="${normalizedPath}";</script>`;
+        let html = indexHtmlTemplate.replace('<head>', `<head>\n    ${basePathScript}`);
+
+        // Rewrite asset paths if mounted at a subpath
+        if (normalizedPath) {
+          html = html.replace(/src="\/assets\//g, `src="${normalizedPath}/assets/`);
+          html = html.replace(/href="\/assets\//g, `href="${normalizedPath}/assets/`);
+        }
+
+        return html;
+      };
+
       // Serve static assets from dist-ui at the mount path
-      app.use(mountPath, express.static(effectiveUiPath));
+      // Disable index: false to prevent serving index.html automatically
+      // We handle index.html separately with rewritten asset paths
+      app.use(mountPath, express.static(effectiveUiPath, { index: false }));
 
       // SPA fallback - serve index.html for all non-API routes under the mount path
-      app.get(`${mountPath}/*`, (req: Request, res: Response, next) => {
+      const spaFallbackPath = mountPath === '/' ? '/*' : `${mountPath}/*`;
+      app.get(spaFallbackPath, (req: Request, res: Response, next) => {
         // Skip API routes
         if (req.path.startsWith(apiBasePath)) {
           return next();
         }
-        res.sendFile(join(effectiveUiPath, 'index.html'));
+        res.type('html').send(getIndexHtml(req));
       });
 
       // Also serve the mount path root
       if (mountPath !== '/') {
-        app.get(mountPath, (_req: Request, res: Response) => {
-          res.sendFile(join(effectiveUiPath, 'index.html'));
+        app.get(mountPath, (req: Request, res: Response) => {
+          res.type('html').send(getIndexHtml(req));
         });
       }
     } else {
@@ -199,47 +287,9 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     }
   }
 
-  // Plugin context factory - creates context with plugin-specific logger
-  const createPluginContext = (pluginName: string): PluginContext => ({
-    config,
-    app,
-    router,
-    logger: getControlPanelLogger(pluginName),
-    registerHealthCheck: (check: HealthCheck) => healthManager.register(check),
-  });
-
-  // Register plugin
-  const registerPlugin = async (plugin: ControlPanelPlugin): Promise<void> => {
-    logger.debug(`Registering plugin: ${plugin.name}`);
-
-    // Register routes
-    if (plugin.routes) {
-      for (const route of plugin.routes) {
-        switch (route.method) {
-          case 'get':
-            router.get(route.path, route.handler);
-            break;
-          case 'post':
-            router.post(route.path, route.handler);
-            break;
-          case 'put':
-            router.put(route.path, route.handler);
-            break;
-          case 'delete':
-            router.delete(route.path, route.handler);
-            break;
-        }
-        logger.debug(`Registered route: ${route.method.toUpperCase()} ${route.path}`);
-      }
-    }
-
-    // Initialize plugin with plugin-specific logger
-    if (plugin.onInit) {
-      await plugin.onInit(createPluginContext(plugin.name));
-    }
-
-    registeredPlugins.push(plugin);
-    logger.debug(`Plugin registered: ${plugin.name}`);
+  // Start a plugin with the registry
+  const startPlugin = async (plugin: Plugin, pluginConfig: PluginConfig = {}): Promise<boolean> => {
+    return pluginRegistry.startPlugin(plugin, pluginConfig);
   };
 
   // Get diagnostics report
@@ -250,6 +300,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
       timestamp: new Date().toISOString(),
       product: config.productName,
       version: config.version,
+      frameworkVersion,
       uptime: Date.now() - startTime,
       health: healthManager.getResults(),
       system: {
@@ -270,9 +321,12 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
 
   // Start server
   const start = async (): Promise<void> => {
-    // Register initial plugins
-    for (const plugin of plugins) {
-      await registerPlugin(plugin);
+    // Start initial plugins via registry
+    for (const { plugin, config: pluginConfig } of plugins) {
+      const success = await pluginRegistry.startPlugin(plugin, pluginConfig || {});
+      if (!success) {
+        logger.error(`Failed to start plugin: ${plugin.id}`);
+      }
     }
 
     return new Promise((resolve) => {
@@ -285,12 +339,8 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
 
   // Stop server
   const stop = async (): Promise<void> => {
-    // Shutdown plugins
-    for (const plugin of registeredPlugins) {
-      if (plugin.onShutdown) {
-        await plugin.onShutdown();
-      }
-    }
+    // Stop all plugins via registry
+    await pluginRegistry.stopAllPlugins();
 
     // Shutdown health manager
     healthManager.shutdown();
@@ -310,9 +360,10 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     app,
     start,
     stop,
-    registerPlugin,
+    startPlugin,
     getHealthStatus: () => healthManager.getResults(),
     getDiagnostics,
+    getPluginRegistry: () => pluginRegistry,
   };
 }
 

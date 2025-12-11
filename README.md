@@ -61,6 +61,8 @@ For production deployments, use `createGateway` to run a gateway that:
 1. Serves the control panel UI (always responsive, even if the API crashes)
 2. Proxies API requests to an internal service
 3. Handles graceful error responses when the internal service is down
+4. Supports maintenance mode with customizable status pages
+5. Shows service unavailable pages when mounted apps are unreachable
 
 ```typescript
 import { createGateway, createHealthPlugin } from '@qwickapps/server';
@@ -114,6 +116,68 @@ Internet → Gateway (3101, public) → API Service (3100, internal)
 ```
 
 The gateway is always responsive even if the internal API service crashes, allowing you to view diagnostics and error information.
+
+### Mounted Apps with Maintenance Mode
+
+Mount frontend apps or proxy services with full maintenance and fallback support:
+
+```typescript
+const gateway = createGateway({
+  // ... base config
+  mountedApps: [
+    {
+      path: '/app',
+      name: 'Main App',
+      type: 'proxy',
+      target: 'http://localhost:4000',
+      maintenance: {
+        enabled: false,  // Toggle to enable maintenance mode
+        title: 'Scheduled Maintenance',
+        message: 'We are upgrading our systems.',
+        expectedBackAt: '2 hours',  // or ISO date, or "soon"
+        contactUrl: 'https://status.example.com',
+        bypassPaths: ['/app/health', '/app/api/status'],
+      },
+      fallback: {
+        title: 'Service Unavailable',
+        message: 'The application is temporarily unavailable.',
+        showRetry: true,
+        autoRefresh: 30,  // seconds
+      },
+    },
+    {
+      path: '/docs',
+      name: 'Documentation',
+      type: 'static',
+      staticPath: './docs-dist',
+    },
+  ],
+});
+```
+
+### Maintenance and Fallback Configuration
+
+**MaintenanceConfig** - Shown when maintenance mode is enabled:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Enable/disable maintenance mode |
+| `title` | `string` | Page title (default: "Under Maintenance") |
+| `message` | `string` | Custom message to display |
+| `expectedBackAt` | `string` | ETA: ISO date, relative time ("2 hours"), or "soon" |
+| `contactUrl` | `string` | Link to status page or contact |
+| `bypassPaths` | `string[]` | Paths that bypass maintenance (e.g., health checks) |
+
+**FallbackConfig** - Shown when the proxied service is unreachable:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `title` | `string` | Page title (default: "Service Unavailable") |
+| `message` | `string` | Custom message to display |
+| `showRetry` | `boolean` | Show retry button (default: true) |
+| `autoRefresh` | `number` | Auto-refresh countdown in seconds (default: 30) |
+
+Both pages feature modern, responsive designs with automatic dark mode support.
 
 ## Configuration
 
@@ -376,6 +440,180 @@ await cache.flush(); // Clear all keys with prefix
 - `getCache(name?)` - Get a cache instance (throws if not registered)
 - `hasCache(name?)` - Check if an instance is registered
 - `CacheInstance` - TypeScript type for the instance
+
+#### Auth Plugin
+
+Pluggable authentication with support for multiple providers via the adapter pattern.
+
+```typescript
+import { createAuthPlugin, auth0Adapter, basicAdapter } from '@qwickapps/server';
+
+// Auth0 with RBAC and domain restrictions
+createAuthPlugin({
+  adapter: auth0Adapter({
+    domain: process.env.AUTH0_DOMAIN!,
+    clientId: process.env.AUTH0_CLIENT_ID!,
+    clientSecret: process.env.AUTH0_CLIENT_SECRET!,
+    baseUrl: 'https://myapp.example.com',
+    secret: process.env.SESSION_SECRET!,
+    audience: process.env.AUTH0_AUDIENCE,    // For API access tokens
+    allowedRoles: ['admin', 'support'],       // RBAC filtering
+    allowedDomains: ['@company.com'],         // Domain whitelist
+    exposeAccessToken: true,                  // For downstream API calls
+  }),
+  excludePaths: ['/health', '/api/public'],
+});
+
+// Basic auth fallback
+createAuthPlugin({
+  adapter: basicAdapter({
+    username: 'admin',
+    password: process.env.ADMIN_PASSWORD!,
+  }),
+});
+```
+
+**Available Adapters:**
+- `auth0Adapter` - Auth0 OIDC (requires `express-openid-connect`)
+- `supabaseAdapter` - Supabase JWT validation
+- `basicAdapter` - HTTP Basic authentication
+
+**Helper Functions:**
+```typescript
+import { isAuthenticated, getAuthenticatedUser, getAccessToken } from '@qwickapps/server';
+
+// In your route handlers
+if (isAuthenticated(req)) {
+  const user = getAuthenticatedUser(req);
+  // { id, email, name, picture, emailVerified, roles }
+
+  const accessToken = getAccessToken(req);
+  // Use for downstream API calls
+}
+```
+
+**Middleware Helpers:**
+```typescript
+import { requireAuth, requireRoles, requireAnyRole } from '@qwickapps/server';
+
+// Require authentication
+app.get('/admin', requireAuth(), (req, res) => { ... });
+
+// Require specific roles (all required)
+app.get('/admin/users', requireRoles('admin', 'user-manager'), (req, res) => { ... });
+
+// Require any of the roles
+app.get('/dashboard', requireAnyRole('admin', 'editor', 'viewer'), (req, res) => { ... });
+```
+
+#### Users Plugin
+
+Storage-agnostic user management with ban support.
+
+```typescript
+import { createUsersPlugin, postgresUserStore, getPostgres } from '@qwickapps/server';
+import { Pool } from 'pg';
+
+// Create with PostgreSQL storage
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+createUsersPlugin({
+  store: postgresUserStore({
+    pool,
+    usersTable: 'users',
+    bansTable: 'user_bans',
+    autoCreateTables: true,
+  }),
+  bans: {
+    enabled: true,
+    supportTemporary: true, // Enable expiring bans
+    onBan: async (user, ban) => {
+      // Notify external systems, revoke sessions, etc.
+      console.log(`User ${user.email} banned: ${ban.reason}`);
+    },
+    onUnban: async (user) => {
+      console.log(`User ${user.email} unbanned`);
+    },
+  },
+  api: {
+    prefix: '/api/users',
+    crud: true,    // GET/POST/PUT/DELETE /api/users
+    search: true,  // GET /api/users?q=...
+    bans: true,    // Ban management endpoints
+  },
+});
+```
+
+**REST API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/users` | GET | List/search users |
+| `/api/users` | POST | Create user |
+| `/api/users/:id` | GET | Get user by ID |
+| `/api/users/:id` | PUT | Update user |
+| `/api/users/:id` | DELETE | Delete user |
+| `/api/users/bans` | GET | List active bans |
+| `/api/users/:id/ban` | GET | Get user's ban status |
+| `/api/users/:id/ban` | POST | Ban user |
+| `/api/users/:id/ban` | DELETE | Unban user |
+| `/api/users/:id/bans` | GET | Get user's ban history |
+
+**Helper Functions:**
+```typescript
+import { getUserById, getUserByEmail, isUserBanned, findOrCreateUser } from '@qwickapps/server';
+
+// Get user
+const user = await getUserById('user-123');
+const userByEmail = await getUserByEmail('test@example.com');
+
+// Check ban status
+const banned = await isUserBanned('user-123');
+
+// Find or create from auth provider
+const user = await findOrCreateUser({
+  email: 'user@example.com',
+  name: 'Test User',
+  external_id: 'auth0|12345',
+  provider: 'auth0',
+});
+```
+
+**Email Ban Support (for auth-only scenarios):**
+
+For cases where you don't store users locally but need to ban by email:
+
+```typescript
+import { isEmailBanned, getEmailBan, banEmail, unbanEmail } from '@qwickapps/server';
+
+// Check if email is banned
+const banned = await isEmailBanned('user@example.com');
+
+// Get ban details
+const ban = await getEmailBan('user@example.com');
+
+// Ban an email
+await banEmail({
+  email: 'user@example.com',
+  reason: 'Spam activity',
+  banned_by: 'admin@company.com',
+  duration: 86400, // 24 hours (optional, null = permanent)
+});
+
+// Unban an email
+await unbanEmail({
+  email: 'user@example.com',
+  unbanned_by: 'admin@company.com',
+  note: 'Cleared after review',
+});
+```
+
+**Email Ban API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/users/email-bans` | GET | List active email bans |
+| `/api/users/email-bans/:email` | GET | Check email ban status |
+| `/api/users/email-bans` | POST | Ban an email |
+| `/api/users/email-bans/:email` | DELETE | Unban an email |
 
 ### Creating Custom Plugins
 

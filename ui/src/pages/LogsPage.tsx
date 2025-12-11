@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -19,9 +19,21 @@ import {
   MenuItem,
   IconButton,
   Pagination,
+  Tooltip,
+  Grid,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ErrorIcon from '@mui/icons-material/Error';
+import WarningIcon from '@mui/icons-material/Warning';
+import InfoIcon from '@mui/icons-material/Info';
+import BugReportIcon from '@mui/icons-material/BugReport';
 import { api, LogEntry, LogSource } from '../api/controlPanelApi';
 
 function getLevelColor(level: string): string {
@@ -54,7 +66,21 @@ export function LogsPage() {
   const [total, setTotal] = useState(0);
   const limit = 50;
 
-  const fetchLogs = async () => {
+  // New features
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = newest first
+  const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Stats - computed from current logs (could be fetched from API if available)
+  const stats = {
+    total: total,
+    errors: logs.filter(l => l.level.toLowerCase() === 'error').length,
+    warnings: logs.filter(l => ['warn', 'warning'].includes(l.level.toLowerCase())).length,
+    info: logs.filter(l => l.level.toLowerCase() === 'info').length,
+    debug: logs.filter(l => l.level.toLowerCase() === 'debug').length,
+  };
+
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.getLogs({
@@ -64,7 +90,13 @@ export function LogsPage() {
         limit,
         page,
       });
-      setLogs(data.logs);
+      // Sort logs based on sortOrder
+      const sortedLogs = [...data.logs].sort((a, b) => {
+        const dateA = new Date(a.timestamp).getTime();
+        const dateB = new Date(b.timestamp).getTime();
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+      });
+      setLogs(sortedLogs);
       setTotal(data.total);
       setError(null);
     } catch (err) {
@@ -72,7 +104,7 @@ export function LogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSource, selectedLevel, searchQuery, page, sortOrder]);
 
   const fetchSources = async () => {
     try {
@@ -89,11 +121,32 @@ export function LogsPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, [selectedSource, selectedLevel, page]);
+  }, [fetchLogs]);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshRef.current = setInterval(fetchLogs, 5000);
+    } else if (autoRefreshRef.current) {
+      clearInterval(autoRefreshRef.current);
+      autoRefreshRef.current = null;
+    }
+    return () => {
+      if (autoRefreshRef.current) {
+        clearInterval(autoRefreshRef.current);
+      }
+    };
+  }, [autoRefresh, fetchLogs]);
 
   const handleSearch = () => {
     setPage(1);
     fetchLogs();
+  };
+
+  const handleSortOrderChange = (_event: React.MouseEvent<HTMLElement>, newOrder: 'desc' | 'asc' | null) => {
+    if (newOrder !== null) {
+      setSortOrder(newOrder);
+    }
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -106,6 +159,84 @@ export function LogsPage() {
       <Typography variant="body2" sx={{ mb: 4, color: 'var(--theme-text-secondary)' }}>
         View and search application logs
       </Typography>
+
+      {/* Stats Widgets */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 6, sm: 3, md: 2.4 }}>
+          <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h5" sx={{ color: 'var(--theme-text-primary)', fontWeight: 600 }}>
+                  {stats.total.toLocaleString()}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: 'var(--theme-text-secondary)' }}>
+                Total Logs
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 6, sm: 3, md: 2.4 }}>
+          <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ErrorIcon sx={{ color: 'var(--theme-error)', fontSize: 20 }} />
+                <Typography variant="h5" sx={{ color: 'var(--theme-error)', fontWeight: 600 }}>
+                  {stats.errors}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: 'var(--theme-text-secondary)' }}>
+                Errors
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 6, sm: 3, md: 2.4 }}>
+          <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <WarningIcon sx={{ color: 'var(--theme-warning)', fontSize: 20 }} />
+                <Typography variant="h5" sx={{ color: 'var(--theme-warning)', fontWeight: 600 }}>
+                  {stats.warnings}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: 'var(--theme-text-secondary)' }}>
+                Warnings
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 6, sm: 3, md: 2.4 }}>
+          <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <InfoIcon sx={{ color: 'var(--theme-info)', fontSize: 20 }} />
+                <Typography variant="h5" sx={{ color: 'var(--theme-info)', fontWeight: 600 }}>
+                  {stats.info}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: 'var(--theme-text-secondary)' }}>
+                Info
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 6, sm: 3, md: 2.4 }}>
+          <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BugReportIcon sx={{ color: 'var(--theme-text-secondary)', fontSize: 20 }} />
+                <Typography variant="h5" sx={{ color: 'var(--theme-text-primary)', fontWeight: 600 }}>
+                  {stats.debug}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: 'var(--theme-text-secondary)' }}>
+                Debug
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Filters */}
       <Card sx={{ mb: 3, bgcolor: 'var(--theme-surface)' }}>
@@ -162,9 +293,44 @@ export function LogsPage() {
               }}
             />
 
-            <IconButton onClick={fetchLogs} sx={{ color: 'var(--theme-primary)' }}>
-              <RefreshIcon />
-            </IconButton>
+            {/* Sort Order Toggle */}
+            <ToggleButtonGroup
+              value={sortOrder}
+              exclusive
+              onChange={handleSortOrderChange}
+              size="small"
+              aria-label="sort order"
+            >
+              <ToggleButton value="desc" aria-label="newest first">
+                <Tooltip title="Newest First">
+                  <ArrowDownwardIcon fontSize="small" />
+                </Tooltip>
+              </ToggleButton>
+              <ToggleButton value="asc" aria-label="oldest first">
+                <Tooltip title="Oldest First">
+                  <ArrowUpwardIcon fontSize="small" />
+                </Tooltip>
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            {/* Auto Refresh Toggle */}
+            <Tooltip title={autoRefresh ? 'Pause auto-refresh' : 'Enable auto-refresh (5s)'}>
+              <IconButton
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                sx={{
+                  color: autoRefresh ? 'var(--theme-success)' : 'var(--theme-text-secondary)',
+                  bgcolor: autoRefresh ? 'var(--theme-success)20' : 'transparent',
+                }}
+              >
+                {autoRefresh ? <PauseIcon /> : <PlayArrowIcon />}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Refresh">
+              <IconButton onClick={fetchLogs} sx={{ color: 'var(--theme-primary)' }}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
           </Box>
         </CardContent>
       </Card>

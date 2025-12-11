@@ -7,7 +7,8 @@
  */
 
 import type { Request, Response } from 'express';
-import type { ControlPanelPlugin, ConfigDisplayOptions, PluginContext } from '../core/types.js';
+import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
+import type { ConfigDisplayOptions } from '../core/types.js';
 
 export interface ConfigPluginConfig extends ConfigDisplayOptions {}
 
@@ -20,15 +21,20 @@ interface ConfigValidationResult {
 /**
  * Create a config display plugin
  */
-export function createConfigPlugin(config: ConfigPluginConfig): ControlPanelPlugin {
+export function createConfigPlugin(config: ConfigPluginConfig): Plugin {
   return {
-    name: 'config',
-    order: 30,
+    id: 'config',
+    name: 'Config Plugin',
+    version: '1.0.0',
 
-    routes: [
-      {
+    async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('config');
+
+      // Register /config route
+      registry.addRoute({
         method: 'get',
         path: '/config',
+        pluginId: 'config',
         handler: (_req: Request, res: Response) => {
           const envVars: Record<string, string> = {};
 
@@ -52,10 +58,13 @@ export function createConfigPlugin(config: ConfigPluginConfig): ControlPanelPlug
             config: envVars,
           });
         },
-      },
-      {
+      });
+
+      // Register /config/validate route
+      registry.addRoute({
         method: 'get',
         path: '/config/validate',
+        pluginId: 'config',
         handler: (_req: Request, res: Response) => {
           const results: ConfigValidationResult[] = [];
           let allValid = true;
@@ -97,11 +106,13 @@ export function createConfigPlugin(config: ConfigPluginConfig): ControlPanelPlug
             results,
           });
         },
-      },
-    ],
+      });
 
-    async onInit(context: PluginContext): Promise<void> {
-      context.logger.debug(`Config plugin initialized with ${config.show.length} vars`);
+      logger.debug(`Config plugin initialized with ${config.show.length} vars`);
+    },
+
+    async onStop(): Promise<void> {
+      // Nothing to cleanup
     },
   };
 }

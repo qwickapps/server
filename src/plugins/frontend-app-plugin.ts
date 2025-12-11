@@ -13,7 +13,8 @@
 import express from 'express';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ControlPanelPlugin, FrontendAppConfig } from '../core/types.js';
+import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
+import type { FrontendAppConfig } from '../core/types.js';
 import { createRouteGuard } from '../core/guards.js';
 
 export interface FrontendAppPluginConfig {
@@ -34,18 +35,24 @@ export interface FrontendAppPluginConfig {
   };
   /** Route guard configuration */
   guard?: FrontendAppConfig['mount']['guard'];
+  /** Product name for default landing page */
+  productName?: string;
+  /** Mount path for control panel link */
+  mountPath?: string;
 }
 
 /**
  * Create a frontend app plugin that handles the root path
  */
-export function createFrontendAppPlugin(config: FrontendAppPluginConfig): ControlPanelPlugin {
+export function createFrontendAppPlugin(config: FrontendAppPluginConfig): Plugin {
   return {
-    name: 'frontend-app',
-    order: 0, // Run first to capture root path
+    id: 'frontend-app',
+    name: 'Frontend App Plugin',
+    version: '1.0.0',
 
-    async onInit(context) {
-      const { app, logger } = context;
+    async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('frontend-app');
+      const app = registry.getApp();
 
       // Apply guard if configured
       if (config.guard && config.guard.type !== 'none') {
@@ -95,15 +102,19 @@ export function createFrontendAppPlugin(config: FrontendAppPluginConfig): Contro
       logger.info(`Frontend app: Serving default welcome page`);
       app.get('/', (_req, res) => {
         const html = generateLandingPageHtml({
-          title: context.config.productName,
-          heading: `Welcome to ${context.config.productName}`,
+          title: config.productName || 'QwickApps Server',
+          heading: `Welcome to ${config.productName || 'QwickApps Server'}`,
           description: 'Your application is running.',
           links: [
-            { label: 'Control Panel', url: context.config.mountPath || '/cpanel' },
+            { label: 'Control Panel', url: config.mountPath || '/cpanel' },
           ],
         });
         res.type('html').send(html);
       });
+    },
+
+    async onStop(): Promise<void> {
+      // Nothing to cleanup
     },
   };
 }

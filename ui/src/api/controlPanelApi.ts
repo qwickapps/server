@@ -33,6 +33,8 @@ export interface DiagnosticsResponse {
   timestamp: string;
   product: string;
   version?: string;
+  /** @qwickapps/server framework version */
+  frameworkVersion?: string;
   uptime: number;
   health: Record<string, HealthCheck>;
   system: {
@@ -75,12 +77,298 @@ export interface LogSource {
   available: boolean;
 }
 
+// ==================
+// Users API Types
+// ==================
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  created_at?: string;
+  updated_at?: string;
+  last_login?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// ==================
+// Bans API Types
+// ==================
+export interface Ban {
+  id: string;
+  user_id?: string;
+  email: string;
+  reason: string;
+  banned_at: string;
+  banned_by: string;
+  expires_at?: string;
+}
+
+export interface BansResponse {
+  bans: Ban[];
+  total: number;
+}
+
+// ==================
+// Entitlements API Types
+// ==================
+export interface EntitlementDefinition {
+  id: string;
+  name: string;
+  category?: string;
+  description?: string;
+}
+
+export interface EntitlementResult {
+  identifier: string;
+  entitlements: string[];
+  source: string;
+  cached?: boolean;
+  cachedAt?: string;
+  expiresAt?: string;
+}
+
+// ==================
+// Entitlements Status
+// ==================
+export interface EntitlementSourceInfo {
+  name: string;
+  description?: string;
+  readonly: boolean;
+  primary: boolean;
+}
+
+export interface EntitlementsStatus {
+  readonly: boolean;
+  writeEnabled: boolean;
+  cacheEnabled: boolean;
+  cacheTtl: number;
+  sources: EntitlementSourceInfo[];
+}
+
+// ==================
+// Plugin Feature Detection
+// ==================
+export interface PluginFeatures {
+  users: boolean;
+  bans: boolean;
+  entitlements: boolean;
+  entitlementsReadonly?: boolean;
+}
+
 class ControlPanelApi {
   private baseUrl: string;
 
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl;
   }
+
+  /**
+   * Set the base URL for API requests.
+   * Call this when the control panel is mounted at a custom path.
+   */
+  setBaseUrl(baseUrl: string): void {
+    this.baseUrl = baseUrl;
+  }
+
+  // ==================
+  // Plugin Feature Detection
+  // ==================
+
+  /**
+   * Detect which user management plugins are available by probing their endpoints
+   */
+  async detectFeatures(): Promise<PluginFeatures> {
+    const [users, bans, entitlements] = await Promise.all([
+      this.checkEndpoint('/api/users'),
+      this.checkEndpoint('/api/bans'),
+      this.checkEndpoint('/api/entitlements/available'),
+    ]);
+
+    // If entitlements is available, get readonly status
+    let entitlementsReadonly = true;
+    if (entitlements) {
+      try {
+        const status = await this.getEntitlementsStatus();
+        entitlementsReadonly = status.readonly;
+      } catch {
+        // Default to readonly if we can't get status
+      }
+    }
+
+    return { users, bans, entitlements, entitlementsReadonly };
+  }
+
+  private async checkEndpoint(path: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, { method: 'HEAD' });
+      // 200, 401, 403 mean the endpoint exists (might need auth)
+      // 404 means it doesn't exist
+      return response.status !== 404;
+    } catch {
+      return false;
+    }
+  }
+
+  // ==================
+  // Users API
+  // ==================
+
+  async getUsers(options: {
+    limit?: number;
+    page?: number;
+    search?: string;
+  } = {}): Promise<UsersResponse> {
+    const params = new URLSearchParams();
+    if (options.limit) params.set('limit', options.limit.toString());
+    if (options.page) params.set('page', options.page.toString());
+    if (options.search) params.set('search', options.search);
+
+    const response = await fetch(`${this.baseUrl}/api/users?${params}`);
+    if (!response.ok) {
+      throw new Error(`Users request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async getUserById(id: string): Promise<User> {
+    const response = await fetch(`${this.baseUrl}/api/users/${id}`);
+    if (!response.ok) {
+      throw new Error(`User request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  // ==================
+  // Bans API
+  // ==================
+
+  async getBans(): Promise<BansResponse> {
+    const response = await fetch(`${this.baseUrl}/api/bans`);
+    if (!response.ok) {
+      throw new Error(`Bans request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async banUser(email: string, reason: string, expiresAt?: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/bans`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, reason, expiresAt }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Ban request failed: ${response.statusText}`);
+    }
+  }
+
+  async unbanUser(email: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/bans/${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Unban request failed: ${response.statusText}`);
+    }
+  }
+
+  async checkBan(email: string): Promise<{ banned: boolean; ban?: Ban }> {
+    const response = await fetch(`${this.baseUrl}/api/bans/check/${encodeURIComponent(email)}`);
+    if (!response.ok) {
+      throw new Error(`Ban check failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  // ==================
+  // Entitlements API
+  // ==================
+
+  async getEntitlements(email: string): Promise<EntitlementResult> {
+    const response = await fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}`);
+    if (!response.ok) {
+      throw new Error(`Entitlements request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async refreshEntitlements(email: string): Promise<EntitlementResult> {
+    const response = await fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}/refresh`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error(`Entitlements refresh failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async checkEntitlement(email: string, entitlement: string): Promise<{ has: boolean }> {
+    const response = await fetch(
+      `${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}/check/${encodeURIComponent(entitlement)}`
+    );
+    if (!response.ok) {
+      throw new Error(`Entitlement check failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async getAvailableEntitlements(): Promise<EntitlementDefinition[]> {
+    const response = await fetch(`${this.baseUrl}/api/entitlements/available`);
+    if (!response.ok) {
+      throw new Error(`Available entitlements request failed: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data.entitlements;
+  }
+
+  async grantEntitlement(email: string, entitlement: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entitlement }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Grant entitlement failed: ${response.statusText}`);
+    }
+  }
+
+  async revokeEntitlement(email: string, entitlement: string): Promise<void> {
+    const response = await fetch(
+      `${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}/${encodeURIComponent(entitlement)}`,
+      { method: 'DELETE' }
+    );
+    if (!response.ok) {
+      throw new Error(`Revoke entitlement failed: ${response.statusText}`);
+    }
+  }
+
+  async invalidateEntitlementCache(email: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/entitlements/cache/${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Cache invalidation failed: ${response.statusText}`);
+    }
+  }
+
+  async getEntitlementsStatus(): Promise<EntitlementsStatus> {
+    const response = await fetch(`${this.baseUrl}/api/entitlements/status`);
+    if (!response.ok) {
+      throw new Error(`Entitlements status request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  // ==================
+  // Health API
+  // ==================
 
   async getHealth(): Promise<HealthResponse> {
     const response = await fetch(`${this.baseUrl}/api/health`);

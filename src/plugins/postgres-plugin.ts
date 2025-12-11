@@ -47,7 +47,7 @@
  */
 
 import pg from 'pg';
-import type { ControlPanelPlugin, PluginContext } from '../core/types.js';
+import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
 
 const { Pool } = pg;
 
@@ -173,7 +173,7 @@ export function hasPostgres(name = 'default'): boolean {
  *
  * @param config - PostgreSQL configuration
  * @param instanceName - Name for this PostgreSQL instance (default: 'default')
- * @returns A control panel plugin
+ * @returns A plugin
  *
  * @example
  * ```typescript
@@ -187,8 +187,9 @@ export function hasPostgres(name = 'default'): boolean {
 export function createPostgresPlugin(
   config: PostgresPluginConfig,
   instanceName = 'default'
-): ControlPanelPlugin {
+): Plugin {
   let pool: pg.Pool | null = null;
+  const pluginId = `postgres:${instanceName}`;
 
   const createInstance = (): PostgresInstance => {
     if (!pool) {
@@ -282,11 +283,12 @@ export function createPostgresPlugin(
   };
 
   return {
-    name: `postgres:${instanceName}`,
-    order: 5, // Initialize early, before other plugins that may need DB
+    id: pluginId,
+    name: `PostgreSQL (${instanceName})`,
+    version: '1.0.0',
 
-    async onInit(context: PluginContext): Promise<void> {
-      const { registerHealthCheck, logger } = context;
+    async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger(pluginId);
 
       // Create and register the instance
       const instance = createInstance();
@@ -303,7 +305,7 @@ export function createPostgresPlugin(
 
       // Register health check if enabled
       if (config.healthCheck !== false) {
-        registerHealthCheck({
+        registry.registerHealthCheck({
           name: config.healthCheckName ?? 'postgres',
           type: 'custom',
           interval: config.healthCheckInterval ?? 30000,
@@ -334,7 +336,7 @@ export function createPostgresPlugin(
       }
     },
 
-    async onShutdown(): Promise<void> {
+    async onStop(): Promise<void> {
       const instance = instances.get(instanceName);
       if (instance) {
         await instance.close();

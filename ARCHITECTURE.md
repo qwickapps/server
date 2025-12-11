@@ -36,19 +36,22 @@ The gateway pattern separates the control panel from the internal service, ensur
 │  │  ┌───────────────────────────────────────────────────────────────┐   │  │
 │  │  │                      Route Handlers                           │   │  │
 │  │  │                                                               │   │  │
-│  │  │  /              → Landing Page or Frontend App                │   │  │
-│  │  │  /health        → Health Status (public)                      │   │  │
-│  │  │  /cpanel/*      → Control Panel Dashboard (guarded)           │   │  │
-│  │  │  /cpanel/api/*  → Control Panel API                           │   │  │
-│  │  │  /api/*         → Proxy to Internal Service                   │   │  │
+│  │  │  /health        → Health Status (always enabled, public)      │   │  │
+│  │  │  /{cpPath}/*    → Control Panel (optional, path configurable) │   │  │
+│  │  │  /*             → Mounted Apps (proxy, static, or landing)    │   │  │
+│  │  │                   Each with maintenance mode and fallback     │   │  │
 │  │  └───────────────────────────────────────────────────────────────┘   │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                            │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                        HTTP Proxy Middleware                          │ │
+│  │                        Mounted Apps Handler                           │ │
 │  │                                                                       │ │
-│  │  Proxies /api/* requests to Internal Service (localhost:3100)         │ │
-│  │  Returns graceful error responses when service is unavailable         │ │
+│  │  Each mounted app can be: proxy, static, or landing page              │ │
+│  │  - Proxy: Forward requests to target service                          │ │
+│  │  - Static: Serve files from disk                                      │ │
+│  │  - Landing: Show configurable landing page with links                 │ │
+│  │                                                                       │ │
+│  │  All types support maintenance mode and service unavailable fallback  │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -85,6 +88,16 @@ Plugins extend the server with custom functionality. Each plugin can register ro
 │  │  │• Pool mgmt   │  │• Redis cache │  │• Redirects   │               │   │
 │  │  │• Transactions│  │• Key prefix  │  │• Static      │               │   │
 │  │  │• Health chks │  │• TTL support │  │• Landing pg  │               │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
+│  │                                                                     │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │   │
+│  │  │Auth Plugin   │  │Users Plugin  │  │Entitlements  │               │   │
+│  │  │              │  │              │  │Plugin        │               │   │
+│  │  │• Adapters    │  │• User CRUD   │  │              │               │   │
+│  │  │  - Auth0     │  │• Search API  │  │• Source adapt│               │   │
+│  │  │  - Basic     │  │• Ban mgmt    │  │• Grant/revoke│               │   │
+│  │  │  - Supabase  │  │• Temp bans   │  │• Lookup API  │               │   │
+│  │  │• RBAC        │  │• Callbacks   │  │• Dashboard   │               │   │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                            │
@@ -199,7 +212,28 @@ Unified authentication with multiple provider support:
 │       ├── diagnostics-plugin.ts   # System diagnostics
 │       ├── frontend-app-plugin.ts  # Root path handling
 │       ├── postgres-plugin.ts      # PostgreSQL connection pooling
-│       └── cache-plugin.ts         # Redis caching
+│       ├── cache-plugin.ts         # Redis caching
+│       ├── auth/                   # Auth plugin
+│       │   ├── index.ts
+│       │   ├── auth-plugin.ts      # Pluggable auth with adapters
+│       │   ├── types.ts
+│       │   └── adapters/
+│       │       ├── auth0-adapter.ts
+│       │       ├── basic-adapter.ts
+│       │       └── supabase-adapter.ts
+│       ├── users/                  # Users plugin
+│       │   ├── index.ts
+│       │   ├── users-plugin.ts     # User mgmt with ban support
+│       │   ├── types.ts
+│       │   └── stores/
+│       │       └── postgres-store.ts
+│       └── entitlements/           # Entitlements plugin
+│           ├── index.ts
+│           ├── entitlements-plugin.ts # Pluggable entitlements
+│           ├── types.ts
+│           └── sources/
+│               ├── in-memory-source.ts
+│               └── postgres-source.ts
 │
 ├── ui/                             # React dashboard UI
 │   ├── src/
@@ -217,6 +251,52 @@ Unified authentication with multiple provider support:
 ├── CHANGELOG.md
 └── ARCHITECTURE.md
 ```
+
+### Maintenance and Fallback System
+
+Mounted apps support maintenance mode and automatic fallback pages:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    Mounted App Request Flow                      │
+│                                                                  │
+│  Request                                                         │
+│     │                                                            │
+│     ▼                                                            │
+│  ┌──────────────────┐                                            │
+│  │ Maintenance Mode │──── Yes ────► Maintenance Page             │
+│  │    Enabled?      │              (orange, ETA countdown)       │
+│  └────────┬─────────┘                                            │
+│           │ No                                                   │
+│           ▼                                                      │
+│  ┌──────────────────┐                                            │
+│  │  Bypass Path?    │──── Yes ────► Continue to Service          │
+│  │ /health, /api/*  │                                            │
+│  └────────┬─────────┘                                            │
+│           │ No                                                   │
+│           ▼                                                      │
+│  ┌──────────────────┐                                            │
+│  │ Proxy to Service │                                            │
+│  └────────┬─────────┘                                            │
+│           │                                                      │
+│     ┌─────┴─────┐                                                │
+│     ▼           ▼                                                │
+│  Success    Error (ECONNREFUSED, timeout)                        │
+│     │           │                                                │
+│     ▼           ▼                                                │
+│  Response   Service Unavailable Page                             │
+│             (red, auto-refresh countdown)                        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Maintenance Mode**: Orange-themed page with wrench icon, customizable ETA countdown, and optional contact URL.
+
+**Service Unavailable**: Red-themed page with alert icon, auto-refresh countdown (default 30s), and retry button.
+
+Both pages feature:
+- Responsive design with dark mode support
+- Smart content negotiation (JSON for API requests, HTML for browsers)
+- Configurable titles and messages
 
 ## Key Components
 

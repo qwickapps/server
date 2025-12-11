@@ -6,7 +6,8 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import type { ControlPanelPlugin, HealthCheck, PluginContext } from '../core/types.js';
+import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
+import type { HealthCheck } from '../core/types.js';
 
 export interface HealthPluginConfig {
   checks: HealthCheck[];
@@ -16,20 +17,25 @@ export interface HealthPluginConfig {
 /**
  * Create a health check plugin
  */
-export function createHealthPlugin(config: HealthPluginConfig): ControlPanelPlugin {
+export function createHealthPlugin(config: HealthPluginConfig): Plugin {
   return {
-    name: 'health',
-    order: 10,
+    id: 'health',
+    name: 'Health Plugin',
+    version: '1.0.0',
 
-    async onInit(context: PluginContext): Promise<void> {
-      const { registerHealthCheck, logger } = context;
+    async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('health');
 
       // Register all health checks
       for (const check of config.checks) {
-        registerHealthCheck(check);
+        registry.registerHealthCheck(check);
       }
 
       logger.debug(`Registered ${config.checks.length} health checks`);
+    },
+
+    async onStop(): Promise<void> {
+      // Nothing to cleanup
     },
   };
 }

@@ -5,6 +5,151 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Cache Plugin**: `scanKeys()` method using Redis SCAN for non-blocking key iteration (closes #258)
+  - Cursor-based iteration prevents blocking Redis on large datasets
+  - Accepts optional `count` parameter for batch size hints
+  - Deprecated `keys()` method in favor of `scanKeys()` for production use
+
+## [1.3.0] - 2025-12-10
+
+### Added
+
+- **Entitlements Plugin** (`createEntitlementsPlugin`)
+  - Pluggable entitlement source with adapter pattern
+  - **In-Memory Source** for demo/testing
+  - **PostgreSQL Source** (`postgresEntitlementSource`) for production
+  - REST API endpoints:
+    - `GET /api/entitlements/:email` - Get user entitlements
+    - `GET /api/entitlements/:email/check/:entitlement` - Check specific entitlement
+    - `POST /api/entitlements/:email/refresh` - Force cache refresh
+    - `GET /api/entitlements/available` - List all available entitlements
+    - `POST /api/entitlements/:email` - Grant entitlement (writable sources)
+    - `DELETE /api/entitlements/:email/:entitlement` - Revoke entitlement
+  - Helper functions: `getEntitlements()`, `hasEntitlement()`, `hasAnyEntitlement()`, `hasAllEntitlements()`
+  - Dashboard widget showing entitlement statistics
+
+- **Entitlements Page** in Control Panel UI
+  - View all available entitlements with categories
+  - Search and filter entitlements
+  - Add/edit/delete entitlements (writable sources)
+  - View users with specific entitlements
+
+- **Users Page** in Control Panel UI
+  - View all users with entitlement counts
+  - Lookup user entitlements dialog
+  - Grant/revoke entitlements from user view
+  - Ban/unban users integration
+
+- **Bans Plugin** (`createBansPlugin`)
+  - Separated ban management from Users plugin
+  - Standalone ban store interface
+  - REST API endpoints for ban management
+
+- **Gateway Maintenance Mode**
+  - Configurable maintenance pages for mounted apps
+  - `MaintenanceConfig`: enabled, title, message, expectedBackAt, contactUrl, bypassPaths
+  - Modern responsive design with dark mode support
+  - ETA countdown (ISO date, relative time like "2 hours", or "soon")
+  - Bypass paths for health checks during maintenance
+
+- **Gateway Service Unavailable Pages**
+  - Automatic fallback page when proxied services are unreachable
+  - `FallbackConfig`: title, message, showRetry, autoRefresh
+  - Auto-refresh countdown (default 30 seconds)
+  - Smart content negotiation (JSON for API requests, HTML for browsers)
+
+- **Auth Plugin** (`createAuthPlugin`)
+  - Pluggable authentication with adapter pattern
+  - **Auth0 Adapter** (`auth0Adapter`)
+    - OIDC authentication via express-openid-connect
+    - Role-based access control (RBAC) support
+    - Domain whitelist filtering
+    - Access token exposure for downstream API calls
+  - **Basic Adapter** (`basicAdapter`)
+    - HTTP Basic authentication
+    - Configurable realm
+  - **Supabase Adapter** (`supabaseAdapter`)
+    - JWT token validation
+    - User caching for performance
+  - Fallback adapter chain support
+  - Helper functions: `isAuthenticated()`, `getAuthenticatedUser()`, `getAccessToken()`
+  - Middleware helpers: `requireAuth()`, `requireRoles()`, `requireAnyRole()`
+
+- **Users Plugin** (`createUsersPlugin`)
+  - Storage-agnostic user management with UserStore interface
+  - **PostgreSQL User Store** (`postgresUserStore`)
+    - User CRUD operations
+    - Search with pagination and filtering
+    - External ID mapping for provider sync
+  - **Ban Management** (user-id keyed)
+    - Permanent and temporary bans
+    - Ban history tracking
+    - Automatic cleanup of expired bans
+    - Callbacks: `onBan`, `onUnban`
+  - **Email Ban Management** (email-keyed, for auth-only scenarios)
+    - Ban users by email without storing users locally
+    - Helper functions: `isEmailBanned()`, `getEmailBan()`, `banEmail()`, `unbanEmail()`
+    - REST API endpoints for email bans
+  - REST API endpoints:
+    - `GET/POST /api/users` - List/create users
+    - `GET/PUT/DELETE /api/users/:id` - Get/update/delete user
+    - `GET /api/users/bans` - List active bans
+    - `GET/POST/DELETE /api/users/:id/ban` - Manage user bans
+    - `GET /api/users/email-bans` - List active email bans
+    - `GET/POST /api/users/email-bans/:email` - Get/create email ban
+    - `DELETE /api/users/email-bans/:email` - Remove email ban
+
+- **Plugin Registry** (`PluginRegistry`)
+  - New centralized plugin registration system replacing PluginManager
+  - Cleaner API for plugin lifecycle management
+  - Better type safety for plugin metadata and dependencies
+
+- **Dashboard Widget System** for Control Panel UI
+  - `DashboardWidgetProvider` context for managing widgets
+  - `DashboardWidget` interface for creating custom widgets
+  - Built-in widgets: Service Status, Quick Actions
+  - Consumer apps can register custom dashboard widgets
+
+- **System Page** in Control Panel UI
+  - Displays server version and system information
+  - Shows plugin status and configuration
+
+- **UI Library Export** (`@qwickapps/server/ui`)
+  - `ControlPanelApp` component for building admin UIs
+  - Shared dashboard components
+  - Vite library build configuration
+
+### Changed
+
+- **ControlPanelApp Navigation**: Routes now use relative paths (e.g., `/health` instead of `${basePath}/health`)
+  - Works correctly with React Router's `basename` prop
+  - Integrates with `@qwickapps/react-framework` NavigationContext
+
+- **Control Panel Base Path Injection**
+  - Server now injects `window.__APP_BASE_PATH__` into HTML for reliable base path detection
+  - Simplified client-side detection from ~50 lines to single global read
+  - Works seamlessly behind proxies with X-Forwarded-Prefix support
+
+- **Control Panel Asset Serving**
+  - Dynamic asset path rewriting for non-root mount paths
+  - Apps mounted at subpaths (e.g., `/cpanel`) now work without rebuilding UI
+
+- **Demo Server**
+  - Added `demo-gateway.ts` example with frontend app at `/` and cpanel at `/cpanel`
+  - Uses in-memory stores for Users, Bans, and Entitlements
+
+### Fixed
+
+- Fixed `DashboardWidgetProvider` not wrapping app in built-in UI
+
+### Removed
+
+- **PluginManager** - Replaced by simpler PluginRegistry
+
 ## [1.2.0] - 2025-12-08
 
 ### Changed

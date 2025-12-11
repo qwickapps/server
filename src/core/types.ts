@@ -168,40 +168,20 @@ export interface ControlPanelConfig {
   customUiPath?: string;
 }
 
-/**
- * Plugin Context - passed to plugins during initialization
- */
-export interface PluginContext {
-  config: ControlPanelConfig;
-  app: Application;
-  router: Router;
-  logger: Logger;
-  registerHealthCheck: (check: HealthCheck) => void;
-}
-
-/**
- * Control Panel Plugin interface
- */
-export interface ControlPanelPlugin {
-  /** Unique plugin name */
-  name: string;
-
-  /** Order for tab display (lower = first) */
-  order?: number;
-
-  /** API routes provided by this plugin */
-  routes?: Array<{
-    method: 'get' | 'post' | 'put' | 'delete';
-    path: string;
-    handler: RequestHandler;
-  }>;
-
-  /** Lifecycle: Initialize plugin */
-  onInit?: (context: PluginContext) => Promise<void>;
-
-  /** Lifecycle: Shutdown plugin */
-  onShutdown?: () => Promise<void>;
-}
+// Plugin types are now in plugin-registry.ts
+// Re-export for convenience
+export type {
+  Plugin,
+  PluginConfig,
+  PluginInfo,
+  PluginEvent,
+  PluginEventHandler,
+  PluginRegistry,
+  MenuContribution,
+  PageContribution,
+  WidgetContribution,
+  RouteDefinition,
+} from './plugin-registry.js';
 
 /**
  * Health Check types
@@ -283,14 +263,17 @@ export interface ControlPanelInstance {
   /** Stop the control panel server */
   stop: () => Promise<void>;
 
-  /** Register a plugin */
-  registerPlugin: (plugin: ControlPanelPlugin) => Promise<void>;
+  /** Start a plugin with optional configuration */
+  startPlugin: (plugin: import('./plugin-registry.js').Plugin, config?: import('./plugin-registry.js').PluginConfig) => Promise<boolean>;
 
   /** Get health check results */
   getHealthStatus: () => Record<string, HealthCheckResult>;
 
   /** Get diagnostics for AI agents */
   getDiagnostics: () => DiagnosticsReport;
+
+  /** Get the plugin registry for direct access */
+  getPluginRegistry: () => import('./plugin-registry.js').PluginRegistry;
 }
 
 /**
@@ -300,6 +283,8 @@ export interface DiagnosticsReport {
   timestamp: string;
   product: string;
   version?: string;
+  /** @qwickapps/server framework version */
+  frameworkVersion?: string;
   uptime: number;
   health: Record<string, HealthCheckResult>;
   system: {

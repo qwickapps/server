@@ -1,0 +1,9 @@
+/**
+ * Entitlement Sources
+ *
+ * Export all available entitlement source implementations.
+ *
+ * Copyright (c) 2025 QwickApps.com. All rights reserved.
+ */
+
+export { postgresEntitlementSource } from './postgres-source.js';

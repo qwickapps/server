@@ -38,6 +38,7 @@ import {
   hasPostgres,
   type PostgresPluginConfig,
 } from './postgres-plugin.js';
+import type { PluginRegistry } from '../core/plugin-registry.js';
 
 describe('PostgreSQL Plugin', () => {
   const mockConfig: PostgresPluginConfig = {
@@ -46,21 +47,39 @@ describe('PostgreSQL Plugin', () => {
     healthCheck: false, // Disable for unit tests
   };
 
-  const mockContext = {
-    config: { productName: 'Test', port: 3000 },
-    app: {} as any,
-    router: {} as any,
-    logger: {
+  // Create a mock registry that matches the new Plugin interface
+  const createMockRegistry = (): PluginRegistry => ({
+    hasPlugin: vi.fn().mockReturnValue(false),
+    getPlugin: vi.fn().mockReturnValue(null),
+    listPlugins: vi.fn().mockReturnValue([]),
+    addRoute: vi.fn(),
+    addMenuItem: vi.fn(),
+    addPage: vi.fn(),
+    addWidget: vi.fn(),
+    getRoutes: vi.fn().mockReturnValue([]),
+    getMenuItems: vi.fn().mockReturnValue([]),
+    getPages: vi.fn().mockReturnValue([]),
+    getWidgets: vi.fn().mockReturnValue([]),
+    getConfig: vi.fn().mockReturnValue({}),
+    setConfig: vi.fn().mockResolvedValue(undefined),
+    subscribe: vi.fn().mockReturnValue(() => {}),
+    emit: vi.fn(),
+    registerHealthCheck: vi.fn(),
+    getApp: vi.fn().mockReturnValue({} as any),
+    getRouter: vi.fn().mockReturnValue({} as any),
+    getLogger: vi.fn().mockReturnValue({
       debug: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-    },
-    registerHealthCheck: vi.fn(),
-  };
+    }),
+  });
+
+  let mockRegistry: PluginRegistry;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRegistry = createMockRegistry();
   });
 
   afterEach(async () => {
@@ -74,33 +93,34 @@ describe('PostgreSQL Plugin', () => {
   describe('createPostgresPlugin', () => {
     it('should create a plugin with correct name', () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      expect(plugin.name).toBe('postgres:test');
+      expect(plugin.name).toBe('PostgreSQL (test)');
     });
 
     it('should use "default" as instance name when not specified', () => {
       const plugin = createPostgresPlugin(mockConfig);
-      expect(plugin.name).toBe('postgres:default');
+      expect(plugin.name).toBe('PostgreSQL (default)');
     });
 
-    it('should have low order number (initialize early)', () => {
-      const plugin = createPostgresPlugin(mockConfig);
-      expect(plugin.order).toBeLessThan(10);
+    it('should have correct plugin id', () => {
+      const plugin = createPostgresPlugin(mockConfig, 'test');
+      expect(plugin.id).toBe('postgres:test');
     });
   });
 
-  describe('onInit', () => {
+  describe('onStart', () => {
     it('should register the postgres instance', async () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
       expect(hasPostgres('test')).toBe(true);
     });
 
     it('should log debug message on successful connection', async () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
-      expect(mockContext.logger.debug).toHaveBeenCalledWith(
+      const logger = mockRegistry.getLogger('postgres:test');
+      expect(logger.debug).toHaveBeenCalledWith(
         expect.stringContaining('connected')
       );
     });
@@ -108,9 +128,9 @@ describe('PostgreSQL Plugin', () => {
     it('should register health check when enabled', async () => {
       const configWithHealth = { ...mockConfig, healthCheck: true };
       const plugin = createPostgresPlugin(configWithHealth, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
-      expect(mockContext.registerHealthCheck).toHaveBeenCalledWith(
+      expect(mockRegistry.registerHealthCheck).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'postgres',
           type: 'custom',
@@ -125,9 +145,9 @@ describe('PostgreSQL Plugin', () => {
         healthCheckName: 'custom-db',
       };
       const plugin = createPostgresPlugin(configWithCustomName, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
-      expect(mockContext.registerHealthCheck).toHaveBeenCalledWith(
+      expect(mockRegistry.registerHealthCheck).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'custom-db',
         })
@@ -138,7 +158,7 @@ describe('PostgreSQL Plugin', () => {
   describe('getPostgres', () => {
     it('should return registered instance', async () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
       const db = getPostgres('test');
       expect(db).toBeDefined();
@@ -161,7 +181,7 @@ describe('PostgreSQL Plugin', () => {
 
     it('should return true for registered instance', async () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
       expect(hasPostgres('test')).toBe(true);
     });
@@ -170,7 +190,7 @@ describe('PostgreSQL Plugin', () => {
   describe('PostgresInstance', () => {
     it('should execute query and return rows', async () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
       const db = getPostgres('test');
       const result = await db.query('SELECT 1');
@@ -179,7 +199,7 @@ describe('PostgreSQL Plugin', () => {
 
     it('should return null from queryOne when no rows', async () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
       const db = getPostgres('test');
       const result = await db.queryOne('SELECT 1');
@@ -188,7 +208,7 @@ describe('PostgreSQL Plugin', () => {
 
     it('should return pool stats', async () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
       const db = getPostgres('test');
       const stats = db.getStats();
@@ -198,14 +218,14 @@ describe('PostgreSQL Plugin', () => {
     });
   });
 
-  describe('onShutdown', () => {
+  describe('onStop', () => {
     it('should close pool and unregister instance', async () => {
       const plugin = createPostgresPlugin(mockConfig, 'test');
-      await plugin.onInit?.(mockContext as any);
+      await plugin.onStart({}, mockRegistry);
 
       expect(hasPostgres('test')).toBe(true);
 
-      await plugin.onShutdown?.();
+      await plugin.onStop();
 
       expect(hasPostgres('test')).toBe(false);
     });

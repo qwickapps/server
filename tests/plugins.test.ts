@@ -5,7 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { PluginContext, Logger } from '../src/core/types.js';
+import type { Logger } from '../src/core/types.js';
+import type { PluginRegistry } from '../src/core/plugin-registry.js';
 
 // Mock logger
 function createMockLogger(): Logger {
@@ -37,38 +38,57 @@ function createMockRequest(overrides: any = {}) {
   };
 }
 
+// Create a mock registry that matches the new Plugin interface
+function createMockRegistry(mockLogger: Logger): PluginRegistry & { routes: Map<string, any> } {
+  const routes = new Map<string, any>();
+
+  return {
+    routes,
+    hasPlugin: vi.fn().mockReturnValue(false),
+    getPlugin: vi.fn().mockReturnValue(null),
+    listPlugins: vi.fn().mockReturnValue([]),
+    addRoute: vi.fn().mockImplementation((route) => {
+      routes.set(route.path, route);
+    }),
+    addMenuItem: vi.fn(),
+    addPage: vi.fn(),
+    addWidget: vi.fn(),
+    getRoutes: vi.fn().mockReturnValue([]),
+    getMenuItems: vi.fn().mockReturnValue([]),
+    getPages: vi.fn().mockReturnValue([]),
+    getWidgets: vi.fn().mockReturnValue([]),
+    getConfig: vi.fn().mockReturnValue({}),
+    setConfig: vi.fn().mockResolvedValue(undefined),
+    subscribe: vi.fn().mockReturnValue(() => {}),
+    emit: vi.fn(),
+    registerHealthCheck: vi.fn(),
+    getApp: vi.fn().mockReturnValue({} as any),
+    getRouter: vi.fn().mockReturnValue({} as any),
+    getLogger: vi.fn().mockReturnValue(mockLogger),
+  };
+}
+
 describe('Health Plugin', () => {
   let mockLogger: Logger;
-  let mockRegisterHealthCheck: ReturnType<typeof vi.fn>;
-  let mockContext: PluginContext;
+  let mockRegistry: ReturnType<typeof createMockRegistry>;
 
   beforeEach(() => {
     mockLogger = createMockLogger();
-    mockRegisterHealthCheck = vi.fn();
-    mockContext = {
-      config: {
-        productName: 'Test',
-        port: 3000,
-      },
-      app: {} as any,
-      router: {} as any,
-      logger: mockLogger,
-      registerHealthCheck: mockRegisterHealthCheck,
-    };
+    mockRegistry = createMockRegistry(mockLogger);
   });
 
-  it('should create a health plugin with correct name and order', async () => {
+  it('should create a health plugin with correct id and name', async () => {
     const { createHealthPlugin } = await import('../src/plugins/health-plugin.js');
 
     const plugin = createHealthPlugin({
       checks: [],
     });
 
-    expect(plugin.name).toBe('health');
-    expect(plugin.order).toBe(10);
+    expect(plugin.id).toBe('health');
+    expect(plugin.name).toBe('Health Plugin');
   });
 
-  it('should register all health checks on init', async () => {
+  it('should register all health checks on start', async () => {
     const { createHealthPlugin } = await import('../src/plugins/health-plugin.js');
 
     const checks = [
@@ -78,11 +98,11 @@ describe('Health Plugin', () => {
 
     const plugin = createHealthPlugin({ checks });
 
-    await plugin.onInit?.(mockContext);
+    await plugin.onStart({}, mockRegistry);
 
-    expect(mockRegisterHealthCheck).toHaveBeenCalledTimes(2);
-    expect(mockRegisterHealthCheck).toHaveBeenCalledWith(checks[0]);
-    expect(mockRegisterHealthCheck).toHaveBeenCalledWith(checks[1]);
+    expect(mockRegistry.registerHealthCheck).toHaveBeenCalledTimes(2);
+    expect(mockRegistry.registerHealthCheck).toHaveBeenCalledWith(checks[0]);
+    expect(mockRegistry.registerHealthCheck).toHaveBeenCalledWith(checks[1]);
     expect(mockLogger.debug).toHaveBeenCalledWith(
       expect.stringContaining('Registered 2 health checks')
     );
@@ -93,9 +113,9 @@ describe('Health Plugin', () => {
 
     const plugin = createHealthPlugin({ checks: [] });
 
-    await plugin.onInit?.(mockContext);
+    await plugin.onStart({}, mockRegistry);
 
-    expect(mockRegisterHealthCheck).not.toHaveBeenCalled();
+    expect(mockRegistry.registerHealthCheck).not.toHaveBeenCalled();
     expect(mockLogger.debug).toHaveBeenCalledWith(
       expect.stringContaining('Registered 0 health checks')
     );
@@ -104,20 +124,11 @@ describe('Health Plugin', () => {
 
 describe('Config Plugin', () => {
   let mockLogger: Logger;
-  let mockContext: PluginContext;
+  let mockRegistry: ReturnType<typeof createMockRegistry>;
 
   beforeEach(() => {
     mockLogger = createMockLogger();
-    mockContext = {
-      config: {
-        productName: 'Test',
-        port: 3000,
-      },
-      app: {} as any,
-      router: {} as any,
-      logger: mockLogger,
-      registerHealthCheck: vi.fn(),
-    };
+    mockRegistry = createMockRegistry(mockLogger);
 
     // Set up test environment variables
     process.env.TEST_VAR = 'test-value';
@@ -131,7 +142,7 @@ describe('Config Plugin', () => {
     delete process.env.NODE_ENV;
   });
 
-  it('should create a config plugin with correct name and order', async () => {
+  it('should create a config plugin with correct id and name', async () => {
     const { createConfigPlugin } = await import('../src/plugins/config-plugin.js');
 
     const plugin = createConfigPlugin({
@@ -139,11 +150,11 @@ describe('Config Plugin', () => {
       mask: [],
     });
 
-    expect(plugin.name).toBe('config');
-    expect(plugin.order).toBe(30);
+    expect(plugin.id).toBe('config');
+    expect(plugin.name).toBe('Config Plugin');
   });
 
-  it('should have /config and /config/validate routes', async () => {
+  it('should register /config and /config/validate routes', async () => {
     const { createConfigPlugin } = await import('../src/plugins/config-plugin.js');
 
     const plugin = createConfigPlugin({
@@ -151,9 +162,11 @@ describe('Config Plugin', () => {
       mask: [],
     });
 
-    expect(plugin.routes).toHaveLength(2);
-    expect(plugin.routes?.find((r) => r.path === '/config')).toBeDefined();
-    expect(plugin.routes?.find((r) => r.path === '/config/validate')).toBeDefined();
+    await plugin.onStart({}, mockRegistry);
+
+    expect(mockRegistry.addRoute).toHaveBeenCalledTimes(2);
+    expect(mockRegistry.routes.has('/config')).toBe(true);
+    expect(mockRegistry.routes.has('/config/validate')).toBe(true);
   });
 
   it('should return visible env vars', async () => {
@@ -164,7 +177,9 @@ describe('Config Plugin', () => {
       mask: [],
     });
 
-    const configRoute = plugin.routes?.find((r) => r.path === '/config');
+    await plugin.onStart({}, mockRegistry);
+
+    const configRoute = mockRegistry.routes.get('/config');
     const req = createMockRequest();
     const res = createMockResponse();
 
@@ -186,7 +201,9 @@ describe('Config Plugin', () => {
       mask: ['secret'],
     });
 
-    const configRoute = plugin.routes?.find((r) => r.path === '/config');
+    await plugin.onStart({}, mockRegistry);
+
+    const configRoute = mockRegistry.routes.get('/config');
     const req = createMockRequest();
     const res = createMockResponse();
 
@@ -205,7 +222,9 @@ describe('Config Plugin', () => {
       mask: [],
     });
 
-    const configRoute = plugin.routes?.find((r) => r.path === '/config');
+    await plugin.onStart({}, mockRegistry);
+
+    const configRoute = mockRegistry.routes.get('/config');
     const req = createMockRequest();
     const res = createMockResponse();
 
@@ -229,7 +248,9 @@ describe('Config Plugin', () => {
         validate: [{ key: 'MISSING_REQUIRED', required: true }],
       });
 
-      const validateRoute = plugin.routes?.find((r) => r.path === '/config/validate');
+      await plugin.onStart({}, mockRegistry);
+
+      const validateRoute = mockRegistry.routes.get('/config/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
@@ -252,7 +273,9 @@ describe('Config Plugin', () => {
         validate: [{ key: 'EMAIL_VAR', pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ }],
       });
 
-      const validateRoute = plugin.routes?.find((r) => r.path === '/config/validate');
+      await plugin.onStart({}, mockRegistry);
+
+      const validateRoute = mockRegistry.routes.get('/config/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
@@ -276,7 +299,9 @@ describe('Config Plugin', () => {
         validate: [{ key: 'SHORT_VAR', minLength: 10 }],
       });
 
-      const validateRoute = plugin.routes?.find((r) => r.path === '/config/validate');
+      await plugin.onStart({}, mockRegistry);
+
+      const validateRoute = mockRegistry.routes.get('/config/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
@@ -303,7 +328,9 @@ describe('Config Plugin', () => {
         ],
       });
 
-      const validateRoute = plugin.routes?.find((r) => r.path === '/config/validate');
+      await plugin.onStart({}, mockRegistry);
+
+      const validateRoute = mockRegistry.routes.get('/config/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
@@ -324,7 +351,9 @@ describe('Config Plugin', () => {
         // No validate array
       });
 
-      const validateRoute = plugin.routes?.find((r) => r.path === '/config/validate');
+      await plugin.onStart({}, mockRegistry);
+
+      const validateRoute = mockRegistry.routes.get('/config/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
@@ -336,7 +365,7 @@ describe('Config Plugin', () => {
     });
   });
 
-  it('should log on init', async () => {
+  it('should log on start', async () => {
     const { createConfigPlugin } = await import('../src/plugins/config-plugin.js');
 
     const plugin = createConfigPlugin({
@@ -344,7 +373,7 @@ describe('Config Plugin', () => {
       mask: [],
     });
 
-    await plugin.onInit?.(mockContext);
+    await plugin.onStart({}, mockRegistry);
 
     expect(mockLogger.debug).toHaveBeenCalledWith(
       expect.stringContaining('3 vars')
@@ -353,6 +382,14 @@ describe('Config Plugin', () => {
 });
 
 describe('maskValue function', () => {
+  let mockLogger: Logger;
+  let mockRegistry: ReturnType<typeof createMockRegistry>;
+
+  beforeEach(() => {
+    mockLogger = createMockLogger();
+    mockRegistry = createMockRegistry(mockLogger);
+  });
+
   it('should mask short values completely', async () => {
     const { createConfigPlugin } = await import('../src/plugins/config-plugin.js');
     process.env.SHORT = 'abc';
@@ -362,7 +399,9 @@ describe('maskValue function', () => {
       mask: ['short'],
     });
 
-    const configRoute = plugin.routes?.find((r) => r.path === '/config');
+    await plugin.onStart({}, mockRegistry);
+
+    const configRoute = mockRegistry.routes.get('/config');
     const res = createMockResponse();
 
     configRoute?.handler(createMockRequest() as any, res, vi.fn());
@@ -382,7 +421,9 @@ describe('maskValue function', () => {
       mask: ['secret'],
     });
 
-    const configRoute = plugin.routes?.find((r) => r.path === '/config');
+    await plugin.onStart({}, mockRegistry);
+
+    const configRoute = mockRegistry.routes.get('/config');
     const res = createMockResponse();
 
     configRoute?.handler(createMockRequest() as any, res, vi.fn());

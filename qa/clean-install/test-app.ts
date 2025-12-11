@@ -9,6 +9,7 @@
  * - TypeScript types work correctly
  * - Plugin system works
  * - Health manager functions properly
+ * - Plugin Registry (v2.0) works
  */
 import {
   // Core factory function
@@ -38,6 +39,20 @@ import {
   type LogsPluginConfig,
   type ConfigPluginConfig,
   type DiagnosticsPluginConfig,
+
+  // Plugin Registry (v2.0 Event-Driven Architecture)
+  createPluginRegistry,
+  getPluginRegistry,
+  hasPluginRegistry,
+  resetPluginRegistry,
+  type Plugin,
+  type PluginConfig,
+  type PluginEvent,
+  type PluginRegistry,
+  type MenuContribution,
+  type PageContribution,
+  type WidgetContribution,
+  type RouteDefinition,
 } from '@qwickapps/server';
 
 /**
@@ -152,6 +167,81 @@ function testHealthTypes(): void {
   console.log('  - HealthStatus:', healthStatus);
 }
 
+/**
+ * Test 7: Plugin Registry v2.0 types
+ */
+function testPluginRegistry(): void {
+  // Verify registry functions exist
+  console.log('createPluginRegistry is function:', typeof createPluginRegistry === 'function');
+  console.log('getPluginRegistry is function:', typeof getPluginRegistry === 'function');
+  console.log('hasPluginRegistry is function:', typeof hasPluginRegistry === 'function');
+  console.log('resetPluginRegistry is function:', typeof resetPluginRegistry === 'function');
+
+  // Verify Plugin interface types
+  const testPlugin: Plugin = {
+    id: 'test-v2-plugin',
+    name: 'Test Plugin v2',
+    version: '1.0.0',
+    onStart: async (config: PluginConfig, registry: PluginRegistry) => {
+      // Register UI contributions
+      registry.addMenuItem({
+        id: 'test-menu',
+        label: 'Test',
+        route: '/test',
+        icon: 'test',
+        pluginId: 'test-v2-plugin',
+      });
+      registry.addPage({
+        id: 'test-page',
+        route: '/test',
+        component: 'TestPage',
+        pluginId: 'test-v2-plugin',
+      });
+    },
+    onStop: async () => {
+      console.log('Plugin stopped');
+    },
+    onPluginEvent: async (event: PluginEvent) => {
+      if (event.type === 'plugin:started') {
+        console.log(`Plugin ${event.pluginId} started`);
+      }
+    },
+  };
+
+  console.log('Plugin v2 type check passed:', testPlugin.id);
+
+  // Verify UI contribution types
+  const menuItem: MenuContribution = {
+    id: 'menu-1',
+    label: 'Menu Item',
+    route: '/menu',
+    icon: 'menu',
+    order: 10,
+    pluginId: 'test-plugin',
+  };
+
+  const page: PageContribution = {
+    id: 'page-1',
+    route: '/page',
+    component: 'PageComponent',
+    title: 'Page Title',
+    pluginId: 'test-plugin',
+  };
+
+  const widget: WidgetContribution = {
+    id: 'widget-1',
+    title: 'Widget',
+    component: 'WidgetComponent',
+    defaultSize: { width: 2, height: 1 },
+    pluginId: 'test-plugin',
+  };
+
+  console.log('UI contribution types check passed');
+  console.log('  - MenuContribution:', menuItem.label);
+  console.log('  - PageContribution:', page.title);
+  console.log('  - WidgetContribution:', widget.title);
+}
+
 // Run tests
 console.log('╔════════════════════════════════════════════════════════════════╗');
 console.log('║  @qwickapps/server - Clean Environment Test            ║');
@@ -164,6 +254,7 @@ testBuiltInPlugins();
 testHealthManager();
 testControlPanelFactory();
 testHealthTypes();
+testPluginRegistry();
 
 console.log('');
 console.log('✅ All tests passed! Package works correctly in clean environment.');

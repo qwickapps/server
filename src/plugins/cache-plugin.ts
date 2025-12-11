@@ -48,7 +48,7 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import type { ControlPanelPlugin, PluginContext } from '../core/types.js';
+import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
 
 // Dynamic import for ioredis (optional peer dependency)
 type Redis = import('ioredis').default;
@@ -180,8 +180,18 @@ export interface CacheInstance {
    * Get all keys matching a pattern
    * @param pattern - Pattern to match (prefix is applied automatically)
    * @returns Array of matching keys (without prefix)
+   * @deprecated Use scanKeys() for production - keys() blocks Redis on large datasets
    */
   keys(pattern: string): Promise<string[]>;
+
+  /**
+   * Scan keys matching a pattern using cursor-based iteration (non-blocking)
+   * @param pattern - Pattern to match (prefix is applied automatically)
+   * @param options - Optional scan configuration
+   * @param options.count - Hint for how many keys to return per iteration (default: 100)
+   * @returns Array of matching keys (without prefix)
+   */
+  scanKeys(pattern: string, options?: { count?: number }): Promise<string[]>;
 
   /**
    * Flush all keys with the configured prefix
@@ -248,7 +258,7 @@ export function hasCache(name = 'default'): boolean {
  *
  * @param config - Cache configuration
  * @param instanceName - Name for this cache instance (default: 'default')
- * @returns A control panel plugin
+ * @returns A plugin
  *
  * @example
  * ```typescript
@@ -263,10 +273,11 @@ export function hasCache(name = 'default'): boolean {
 export function createCachePlugin(
   config: CachePluginConfig,
   instanceName = 'default'
-): ControlPanelPlugin {
+): Plugin {
   let client: Redis | null = null;
   const prefix = config.keyPrefix ?? '';
   const defaultTtl = config.defaultTtl ?? 3600;
+  const pluginId = `cache:${instanceName}`;
 
   const prefixKey = (key: string): string => `${prefix}${key}`;
   const unprefixKey = (key: string): string =>
@@ -382,6 +393,25 @@ export function createCachePlugin(
         return keys.map(unprefixKey);
       },
 
+      async scanKeys(pattern: string, options?: { count?: number }): Promise<string[]> {
+        if (!client) throw new Error('Cache client not initialized');
+        const results: string[] = [];
+        const stream = client.scanStream({
+          match: prefixKey(pattern),
+          count: options?.count ?? 100,
+        });
+
+        return new Promise((resolve, reject) => {
+          stream.on('data', (keys: string[]) => {
+            for (const key of keys) {
+              results.push(unprefixKey(key));
+            }
+          });
+          stream.on('end', () => resolve(results));
+          stream.on('error', (err) => reject(err));
+        });
+      },
+
       async flush(): Promise<number> {
         if (!client) throw new Error('Cache client not initialized');
         if (!prefix) {
@@ -437,11 +467,12 @@ export function createCachePlugin(
   };
 
   return {
-    name: `cache:${instanceName}`,
-    order: 5, // Initialize early, before other plugins that may need cache
+    id: pluginId,
+    name: `Redis Cache (${instanceName})`,
+    version: '1.0.0',
 
-    async onInit(context: PluginContext): Promise<void> {
-      const { registerHealthCheck, logger } = context;
+    async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger(pluginId);
 
       // Create and register the instance
       const instance = await createInstance();
@@ -459,7 +490,7 @@ export function createCachePlugin(
 
       // Register health check if enabled
       if (config.healthCheck !== false) {
-        registerHealthCheck({
+        registry.registerHealthCheck({
           name: config.healthCheckName ?? 'redis',
           type: 'custom',
           interval: config.healthCheckInterval ?? 30000,
@@ -492,7 +523,7 @@ export function createCachePlugin(
       }
     },
 
-    async onShutdown(): Promise<void> {
+    async onStop(): Promise<void> {
       const instance = instances.get(instanceName);
       if (instance) {
         await instance.close();

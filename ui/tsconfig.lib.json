@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "../dist-ui-lib",
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src/components/index.ts", "src/components/**/*.ts", "src/components/**/*.tsx", "src/pages/**/*.tsx", "src/api/**/*.ts", "src/config/**/*.ts"]
+}

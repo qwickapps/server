@@ -1,0 +1,225 @@
+/**
+ * PostgreSQL User Store
+ *
+ * User storage implementation using PostgreSQL.
+ * Requires the 'pg' package to be installed.
+ *
+ * Note: Ban management is handled by the separate Bans Plugin.
+ *
+ * Copyright (c) 2025 QwickApps.com. All rights reserved.
+ */
+
+import type {
+  UserStore,
+  User,
+  CreateUserInput,
+  UpdateUserInput,
+  UserSearchParams,
+  UserListResponse,
+  PostgresUserStoreConfig,
+} from '../types.js';
+
+// Pool interface (from pg package)
+interface PgPool {
+  query(text: string, values?: unknown[]): Promise<{ rows: unknown[]; rowCount: number | null }>;
+}
+
+/**
+ * Create a PostgreSQL user store
+ *
+ * @param config Configuration including a pg Pool instance
+ * @returns UserStore implementation
+ *
+ * @example
+ * ```ts
+ * import { Pool } from 'pg';
+ * import { postgresUserStore } from '@qwickapps/server';
+ *
+ * const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+ * const store = postgresUserStore({ pool });
+ * ```
+ */
+export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
+  const {
+    pool: poolOrFn,
+    usersTable = 'users',
+    schema = 'public',
+    autoCreateTables = true,
+  } = config;
+
+  // Helper to get pool (supports lazy initialization via function)
+  const getPool = (): PgPool => {
+    const pool = typeof poolOrFn === 'function' ? poolOrFn() : poolOrFn;
+    return pool as PgPool;
+  };
+
+  const usersTableFull = `"${schema}"."${usersTable}"`;
+
+  return {
+    name: 'postgres',
+
+    async initialize(): Promise<void> {
+      if (!autoCreateTables) return;
+
+      // Create users table
+      await getPool().query(`
+        CREATE TABLE IF NOT EXISTS ${usersTableFull} (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          email VARCHAR(255) NOT NULL UNIQUE,
+          name VARCHAR(255),
+          external_id VARCHAR(255),
+          provider VARCHAR(50),
+          picture TEXT,
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW(),
+          last_login_at TIMESTAMPTZ
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_${usersTable}_email ON ${usersTableFull}(email);
+        CREATE INDEX IF NOT EXISTS idx_${usersTable}_external_id ON ${usersTableFull}(external_id, provider);
+      `);
+    },
+
+    async getById(id: string): Promise<User | null> {
+      const result = await getPool().query(`SELECT * FROM ${usersTableFull} WHERE id = $1`, [id]);
+      return (result.rows[0] as User) || null;
+    },
+
+    async getByEmail(email: string): Promise<User | null> {
+      const result = await getPool().query(`SELECT * FROM ${usersTableFull} WHERE LOWER(email) = LOWER($1)`, [
+        email,
+      ]);
+      return (result.rows[0] as User) || null;
+    },
+
+    async getByExternalId(externalId: string, provider: string): Promise<User | null> {
+      const result = await getPool().query(
+        `SELECT * FROM ${usersTableFull} WHERE external_id = $1 AND provider = $2`,
+        [externalId, provider]
+      );
+      return (result.rows[0] as User) || null;
+    },
+
+    async create(input: CreateUserInput): Promise<User> {
+      const result = await getPool().query(
+        `INSERT INTO ${usersTableFull} (email, name, external_id, provider, picture, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [
+          input.email.toLowerCase(),
+          input.name,
+          input.external_id,
+          input.provider,
+          input.picture,
+          JSON.stringify(input.metadata || {}),
+        ]
+      );
+      return result.rows[0] as User;
+    },
+
+    async update(id: string, input: UpdateUserInput): Promise<User | null> {
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
+
+      if (input.name !== undefined) {
+        updates.push(`name = $${paramIndex++}`);
+        values.push(input.name);
+      }
+      if (input.picture !== undefined) {
+        updates.push(`picture = $${paramIndex++}`);
+        values.push(input.picture);
+      }
+      if (input.metadata !== undefined) {
+        updates.push(`metadata = $${paramIndex++}`);
+        values.push(JSON.stringify(input.metadata));
+      }
+
+      if (updates.length === 0) {
+        return this.getById(id);
+      }
+
+      updates.push(`updated_at = NOW()`);
+      values.push(id);
+
+      const result = await getPool().query(
+        `UPDATE ${usersTableFull} SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+      );
+      return (result.rows[0] as User) || null;
+    },
+
+    async delete(id: string): Promise<boolean> {
+      const result = await getPool().query(`DELETE FROM ${usersTableFull} WHERE id = $1`, [id]);
+      return (result.rowCount ?? 0) > 0;
+    },
+
+    async search(params: UserSearchParams): Promise<UserListResponse> {
+      const {
+        query,
+        provider,
+        page = 1,
+        limit = 20,
+        sortBy = 'created_at',
+        sortOrder = 'desc',
+      } = params;
+
+      const conditions: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
+
+      if (query) {
+        conditions.push(`(LOWER(email) LIKE $${paramIndex} OR LOWER(name) LIKE $${paramIndex})`);
+        values.push(`%${query.toLowerCase()}%`);
+        paramIndex++;
+      }
+
+      if (provider) {
+        conditions.push(`provider = $${paramIndex}`);
+        values.push(provider);
+        paramIndex++;
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Validate sort column to prevent SQL injection
+      const validSortColumns = ['email', 'name', 'created_at', 'last_login_at'];
+      const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+      const sortDir = sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+      const offset = (page - 1) * limit;
+
+      // Get total count
+      const countResult = await getPool().query(
+        `SELECT COUNT(*) FROM ${usersTableFull} ${whereClause}`,
+        values
+      );
+      const total = parseInt((countResult.rows[0] as { count: string }).count, 10);
+
+      // Get users
+      const result = await getPool().query(
+        `SELECT * FROM ${usersTableFull} ${whereClause}
+         ORDER BY ${sortColumn} ${sortDir}
+         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+        [...values, limit, offset]
+      );
+
+      return {
+        users: result.rows as User[],
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    },
+
+    async updateLastLogin(id: string): Promise<void> {
+      await getPool().query(`UPDATE ${usersTableFull} SET last_login_at = NOW() WHERE id = $1`, [id]);
+    },
+
+    async shutdown(): Promise<void> {
+      // Pool is managed externally, nothing to do here
+    },
+  };
+}

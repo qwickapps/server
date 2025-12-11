@@ -10,7 +10,8 @@
 import { existsSync, readFileSync, statSync } from 'fs';
 import { resolve } from 'path';
 import type { Request, Response } from 'express';
-import type { ControlPanelPlugin, LogSource, PluginContext } from '../core/types.js';
+import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
+import type { LogSource } from '../core/types.js';
 import { getLoggingSubsystem } from '../core/logging.js';
 
 export interface LogsPluginConfig {
@@ -61,7 +62,7 @@ function getDefaultSources(): LogSource[] {
 /**
  * Create a logs plugin
  */
-export function createLogsPlugin(config: LogsPluginConfig = {}): ControlPanelPlugin {
+export function createLogsPlugin(config: LogsPluginConfig = {}): Plugin {
   const maxLines = config.retention?.maxLines || 10000;
 
   // Use provided sources or default to logging subsystem paths
@@ -73,13 +74,18 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): ControlPanelPlu
   };
 
   return {
-    name: 'logs',
-    order: 20,
+    id: 'logs',
+    name: 'Logs Plugin',
+    version: '1.0.0',
 
-    routes: [
-      {
+    async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('logs');
+
+      // Register /logs/sources route
+      registry.addRoute({
         method: 'get',
         path: '/logs/sources',
+        pluginId: 'logs',
         handler: (_req: Request, res: Response) => {
           const sources = getSources();
           res.json({
@@ -89,10 +95,13 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): ControlPanelPlu
             })),
           });
         },
-      },
-      {
+      });
+
+      // Register /logs route
+      registry.addRoute({
         method: 'get',
         path: '/logs',
+        pluginId: 'logs',
         handler: (req: Request, res: Response) => {
           try {
             const sources = getSources();
@@ -124,10 +133,13 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): ControlPanelPlu
             });
           }
         },
-      },
-      {
+      });
+
+      // Register /logs/stats route
+      registry.addRoute({
         method: 'get',
         path: '/logs/stats',
+        pluginId: 'logs',
         handler: (req: Request, res: Response) => {
           try {
             const sources = getSources();
@@ -151,12 +163,14 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): ControlPanelPlu
             });
           }
         },
-      },
-    ],
+      });
 
-    async onInit(context: PluginContext): Promise<void> {
       const sources = getSources();
-      context.logger.debug(`Logs plugin initialized with ${sources.length} sources`);
+      logger.debug(`Logs plugin initialized with ${sources.length} sources`);
+    },
+
+    async onStop(): Promise<void> {
+      // Nothing to cleanup
     },
   };
 }

@@ -1,6 +1,6 @@
 {
   "name": "@qwickapps/server",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Plugin-based application server framework for building websites, APIs, admin dashboards, and full-stack products",
   "type": "module",
   "main": "dist/index.js",
@@ -13,25 +13,35 @@
     "./plugins": {
       "types": "./dist/plugins/index.d.ts",
       "import": "./dist/plugins/index.js"
+    },
+    "./ui": {
+      "types": "./dist-ui-lib/components/index.d.ts",
+      "import": "./dist-ui-lib/index.js"
     }
   },
   "files": [
     "dist",
     "dist-ui",
+    "dist-ui-lib",
     "src",
     "ui"
   ],
   "scripts": {
-    "build": "npm run build:server && npm run build:ui",
+    "build": "npm run build:server && npm run build:ui && npm run build:ui-lib",
     "build:server": "tsc",
     "build:ui": "cd ui && vite build",
-    "build:clean": "rm -rf dist dist-ui && npm run build",
+    "build:ui-lib": "cd ui && vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
+    "build:clean": "rm -rf dist dist-ui dist-ui-lib && npm run build",
     "dev": "tsc --watch",
     "dev:ui": "cd ui && vite",
-    "clean": "rm -rf dist dist-ui node_modules",
+    "clean": "rm -rf dist dist-ui dist-ui-lib node_modules",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "demo": "npx tsx examples/demo-server.ts",
     "type-check": "tsc --noEmit",
     "type-check:ui": "cd ui && tsc --noEmit",
     "validate:clean-install": "./qa/clean-install/validate.sh",
@@ -50,6 +60,7 @@
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.2.0",
     "@mui/material": "^7.2.0",
+    "@playwright/test": "^1.57.0",
     "@qwickapps/react-framework": "^1.5.5",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
@@ -57,14 +68,15 @@
     "@types/node": "^20.10.5",
     "@types/pg": "^8.11.0",
     "@types/react": "^18.2.0",
-    "ioredis": "^5.4.0",
-    "pg": "^8.13.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.3.4",
     "express-openid-connect": "^2.19.3",
+    "ioredis": "^5.4.0",
+    "pg": "^8.13.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.30.1",
+    "tsx": "^4.20.6",
     "typescript": "^5.3.3",
     "vite": "^6.0.0",
     "vitest": "^2.1.0"

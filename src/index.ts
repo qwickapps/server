@@ -9,15 +9,33 @@
 
 // Core exports
 export { createControlPanel } from './core/control-panel.js';
+export type { CreateControlPanelOptions } from './core/control-panel.js';
 export { createGateway } from './core/gateway.js';
 export { HealthManager } from './core/health-manager.js';
 
-// Guards exports
+// Plugin Registry exports (event-driven architecture v2.0)
 export {
-  createRouteGuard,
-  isAuthenticated,
-  getAuthenticatedUser,
-} from './core/guards.js';
+  createPluginRegistry,
+  getPluginRegistry,
+  hasPluginRegistry,
+  resetPluginRegistry,
+  PluginRegistryImpl,
+} from './core/plugin-registry.js';
+export type {
+  Plugin,
+  PluginConfig,
+  PluginEvent,
+  PluginEventHandler,
+  PluginRegistry,
+  PluginInfo,
+  MenuContribution,
+  PageContribution,
+  WidgetContribution,
+  RouteDefinition,
+} from './core/plugin-registry.js';
+
+// Route guards (for control panel protection)
+export { createRouteGuard } from './core/guards.js';
 
 // Logging exports
 export {
@@ -29,9 +47,7 @@ export type { LoggingConfig } from './core/logging.js';
 
 export type {
   ControlPanelConfig,
-  ControlPanelPlugin,
   ControlPanelInstance,
-  PluginContext,
   HealthCheck,
   HealthCheckType,
   HealthCheckResult,
@@ -40,7 +56,7 @@ export type {
   ConfigDisplayOptions,
   Logger,
   DiagnosticsReport,
-  // New mount path and guard types
+  // Route guard types
   RouteGuardType,
   RouteGuardConfig,
   BasicAuthGuardConfig,
@@ -53,7 +69,7 @@ export type {
 export type {
   GatewayConfig,
   GatewayInstance,
-  ServiceFactory,
+  MountedAppConfig,
 } from './core/gateway.js';
 
 // Built-in plugins
@@ -63,18 +79,64 @@ export {
   createConfigPlugin,
   createDiagnosticsPlugin,
   createFrontendAppPlugin,
-  // Database plugins
+  // Postgres plugin
   createPostgresPlugin,
   getPostgres,
   hasPostgres,
-  // Backward compatibility aliases (deprecated)
-  createPostgresPlugin as createDatabasePlugin,
-  getPostgres as getDatabase,
-  hasPostgres as hasDatabase,
-  // Cache plugins
+  // Cache plugin
   createCachePlugin,
   getCache,
   hasCache,
+  // Auth plugin
+  createAuthPlugin,
+  isAuthenticated,
+  getAuthenticatedUser,
+  getAccessToken,
+  requireAuth,
+  requireRoles,
+  requireAnyRole,
+  auth0Adapter,
+  basicAdapter,
+  supabaseAdapter,
+  isAuthenticatedRequest,
+  // Users plugin
+  createUsersPlugin,
+  getUserStore,
+  getUserById,
+  getUserByEmail,
+  findOrCreateUser,
+  postgresUserStore,
+  // Bans plugin (separate from Users, depends on Users)
+  createBansPlugin,
+  getBanStore,
+  isUserBanned,
+  isEmailBanned,
+  getActiveBan,
+  banUser,
+  unbanUser,
+  listActiveBans,
+  postgresBanStore,
+  // Entitlements plugin
+  createEntitlementsPlugin,
+  getEntitlementSource,
+  isSourceReadonly,
+  getEntitlements,
+  refreshEntitlements,
+  hasEntitlement,
+  hasAnyEntitlement,
+  hasAllEntitlements,
+  grantEntitlement,
+  revokeEntitlement,
+  setEntitlements,
+  getAvailableEntitlements,
+  getEntitlementStats,
+  invalidateEntitlementCache,
+  storeExternalIdMapping,
+  invalidateByExternalId,
+  requireEntitlement,
+  requireAnyEntitlement,
+  requireAllEntitlements,
+  postgresEntitlementSource,
 } from './plugins/index.js';
 export type {
   HealthPluginConfig,
@@ -82,14 +144,51 @@ export type {
   ConfigPluginConfig,
   DiagnosticsPluginConfig,
   FrontendAppPluginConfig,
-  // Database plugin types
+  // Postgres plugin types
   PostgresPluginConfig,
   PostgresInstance,
   TransactionCallback,
-  // Backward compatibility aliases (deprecated)
-  PostgresPluginConfig as DatabasePluginConfig,
-  PostgresInstance as DatabaseInstance,
   // Cache plugin types
   CachePluginConfig,
   CacheInstance,
+  // Auth plugin types
+  AuthPluginConfig,
+  AuthAdapter,
+  AuthenticatedUser,
+  AuthenticatedRequest,
+  Auth0AdapterConfig,
+  SupabaseAdapterConfig,
+  BasicAdapterConfig,
+  // Users plugin types
+  UsersPluginConfig,
+  UserStore,
+  User,
+  CreateUserInput,
+  UpdateUserInput,
+  UserSearchParams,
+  UserListResponse,
+  PostgresUserStoreConfig,
+  UserSyncConfig,
+  UsersApiConfig,
+  UsersUiConfig,
+  // Bans plugin types
+  BansPluginConfig,
+  BanStore,
+  Ban,
+  CreateBanInput,
+  RemoveBanInput,
+  BanCallbacks,
+  PostgresBanStoreConfig,
+  // Entitlements plugin types
+  EntitlementsPluginConfig,
+  EntitlementSource,
+  EntitlementResult,
+  EntitlementDefinition,
+  EntitlementCallbacks,
+  EntitlementsCacheConfig,
+  EntitlementsApiConfig,
+  PostgresEntitlementSourceConfig,
+  UserEntitlement,
+  CachedEntitlements,
+  EntitlementStats,
 } from './plugins/index.js';
