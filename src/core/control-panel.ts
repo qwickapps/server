@@ -164,6 +164,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
   router.get('/info', (_req: Request, res: Response) => {
     res.json({
       product: config.productName,
+      logoName: config.logoName || config.productName,
       version: config.version || 'unknown',
       uptime: Date.now() - startTime,
       links: config.links || [],

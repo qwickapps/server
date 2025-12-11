@@ -20,6 +20,7 @@ export interface HealthResponse {
 
 export interface InfoResponse {
   product: string;
+  logoName: string;
   version: string;
   uptime: number;
   links: Array<{ label: string; url: string; external?: boolean }>;
@@ -430,6 +431,18 @@ class ControlPanelApi {
     }
     const data = await response.json();
     return data.sources;
+  }
+
+  // ==================
+  // Plugins API
+  // ==================
+
+  async getPlugins(): Promise<{ plugins: Array<{ id: string; name: string; version?: string }> }> {
+    const response = await fetch(`${this.baseUrl}/api/plugins`);
+    if (!response.ok) {
+      throw new Error(`Plugins request failed: ${response.statusText}`);
+    }
+    return response.json();
   }
 }
 

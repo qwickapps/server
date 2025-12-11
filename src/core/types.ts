@@ -116,6 +116,9 @@ export interface ControlPanelConfig {
   /** Product name displayed in the control panel */
   productName: string;
 
+  /** Optional: Logo name for ProductLogo component (defaults to productName) */
+  logoName?: string;
+
   /** Port to run the control panel on */
   port: number;
 

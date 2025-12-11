@@ -20,8 +20,8 @@ test.describe('Navigation', () => {
     await page.goto('/cpanel/users');
 
     // Core navigation items (rendered as buttons in the sidebar)
+    // Note: Health page was removed - health details are now in System page
     await expect(page.getByRole('button', { name: 'Dashboard' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Health' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Logs' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'System' })).toBeVisible();
 
@@ -45,13 +45,6 @@ test.describe('Navigation', () => {
 
     await expect(page).toHaveURL(/\/cpanel\/entitlements/);
     await expect(page.getByText('Entitlements').first()).toBeVisible();
-  });
-
-  test('should navigate to Health page', async ({ page }) => {
-    await page.goto('/cpanel/users');
-    await page.getByRole('button', { name: /Health/i }).click();
-
-    await expect(page).toHaveURL(/\/cpanel\/health/);
   });
 
   test('should navigate to Logs page', async ({ page }) => {
