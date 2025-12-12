@@ -163,6 +163,41 @@ export interface PluginFeatures {
   entitlementsReadonly?: boolean;
 }
 
+// ==================
+// UI Contributions Types
+// ==================
+
+export interface MenuContribution {
+  id: string;
+  label: string;
+  icon?: string;
+  route: string;
+  order?: number;
+  pluginId: string;
+  parent?: string;
+}
+
+export interface PageContribution {
+  id: string;
+  route: string;
+  title: string;
+  pluginId: string;
+}
+
+export interface WidgetContribution {
+  id: string;
+  title: string;
+  priority?: number;
+  pluginId: string;
+}
+
+export interface UiContributionsResponse {
+  menuItems: MenuContribution[];
+  pages: PageContribution[];
+  widgets: WidgetContribution[];
+  plugins: Array<{ id: string; name: string; version?: string; status: string }>;
+}
+
 class ControlPanelApi {
   private baseUrl: string;
 
@@ -441,6 +476,18 @@ class ControlPanelApi {
     const response = await fetch(`${this.baseUrl}/api/plugins`);
     if (!response.ok) {
       throw new Error(`Plugins request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  // ==================
+  // UI Contributions API
+  // ==================
+
+  async getUiContributions(): Promise<UiContributionsResponse> {
+    const response = await fetch(`${this.baseUrl}/api/ui-contributions`);
+    if (!response.ok) {
+      throw new Error(`UI contributions request failed: ${response.statusText}`);
     }
     return response.json();
   }

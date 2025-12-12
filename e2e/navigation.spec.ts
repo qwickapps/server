@@ -63,7 +63,8 @@ test.describe('Navigation', () => {
 
   test('should display product name in header', async ({ page }) => {
     await page.goto('/cpanel/users');
-    // The Control Panel shows "ControlPanel" in the header
-    await expect(page.getByText('ControlPanel')).toBeVisible();
+    // The Control Panel shows the product name from API (demo gateway name)
+    // Note: ProductLogo component formats the name, showing "DemoGateway" without space
+    await expect(page.getByText('QwickApps DemoGateway')).toBeVisible();
   });
 });

@@ -9,8 +9,9 @@ import { LogsPage } from './pages/LogsPage';
 import { SystemPage } from './pages/SystemPage';
 import { UsersPage } from './pages/UsersPage';
 import { EntitlementsPage } from './pages/EntitlementsPage';
+import { PluginPage } from './pages/PluginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { api } from './api/controlPanelApi';
+import { api, type MenuContribution } from './api/controlPanelApi';
 
 // Navigation item type
 interface NavigationItem {
@@ -27,11 +28,13 @@ const coreNavigationItems: NavigationItem[] = [
   { id: 'system', label: 'System', route: '/system', icon: 'settings' },
 ];
 
-// Optional navigation items - only shown if corresponding plugin is registered
-const optionalNavigationItems: Record<string, NavigationItem> = {
+// Built-in optional navigation items - shown if corresponding plugin is registered
+const builtInPluginNavItems: Record<string, NavigationItem> = {
   users: { id: 'users', label: 'Users', route: '/users', icon: 'people' },
-  entitlements: { id: 'entitlements', label: 'Entitlements', route: '/entitlements', icon: 'local_offer' },
 };
+
+// Routes that have dedicated page components
+const dedicatedRoutes = new Set(['/', '/logs', '/system', '/users', '/entitlements']);
 
 // Package version - injected at build time or fallback
 const SERVER_VERSION = '1.0.0';
@@ -76,41 +79,89 @@ const footerContent = (
 export function App() {
   const [navigationItems, setNavigationItems] = useState<NavigationItem[]>(coreNavigationItems);
   const [registeredPlugins, setRegisteredPlugins] = useState<Set<string>>(new Set());
+  const [pluginMenuItems, setPluginMenuItems] = useState<MenuContribution[]>([]);
   const [logoName, setLogoName] = useState<string>('Control Panel');
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch product info and registered plugins on mount
+  // Fetch product info and UI contributions on mount
   useEffect(() => {
-    // Fetch product info for logo
-    api.getInfo()
-      .then((info) => {
-        setLogoName(info.logoName);
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch product info:', err);
-      });
+    const loadData = async () => {
+      try {
+        // Fetch both in parallel
+        const [infoResult, contributionsResult] = await Promise.allSettled([
+          api.getInfo(),
+          api.getUiContributions(),
+        ]);
 
-    // Fetch plugins for navigation
-    api.getPlugins()
-      .then((response) => {
-        const pluginIds = new Set(response.plugins.map((p: { id: string }) => p.id));
-        setRegisteredPlugins(pluginIds);
-
-        // Build navigation: core items + optional items for registered plugins
-        const dynamicNav = [...coreNavigationItems];
-        for (const [pluginId, navItem] of Object.entries(optionalNavigationItems)) {
-          if (pluginIds.has(pluginId)) {
-            dynamicNav.push(navItem);
-          }
+        // Update logo name if info fetch succeeded
+        if (infoResult.status === 'fulfilled') {
+          setLogoName(infoResult.value.logoName);
+        } else {
+          console.warn('Failed to fetch product info:', infoResult.reason);
         }
-        setNavigationItems(dynamicNav);
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch plugins, using core navigation only:', err);
-      });
+
+        // Update navigation from UI contributions
+        if (contributionsResult.status === 'fulfilled') {
+          const { plugins, menuItems } = contributionsResult.value;
+          const pluginIds = new Set(plugins.map((p) => p.id));
+          setRegisteredPlugins(pluginIds);
+          setPluginMenuItems(menuItems);
+
+          // Build navigation: core items + built-in plugin items + dynamic menu items
+          const dynamicNav = [...coreNavigationItems];
+
+          // Add built-in plugin nav items (like Users)
+          for (const [pluginId, navItem] of Object.entries(builtInPluginNavItems)) {
+            if (pluginIds.has(pluginId)) {
+              dynamicNav.push(navItem);
+            }
+          }
+
+          // Add plugin-contributed menu items (sorted by order)
+          const sortedMenuItems = [...menuItems].sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+          for (const menuItem of sortedMenuItems) {
+            // Skip if we already have a nav item for this route
+            if (dynamicNav.some(nav => nav.route === menuItem.route)) {
+              continue;
+            }
+            dynamicNav.push({
+              id: menuItem.id,
+              label: menuItem.label,
+              route: menuItem.route,
+              icon: menuItem.icon || 'extension',
+            });
+          }
+
+          setNavigationItems(dynamicNav);
+        } else {
+          console.warn('Failed to fetch UI contributions:', contributionsResult.reason);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   // Dynamic logo based on logoName from API
   const logo = <ProductLogo name={logoName} />;
+
+  // Show loading state until plugins are loaded
+  // This ensures QwickApp receives the correct navigation on first render
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          bgcolor: 'var(--theme-background, #1a1a2e)',
+        }}
+      />
+    );
+  }
 
   return (
     <BrowserRouter basename={basePath || undefined}>
@@ -125,15 +176,30 @@ export function App() {
           showPaletteSwitcher={true}
         >
           <Routes>
+            {/* Core routes */}
             <Route path="/" element={<DashboardPage />} />
             <Route path="/logs" element={<LogsPage />} />
             <Route path="/system" element={<SystemPage />} />
+
+            {/* Built-in plugin routes */}
             {registeredPlugins.has('users') && (
               <Route path="/users" element={<UsersPage />} />
             )}
             {registeredPlugins.has('entitlements') && (
               <Route path="/entitlements" element={<EntitlementsPage />} />
             )}
+
+            {/* Dynamic plugin routes - render generic PluginPage for non-dedicated routes */}
+            {pluginMenuItems
+              .filter(item => !dedicatedRoutes.has(item.route))
+              .map(item => (
+                <Route
+                  key={item.id}
+                  path={item.route}
+                  element={<PluginPage pluginId={item.pluginId} title={item.label} route={item.route} />}
+                />
+              ))}
+
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </QwickApp>
