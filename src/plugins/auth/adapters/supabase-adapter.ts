@@ -68,7 +68,19 @@ export function supabaseAdapter(config: SupabaseAdapterConfig): AuthAdapter {
           return null;
         }
 
-        const supabaseUser = await response.json();
+        const supabaseUser = (await response.json()) as {
+          id: string;
+          email: string;
+          email_confirmed_at?: string;
+          user_metadata?: {
+            full_name?: string;
+            name?: string;
+            avatar_url?: string;
+          };
+          app_metadata?: {
+            roles?: string[];
+          };
+        };
 
         const user: AuthenticatedUser = {
           id: supabaseUser.id,
