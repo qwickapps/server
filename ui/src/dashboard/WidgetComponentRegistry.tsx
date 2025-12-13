@@ -7,7 +7,7 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import { ReactNode, createContext, useContext, useState, useCallback } from 'react';
+import { ReactNode, createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 /**
  * Widget component definition
@@ -85,16 +85,20 @@ export function WidgetComponentRegistryProvider({
     return Array.from(components.keys());
   }, [components]);
 
+  // Memoize context value to prevent unnecessary re-renders of consumers
+  const contextValue = useMemo(
+    () => ({
+      registerComponent,
+      registerComponents,
+      getComponent,
+      hasComponent,
+      getRegisteredNames,
+    }),
+    [registerComponent, registerComponents, getComponent, hasComponent, getRegisteredNames]
+  );
+
   return (
-    <WidgetComponentRegistryContext.Provider
-      value={{
-        registerComponent,
-        registerComponents,
-        getComponent,
-        hasComponent,
-        getRegisteredNames,
-      }}
-    >
+    <WidgetComponentRegistryContext.Provider value={contextValue}>
       {children}
     </WidgetComponentRegistryContext.Provider>
   );

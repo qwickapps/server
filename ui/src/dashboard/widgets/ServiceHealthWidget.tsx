@@ -41,6 +41,14 @@ function getStatusColor(status: string): string {
   }
 }
 
+/** Get grid columns count (1-4) based on item count */
+function getGridColumns(count: number): 1 | 2 | 3 | 4 {
+  if (count <= 1) return 1;
+  if (count === 2) return 2;
+  if (count === 3) return 3;
+  return 4;
+}
+
 /**
  * Service Health Widget Component
  */
@@ -87,7 +95,7 @@ export function ServiceHealthWidget() {
   }
 
   // Determine grid columns based on number of health checks (max 4)
-  const columns = Math.min(healthChecks.length, 4) as 1 | 2 | 3 | 4;
+  const columns = getGridColumns(healthChecks.length);
 
   return (
     <GridLayout columns={columns} spacing="medium" equalHeight>
