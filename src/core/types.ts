@@ -119,6 +119,13 @@ export interface ControlPanelConfig {
   /** Optional: Logo name for ProductLogo component (defaults to productName) */
   logoName?: string;
 
+  /**
+   * Optional: URL path to the product logo icon (SVG, PNG, etc.).
+   * Used by the React UI to display a custom logo instead of the default QwickIcon.
+   * Example: '/cpanel/logo.svg'
+   */
+  logoIconUrl?: string;
+
   /** Port to run the control panel on */
   port: number;
 
@@ -127,7 +134,6 @@ export interface ControlPanelConfig {
 
   /** Optional: Branding configuration */
   branding?: {
-    logo?: string;
     primaryColor?: string;
     favicon?: string;
   };

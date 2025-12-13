@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Logo Configuration**: Consolidated redundant logo properties into single `logoIconUrl` (fixes #336)
+  - Replaced `GatewayConfig.logoUrl` with `logoIconUrl`
+  - Removed `ControlPanelConfig.branding.logo` (was unused by React UI)
+  - Added `ControlPanelConfig.logoIconUrl` for custom logo icons
+  - React UI now renders custom logo when `logoIconUrl` is provided in `/api/info`
+  - **BREAKING**: Migrate from `logoUrl` to `logoIconUrl` in gateway configs
+
 ### Added
 
 - **Cache Plugin**: `scanKeys()` method using Redis SCAN for non-blocking key iteration (closes #258)

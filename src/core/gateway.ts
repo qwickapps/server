@@ -137,12 +137,13 @@ export interface GatewayConfig {
   version?: string;
 
   /**
-   * URL to the product logo image (SVG, PNG, etc.).
-   * Used on the default landing page when no frontend app is configured.
+   * URL path to the product logo icon (SVG, PNG, etc.).
+   * Used on landing pages and passed to the control panel React UI.
+   * Example: '/cpanel/logo.svg'
    */
-  logoUrl?: string;
+  logoIconUrl?: string;
 
-  /** Branding configuration */
+  /** Branding configuration (primaryColor, favicon) */
   branding?: ControlPanelConfig['branding'];
 
   /** CORS origins */
@@ -353,7 +354,7 @@ function generateLandingPageHtml(
 function generateDefaultLandingPageHtml(
   productName: string,
   controlPanelPath: string,
-  logoUrl?: string
+  logoIconUrl?: string
 ): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -434,6 +435,12 @@ function generateDefaultLandingPageHtml(
       width: 48px;
       height: 48px;
       fill: white;
+    }
+
+    .logo img {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
     }
 
     h1 {
@@ -533,11 +540,14 @@ function generateDefaultLandingPageHtml(
   <div class="bg-gradient"></div>
 
   <div class="container">
-    <div class="logo default">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-      </svg>
-    </div>
+    ${logoIconUrl
+      ? `<div class="logo"><img src="${logoIconUrl}" alt="${productName} logo"></div>`
+      : `<div class="logo default">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>`
+    }
 
     <h1>${productName}</h1>
 
@@ -1193,7 +1203,7 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
    * Setup frontend app at root path
    */
   const setupFrontendApp = () => {
-    const { frontendApp, logoUrl } = config;
+    const { frontendApp, logoIconUrl } = config;
 
     // Default landing page
     if (!frontendApp) {
@@ -1202,7 +1212,7 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
         const html = generateDefaultLandingPageHtml(
           config.productName,
           cpPath,
-          logoUrl
+          logoIconUrl
         );
         res.type('html').send(html);
       });
@@ -1253,6 +1263,7 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
           productName: config.productName,
           port: cpPort,
           version,
+          logoIconUrl: config.logoIconUrl,
           branding: config.branding,
           cors: config.corsOrigins ? { origins: config.corsOrigins } : undefined,
           mountPath: '/', // Control panel runs at / internally

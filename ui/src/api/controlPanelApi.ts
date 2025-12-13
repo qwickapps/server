@@ -21,12 +21,12 @@ export interface HealthResponse {
 export interface InfoResponse {
   product: string;
   logoName: string;
+  logoIconUrl?: string;
   version: string;
   uptime: number;
   links: Array<{ label: string; url: string; external?: boolean }>;
   branding?: {
     primaryColor?: string;
-    logo?: string;
   };
 }
 

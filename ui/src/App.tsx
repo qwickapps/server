@@ -81,6 +81,7 @@ export function App() {
   const [registeredPlugins, setRegisteredPlugins] = useState<Set<string>>(new Set());
   const [pluginMenuItems, setPluginMenuItems] = useState<MenuContribution[]>([]);
   const [logoName, setLogoName] = useState<string>('Control Panel');
+  const [logoIconUrl, setLogoIconUrl] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch product info and UI contributions on mount
@@ -93,9 +94,10 @@ export function App() {
           api.getUiContributions(),
         ]);
 
-        // Update logo name if info fetch succeeded
+        // Update logo name and icon URL if info fetch succeeded
         if (infoResult.status === 'fulfilled') {
           setLogoName(infoResult.value.logoName);
+          setLogoIconUrl(infoResult.value.logoIconUrl);
         } else {
           console.warn('Failed to fetch product info:', infoResult.reason);
         }
@@ -144,8 +146,16 @@ export function App() {
     loadData();
   }, []);
 
-  // Dynamic logo based on logoName from API
-  const logo = <ProductLogo name={logoName} />;
+  // Dynamic logo based on logoName and logoIconUrl from API
+  // When logoIconUrl is provided, use it as a custom icon instead of the default QwickIcon
+  const logoIcon = logoIconUrl ? (
+    <img
+      src={logoIconUrl}
+      alt={logoName}
+      style={{ width: 32, height: 32, objectFit: 'contain' }}
+    />
+  ) : undefined;
+  const logo = <ProductLogo icon={logoIcon} name={logoName} />;
 
   // Show loading state until plugins are loaded
   // This ensures QwickApp receives the correct navigation on first render

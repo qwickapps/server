@@ -165,6 +165,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     res.json({
       product: config.productName,
       logoName: config.logoName || config.productName,
+      logoIconUrl: config.logoIconUrl,
       version: config.version || 'unknown',
       uptime: Date.now() - startTime,
       links: config.links || [],

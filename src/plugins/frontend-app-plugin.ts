@@ -28,8 +28,9 @@ export interface FrontendAppPluginConfig {
     heading?: string;
     description?: string;
     links?: Array<{ label: string; url: string }>;
+    /** URL path to the logo icon (SVG, PNG, etc.) */
+    logoIconUrl?: string;
     branding?: {
-      logo?: string;
       primaryColor?: string;
     };
   };
@@ -154,7 +155,7 @@ function generateLandingPageHtml(config: NonNullable<FrontendAppPluginConfig['la
       max-width: 600px;
       padding: 2rem;
     }
-    ${config.branding?.logo ? `
+    ${config.logoIconUrl ? `
     .logo {
       width: 80px;
       height: 80px;
@@ -209,7 +210,7 @@ function generateLandingPageHtml(config: NonNullable<FrontendAppPluginConfig['la
 </head>
 <body>
   <div class="container">
-    ${config.branding?.logo ? `<img src="${config.branding.logo}" alt="Logo" class="logo">` : ''}
+    ${config.logoIconUrl ? `<img src="${config.logoIconUrl}" alt="Logo" class="logo">` : ''}
     <h1>${config.heading || config.title}</h1>
     ${config.description ? `<p>${config.description}</p>` : ''}
     ${linksHtml ? `<div class="links">${linksHtml}</div>` : ''}
