@@ -203,6 +203,53 @@ export interface UiContributionsResponse {
   plugins: Array<{ id: string; name: string; version?: string; status: string }>;
 }
 
+// ==================
+// Plugin Detail Types
+// ==================
+
+export interface ConfigContribution {
+  id: string;
+  component: string;
+  title?: string;
+  pluginId: string;
+}
+
+export interface PluginContributions {
+  routes: Array<{ method: string; path: string }>;
+  menuItems: MenuContribution[];
+  pages: PageContribution[];
+  widgets: WidgetContribution[];
+  config?: ConfigContribution;
+}
+
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version?: string;
+  status: 'starting' | 'active' | 'stopped' | 'error';
+  error?: string;
+  contributionCounts: {
+    routes: number;
+    menuItems: number;
+    pages: number;
+    widgets: number;
+    hasConfig: boolean;
+  };
+}
+
+export interface PluginsResponse {
+  plugins: PluginInfo[];
+}
+
+export interface PluginDetailResponse {
+  id: string;
+  name: string;
+  version?: string;
+  status: 'starting' | 'active' | 'stopped' | 'error';
+  error?: string;
+  contributions: PluginContributions;
+}
+
 class ControlPanelApi {
   private baseUrl: string;
 
@@ -477,10 +524,21 @@ class ControlPanelApi {
   // Plugins API
   // ==================
 
-  async getPlugins(): Promise<{ plugins: Array<{ id: string; name: string; version?: string }> }> {
+  async getPlugins(): Promise<PluginsResponse> {
     const response = await fetch(`${this.baseUrl}/api/plugins`);
     if (!response.ok) {
       throw new Error(`Plugins request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async getPluginDetail(id: string): Promise<PluginDetailResponse> {
+    const response = await fetch(`${this.baseUrl}/api/plugins/${encodeURIComponent(id)}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`Plugin not found: ${id}`);
+      }
+      throw new Error(`Plugin detail request failed: ${response.statusText}`);
     }
     return response.json();
   }

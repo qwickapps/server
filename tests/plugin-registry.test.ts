@@ -540,4 +540,202 @@ describe('PluginRegistry', () => {
       expect(stopOrder).toEqual(['plugin-3', 'plugin-2', 'plugin-1']);
     });
   });
+
+  describe('Config Contributions', () => {
+    it('should register and retrieve config components', async () => {
+      const plugin = createTestPlugin('config-ui-plugin', {
+        onStartFn: async (_, reg) => {
+          reg.addConfigComponent({
+            id: 'config-1',
+            component: 'TestConfigComponent',
+            title: 'Test Config',
+            pluginId: 'config-ui-plugin',
+          });
+        },
+      });
+
+      await registry.startPlugin(plugin, {});
+
+      const configs = registry.getConfigComponents();
+      expect(configs).toHaveLength(1);
+      expect(configs[0].component).toBe('TestConfigComponent');
+      expect(configs[0].pluginId).toBe('config-ui-plugin');
+    });
+
+    it('should only allow one config component per plugin', async () => {
+      const plugin = createTestPlugin('config-ui-plugin', {
+        onStartFn: async (_, reg) => {
+          reg.addConfigComponent({
+            id: 'config-1',
+            component: 'FirstComponent',
+            pluginId: 'config-ui-plugin',
+          });
+          reg.addConfigComponent({
+            id: 'config-2',
+            component: 'SecondComponent',
+            pluginId: 'config-ui-plugin',
+          });
+        },
+      });
+
+      await registry.startPlugin(plugin, {});
+
+      const configs = registry.getConfigComponents();
+      expect(configs).toHaveLength(1);
+      expect(configs[0].component).toBe('SecondComponent'); // Last one wins
+    });
+
+    it('should remove config components when plugin stops', async () => {
+      const plugin = createTestPlugin('config-ui-plugin', {
+        onStartFn: async (_, reg) => {
+          reg.addConfigComponent({
+            id: 'config-1',
+            component: 'TestConfigComponent',
+            pluginId: 'config-ui-plugin',
+          });
+        },
+      });
+
+      await registry.startPlugin(plugin, {});
+      expect(registry.getConfigComponents()).toHaveLength(1);
+
+      await registry.stopPlugin('config-ui-plugin');
+      expect(registry.getConfigComponents()).toHaveLength(0);
+    });
+  });
+
+  describe('Plugin Contributions Query', () => {
+    it('should return all contributions for a plugin', async () => {
+      const handler = vi.fn();
+      const plugin = createTestPlugin('full-plugin', {
+        onStartFn: async (_, reg) => {
+          reg.addRoute({
+            method: 'get',
+            path: '/test',
+            handler,
+            pluginId: 'full-plugin',
+          });
+          reg.addMenuItem({
+            id: 'menu-1',
+            label: 'Test Menu',
+            route: '/test',
+            pluginId: 'full-plugin',
+          });
+          reg.addPage({
+            id: 'page-1',
+            route: '/test',
+            component: 'TestPage',
+            pluginId: 'full-plugin',
+          });
+          reg.addWidget({
+            id: 'widget-1',
+            title: 'Test Widget',
+            component: 'TestWidget',
+            pluginId: 'full-plugin',
+          });
+          reg.addConfigComponent({
+            id: 'config-1',
+            component: 'TestConfig',
+            pluginId: 'full-plugin',
+          });
+        },
+      });
+
+      await registry.startPlugin(plugin, {});
+
+      const contributions = registry.getPluginContributions('full-plugin');
+
+      expect(contributions.routes).toHaveLength(1);
+      expect(contributions.routes[0]).toEqual({ method: 'get', path: '/test' });
+      expect(contributions.menuItems).toHaveLength(1);
+      expect(contributions.pages).toHaveLength(1);
+      expect(contributions.widgets).toHaveLength(1);
+      expect(contributions.config).toBeDefined();
+      expect(contributions.config?.component).toBe('TestConfig');
+    });
+
+    it('should return empty contributions for non-existent plugin', () => {
+      const contributions = registry.getPluginContributions('non-existent');
+
+      expect(contributions.routes).toHaveLength(0);
+      expect(contributions.menuItems).toHaveLength(0);
+      expect(contributions.pages).toHaveLength(0);
+      expect(contributions.widgets).toHaveLength(0);
+      expect(contributions.config).toBeUndefined();
+    });
+
+    it('should not include contributions from other plugins', async () => {
+      const handler = vi.fn();
+      const plugin1 = createTestPlugin('plugin-1', {
+        onStartFn: async (_, reg) => {
+          reg.addRoute({
+            method: 'get',
+            path: '/plugin1',
+            handler,
+            pluginId: 'plugin-1',
+          });
+          reg.addMenuItem({
+            id: 'menu-p1',
+            label: 'Plugin 1 Menu',
+            route: '/plugin1',
+            pluginId: 'plugin-1',
+          });
+        },
+      });
+      const plugin2 = createTestPlugin('plugin-2', {
+        onStartFn: async (_, reg) => {
+          reg.addRoute({
+            method: 'post',
+            path: '/plugin2',
+            handler,
+            pluginId: 'plugin-2',
+          });
+          reg.addMenuItem({
+            id: 'menu-p2',
+            label: 'Plugin 2 Menu',
+            route: '/plugin2',
+            pluginId: 'plugin-2',
+          });
+        },
+      });
+
+      await registry.startPlugin(plugin1, {});
+      await registry.startPlugin(plugin2, {});
+
+      const contributions1 = registry.getPluginContributions('plugin-1');
+      const contributions2 = registry.getPluginContributions('plugin-2');
+
+      expect(contributions1.routes).toHaveLength(1);
+      expect(contributions1.routes[0].path).toBe('/plugin1');
+      expect(contributions1.menuItems).toHaveLength(1);
+      expect(contributions1.menuItems[0].label).toBe('Plugin 1 Menu');
+
+      expect(contributions2.routes).toHaveLength(1);
+      expect(contributions2.routes[0].path).toBe('/plugin2');
+      expect(contributions2.menuItems).toHaveLength(1);
+      expect(contributions2.menuItems[0].label).toBe('Plugin 2 Menu');
+    });
+
+    it('should sanitize routes by excluding handler function', async () => {
+      const secretHandler = vi.fn();
+      const plugin = createTestPlugin('route-plugin', {
+        onStartFn: async (_, reg) => {
+          reg.addRoute({
+            method: 'get',
+            path: '/secret',
+            handler: secretHandler,
+            pluginId: 'route-plugin',
+          });
+        },
+      });
+
+      await registry.startPlugin(plugin, {});
+
+      const contributions = registry.getPluginContributions('route-plugin');
+
+      // Should only have method and path, not handler
+      expect(contributions.routes[0]).toEqual({ method: 'get', path: '/secret' });
+      expect((contributions.routes[0] as any).handler).toBeUndefined();
+    });
+  });
 });

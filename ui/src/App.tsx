@@ -7,6 +7,7 @@ import { DashboardWidgetProvider } from './dashboard';
 import { DashboardPage } from './pages/DashboardPage';
 import { LogsPage } from './pages/LogsPage';
 import { SystemPage } from './pages/SystemPage';
+import { PluginsPage } from './pages/PluginsPage';
 import { UsersPage } from './pages/UsersPage';
 import { EntitlementsPage } from './pages/EntitlementsPage';
 import { PluginPage } from './pages/PluginPage';
@@ -24,6 +25,7 @@ interface NavigationItem {
 // Core navigation items always shown
 const coreNavigationItems: NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', route: '/', icon: 'dashboard' },
+  { id: 'plugins', label: 'Plugins', route: '/plugins', icon: 'extension' },
   { id: 'logs', label: 'Logs', route: '/logs', icon: 'article' },
   { id: 'system', label: 'System', route: '/system', icon: 'settings' },
 ];
@@ -34,7 +36,7 @@ const builtInPluginNavItems: Record<string, NavigationItem> = {
 };
 
 // Routes that have dedicated page components
-const dedicatedRoutes = new Set(['/', '/logs', '/system', '/users', '/entitlements']);
+const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements']);
 
 // Package version - injected at build time or fallback
 const SERVER_VERSION = '1.0.0';
@@ -188,6 +190,7 @@ export function App() {
           <Routes>
             {/* Core routes */}
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/plugins" element={<PluginsPage />} />
             <Route path="/logs" element={<LogsPage />} />
             <Route path="/system" element={<SystemPage />} />
 

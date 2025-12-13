@@ -164,6 +164,31 @@ export interface RouteDefinition {
   pluginId: string;
 }
 
+/**
+ * Configuration UI contribution for plugin settings
+ */
+export interface ConfigContribution {
+  /** Unique ID for this config contribution */
+  id: string;
+  /** React component name to render (matched by frontend registry) */
+  component: string;
+  /** Display title for the config section */
+  title?: string;
+  /** Plugin ID that contributed this */
+  pluginId: string;
+}
+
+/**
+ * Aggregated contributions for a specific plugin
+ */
+export interface PluginContributions {
+  routes: Array<{ method: string; path: string }>;
+  menuItems: MenuContribution[];
+  pages: PageContribution[];
+  widgets: WidgetContribution[];
+  config?: ConfigContribution;
+}
+
 // =============================================================================
 // Plugin Registry Interface
 // =============================================================================
@@ -204,6 +229,9 @@ export interface PluginRegistry {
   /** Register a widget */
   addWidget(widget: WidgetContribution): void;
 
+  /** Register a config component for plugin settings UI */
+  addConfigComponent(config: ConfigContribution): void;
+
   // ---------------------------------------------------------------------------
   // Contribution queries
   // ---------------------------------------------------------------------------
@@ -219,6 +247,12 @@ export interface PluginRegistry {
 
   /** Get all widgets */
   getWidgets(): WidgetContribution[];
+
+  /** Get all config components */
+  getConfigComponents(): ConfigContribution[];
+
+  /** Get all contributions for a specific plugin */
+  getPluginContributions(pluginId: string): PluginContributions;
 
   // ---------------------------------------------------------------------------
   // Configuration
@@ -292,6 +326,7 @@ export class PluginRegistryImpl implements PluginRegistry {
   private menuItems: MenuContribution[] = [];
   private pages: PageContribution[] = [];
   private widgets: WidgetContribution[] = [];
+  private configComponents: ConfigContribution[] = [];
 
   private eventHandlers = new Set<PluginEventHandler>();
 
@@ -385,6 +420,17 @@ export class PluginRegistryImpl implements PluginRegistry {
     this.logger.debug(`Widget registered: ${widget.title} by ${widget.pluginId}`);
   }
 
+  addConfigComponent(config: ConfigContribution): void {
+    // Only one config component per plugin - warn if replacing
+    const existing = this.configComponents.find((c) => c.pluginId === config.pluginId);
+    if (existing) {
+      this.logger.warn(`Replacing config component for plugin ${config.pluginId}: ${existing.component} → ${config.component}`);
+    }
+    this.configComponents = this.configComponents.filter((c) => c.pluginId !== config.pluginId);
+    this.configComponents.push(config);
+    this.logger.debug(`Config component registered: ${config.component} by ${config.pluginId}`);
+  }
+
   // ---------------------------------------------------------------------------
   // Contribution queries
   // ---------------------------------------------------------------------------
@@ -403,6 +449,22 @@ export class PluginRegistryImpl implements PluginRegistry {
 
   getWidgets(): WidgetContribution[] {
     return [...this.widgets];
+  }
+
+  getConfigComponents(): ConfigContribution[] {
+    return [...this.configComponents];
+  }
+
+  getPluginContributions(pluginId: string): PluginContributions {
+    return {
+      routes: this.routes
+        .filter((r) => r.pluginId === pluginId)
+        .map((r) => ({ method: r.method, path: r.path })),
+      menuItems: this.menuItems.filter((m) => m.pluginId === pluginId),
+      pages: this.pages.filter((p) => p.pluginId === pluginId),
+      widgets: this.widgets.filter((w) => w.pluginId === pluginId),
+      config: this.configComponents.find((c) => c.pluginId === pluginId),
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -577,6 +639,7 @@ export class PluginRegistryImpl implements PluginRegistry {
       this.menuItems = this.menuItems.filter((m) => m.pluginId !== pluginId);
       this.pages = this.pages.filter((p) => p.pluginId !== pluginId);
       this.widgets = this.widgets.filter((w) => w.pluginId !== pluginId);
+      this.configComponents = this.configComponents.filter((c) => c.pluginId !== pluginId);
 
       this.emit({
         type: 'plugin:stopped',

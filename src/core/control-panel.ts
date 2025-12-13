@@ -197,11 +197,42 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
   });
 
   /**
-   * GET /api/plugins - List all registered plugins
+   * GET /api/plugins - List all registered plugins with contribution counts
    */
   router.get('/plugins', (_req: Request, res: Response) => {
+    const plugins = pluginRegistry.listPlugins().map((plugin) => {
+      const contributions = pluginRegistry.getPluginContributions(plugin.id);
+      return {
+        ...plugin,
+        contributionCounts: {
+          routes: contributions.routes.length,
+          menuItems: contributions.menuItems.length,
+          pages: contributions.pages.length,
+          widgets: contributions.widgets.length,
+          hasConfig: !!contributions.config,
+        },
+      };
+    });
+    res.json({ plugins });
+  });
+
+  /**
+   * GET /api/plugins/:id - Get detailed plugin info with contributions
+   */
+  router.get('/plugins/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const plugins = pluginRegistry.listPlugins();
+    const plugin = plugins.find((p) => p.id === id);
+
+    if (!plugin) {
+      res.status(404).json({ error: `Plugin not found: ${id}` });
+      return;
+    }
+
+    const contributions = pluginRegistry.getPluginContributions(id);
     res.json({
-      plugins: pluginRegistry.listPlugins(),
+      ...plugin,
+      contributions,
     });
   });
 

@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Plugins Overview Page** in Control Panel UI (closes #346)
+  - New core built-in page at `/plugins` showing all registered plugins
+  - Plugin list with status badges (active/stopped/error/starting)
+  - Expandable details showing plugin contributions (routes, menu items, pages, widgets)
+  - Error display for plugins in error state
+  - New `ConfigContribution` type for plugins to provide custom settings UI
+  - `GET /api/plugins/:id` endpoint for detailed plugin info
+  - Enhanced `GET /api/plugins` with contribution counts
+  - `addConfigComponent()` and `getPluginContributions()` methods on PluginRegistry
+
 - **Cache Plugin**: `scanKeys()` method using Redis SCAN for non-blocking key iteration (closes #258)
   - Cursor-based iteration prevents blocking Redis on large datasets
   - Accepts optional `count` parameter for batch size hints
