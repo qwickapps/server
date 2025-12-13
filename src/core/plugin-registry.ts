@@ -138,8 +138,12 @@ export interface WidgetContribution {
   id: string;
   /** Widget title */
   title: string;
-  /** Component name to render */
+  /** Component name to render (matched by frontend widget registry) */
   component: string;
+  /** Priority for ordering (lower = first, default: 100) */
+  priority?: number;
+  /** Whether this widget is shown by default (default: false) */
+  showByDefault?: boolean;
   /** Default size */
   defaultSize?: { width: number; height: number };
   /** Plugin ID that contributed this */

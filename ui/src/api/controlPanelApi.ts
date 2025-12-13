@@ -187,7 +187,12 @@ export interface PageContribution {
 export interface WidgetContribution {
   id: string;
   title: string;
+  /** Component name to render (matched by frontend widget registry) */
+  component: string;
+  /** Priority for ordering (lower = first, default: 100) */
   priority?: number;
+  /** Whether this widget is shown by default */
+  showByDefault?: boolean;
   pluginId: string;
 }
 

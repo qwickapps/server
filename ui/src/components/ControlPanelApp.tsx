@@ -34,13 +34,18 @@ import { defaultConfig } from '../config/AppConfig';
 
 // Base pages
 import { DashboardPage } from '../pages/DashboardPage';
-import { HealthPage } from '../pages/HealthPage';
 import { LogsPage } from '../pages/LogsPage';
 import { SystemPage } from '../pages/SystemPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
 // Dashboard widget system
-import { DashboardWidgetProvider, type DashboardWidget } from '../dashboard';
+import {
+  DashboardWidgetProvider,
+  WidgetComponentRegistryProvider,
+  getBuiltInWidgetComponents,
+  type DashboardWidget,
+  type WidgetComponent,
+} from '../dashboard';
 
 // API
 import { api } from '../api/controlPanelApi';
@@ -55,8 +60,15 @@ export interface ControlPanelAppProps {
   /** Custom footer content (replaces default) */
   footerContent?: ReactNode;
 
-  /** Initial dashboard widgets to register */
+  /** Initial dashboard widgets to register (legacy context-based system) */
   dashboardWidgets?: DashboardWidget[];
+
+  /**
+   * Widget components to register for the plugin-based widget system.
+   * These map component names (from server WidgetContribution) to React components.
+   * Built-in widgets (ServiceHealthWidget, etc.) are registered automatically.
+   */
+  widgetComponents?: WidgetComponent[];
 
   /** Additional navigation items to add to the base control panel nav */
   navigationItems?: MenuItem[];
@@ -109,7 +121,6 @@ function DefaultFooter({ version }: { version: string }) {
 function getBaseNavigationItems(): MenuItem[] {
   return [
     { id: 'dashboard', label: 'Dashboard', route: '/', icon: 'dashboard' },
-    { id: 'health', label: 'Health', route: '/health', icon: 'favorite' },
     { id: 'logs', label: 'Logs', route: '/logs', icon: 'article' },
     { id: 'system', label: 'System', route: '/system', icon: 'settings' },
   ];
@@ -120,6 +131,7 @@ export function ControlPanelApp({
   logo,
   footerContent,
   dashboardWidgets = [],
+  widgetComponents = [],
   navigationItems = [],
   showBaseNavigation = true,
   hideBaseNavItems = [],
@@ -129,6 +141,9 @@ export function ControlPanelApp({
   children,
 }: ControlPanelAppProps) {
   const [version, setVersion] = useState<string>('');
+
+  // Combine built-in widget components with custom ones
+  const allWidgetComponents = [...getBuiltInWidgetComponents(), ...widgetComponents];
 
   // Configure API base URL based on basePath - do this synchronously before any renders
   // If basePath is '/cpanel', API is at '/cpanel/api'
@@ -160,34 +175,35 @@ export function ControlPanelApp({
   const effectiveFooter = footerContent || <DefaultFooter version={version} />;
 
   return (
-    <DashboardWidgetProvider initialWidgets={dashboardWidgets}>
-      <QwickApp
-        config={defaultConfig}
-        logo={effectiveLogo}
-        footerContent={effectiveFooter}
-        enableScaffolding={true}
-        navigationItems={allNavigationItems}
-        showThemeSwitcher={showThemeSwitcher}
-        showPaletteSwitcher={showPaletteSwitcher}
-      >
-        <Routes>
-          {/* Base control panel routes (filtered by hideBaseNavItems) */}
-          {showBaseNavigation && (
-            <>
-              {!hideBaseNavItems.includes('dashboard') && <Route path="/" element={<DashboardPage />} />}
-              {!hideBaseNavItems.includes('health') && <Route path="/health" element={<HealthPage />} />}
-              {!hideBaseNavItems.includes('logs') && <Route path="/logs" element={<LogsPage />} />}
-              {!hideBaseNavItems.includes('system') && <Route path="/system" element={<SystemPage />} />}
-            </>
-          )}
+    <WidgetComponentRegistryProvider initialComponents={allWidgetComponents}>
+      <DashboardWidgetProvider initialWidgets={dashboardWidgets}>
+        <QwickApp
+          config={defaultConfig}
+          logo={effectiveLogo}
+          footerContent={effectiveFooter}
+          enableScaffolding={true}
+          navigationItems={allNavigationItems}
+          showThemeSwitcher={showThemeSwitcher}
+          showPaletteSwitcher={showPaletteSwitcher}
+        >
+          <Routes>
+            {/* Base control panel routes (filtered by hideBaseNavItems) */}
+            {showBaseNavigation && (
+              <>
+                {!hideBaseNavItems.includes('dashboard') && <Route path="/" element={<DashboardPage />} />}
+                {!hideBaseNavItems.includes('logs') && <Route path="/logs" element={<LogsPage />} />}
+                {!hideBaseNavItems.includes('system') && <Route path="/system" element={<SystemPage />} />}
+              </>
+            )}
 
-          {/* Custom routes from consumer */}
-          {children}
+            {/* Custom routes from consumer */}
+            {children}
 
-          {/* Catch-all for 404 */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </QwickApp>
-    </DashboardWidgetProvider>
+            {/* Catch-all for 404 */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </QwickApp>
+      </DashboardWidgetProvider>
+    </WidgetComponentRegistryProvider>
   );
 }

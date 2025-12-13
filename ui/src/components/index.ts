@@ -13,21 +13,29 @@ export type { MenuItem } from '@qwickapps/react-framework';
 
 // Re-export base pages for consumers who want to use them directly
 export { DashboardPage } from '../pages/DashboardPage';
-export { HealthPage } from '../pages/HealthPage';
 export { LogsPage } from '../pages/LogsPage';
 export { SystemPage } from '../pages/SystemPage';
 export { NotFoundPage } from '../pages/NotFoundPage';
 export { UsersPage, type UsersPageProps } from '../pages/UsersPage';
 export { EntitlementsPage, type EntitlementsPageProps } from '../pages/EntitlementsPage';
 
-// Re-export dashboard widget system
+// Re-export dashboard widget system (legacy context-based + new plugin-based)
 export {
+  // Legacy context-based widget system
   DashboardWidgetProvider,
   useDashboardWidgets,
   useRegisterWidget,
   DashboardWidgetRenderer,
   type DashboardWidget,
   type DashboardWidgetProviderProps,
+  // New plugin-based widget system
+  WidgetComponentRegistryProvider,
+  useWidgetComponentRegistry,
+  PluginWidgetRenderer,
+  getBuiltInWidgetComponents,
+  ServiceHealthWidget,
+  type WidgetComponent,
+  type WidgetComponentRegistryProviderProps,
 } from '../dashboard';
 
 // Re-export API client and types

@@ -13,7 +13,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
 import { api, HealthResponse, InfoResponse } from '../api/controlPanelApi';
-import { DashboardWidgetRenderer } from '../dashboard';
+import { DashboardWidgetRenderer, PluginWidgetRenderer } from '../dashboard';
 
 function getStatusIcon(status: string) {
   switch (status) {
@@ -133,7 +133,10 @@ export function DashboardPage() {
         </CardActionArea>
       </Card>
 
-      {/* Dynamic widgets from registry */}
+      {/* Plugin widgets (from server-side widget contributions) */}
+      <PluginWidgetRenderer />
+
+      {/* Legacy widgets from context (for backwards compatibility) */}
       <DashboardWidgetRenderer />
     </Box>
   );

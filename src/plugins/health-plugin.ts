@@ -12,6 +12,8 @@ import type { HealthCheck } from '../core/types.js';
 export interface HealthPluginConfig {
   checks: HealthCheck[];
   aggregateEndpoint?: string;
+  /** Whether to show the ServiceHealthWidget on the dashboard (default: true) */
+  showWidget?: boolean;
 }
 
 /**
@@ -29,6 +31,18 @@ export function createHealthPlugin(config: HealthPluginConfig): Plugin {
       // Register all health checks
       for (const check of config.checks) {
         registry.registerHealthCheck(check);
+      }
+
+      // Register the ServiceHealthWidget (shown by default unless disabled)
+      if (config.showWidget !== false) {
+        registry.addWidget({
+          id: 'service-health',
+          title: 'Service Health',
+          component: 'ServiceHealthWidget',
+          priority: 10,
+          showByDefault: true,
+          pluginId: 'health',
+        });
       }
 
       logger.debug(`Registered ${config.checks.length} health checks`);
