@@ -615,6 +615,82 @@ await unbanEmail({
 | `/api/users/email-bans` | POST | Ban an email |
 | `/api/users/email-bans/:email` | DELETE | Unban an email |
 
+#### Preferences Plugin
+
+Per-user preferences storage with PostgreSQL Row-Level Security (RLS) for data isolation.
+
+```typescript
+import { createPreferencesPlugin, postgresPreferencesStore } from '@qwickapps/server';
+import { Pool } from 'pg';
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+createPreferencesPlugin({
+  store: postgresPreferencesStore({
+    pool,
+    tableName: 'user_preferences',
+    autoCreateTables: true,
+    enableRLS: true,  // Enable Row-Level Security
+  }),
+  defaults: {
+    theme: 'system',
+    notifications: {
+      email: true,
+      push: true,
+    },
+  },
+  api: {
+    prefix: '/preferences',
+    enabled: true,
+  },
+});
+```
+
+**Note:** The Preferences plugin requires the Users plugin to be loaded first, as it creates a foreign key reference to the users table.
+
+**REST API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/preferences` | GET | Get current user's preferences (merged with defaults) |
+| `/api/preferences` | PUT | Update preferences (deep merge with existing) |
+| `/api/preferences` | DELETE | Reset preferences to defaults |
+
+**Helper Functions:**
+```typescript
+import {
+  getPreferences,
+  updatePreferences,
+  deletePreferences,
+  getDefaultPreferences,
+  deepMerge,
+} from '@qwickapps/server';
+
+// Get user preferences (merged with defaults)
+const prefs = await getPreferences('user-123');
+
+// Update preferences (deep merge - preserves nested values)
+const updated = await updatePreferences('user-123', {
+  theme: 'dark',
+  notifications: { email: false },
+});
+// Result: { theme: 'dark', notifications: { email: false, push: true } }
+
+// Reset to defaults
+await deletePreferences('user-123');
+
+// Get configured defaults
+const defaults = getDefaultPreferences();
+
+// Deep merge utility (exported for custom use)
+const merged = deepMerge(baseObject, overrides);
+```
+
+**Security Features:**
+- PostgreSQL Row-Level Security ensures users can only access their own preferences
+- Transaction-safe RLS context for connection pooling compatibility
+- Input validation: 100KB size limit, 10-level nesting depth
+- Foreign key to users table with `ON DELETE CASCADE`
+
 ### Creating Custom Plugins
 
 ```typescript

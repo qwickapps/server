@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Preferences Plugin** (`createPreferencesPlugin`) - User preferences management with PostgreSQL RLS (#349)
+  - Row-Level Security (RLS) for database-level data isolation
+  - Foreign key to users table with `ON DELETE CASCADE`
+  - Transaction-safe RLS context setting for connection pooling
+  - Deep merge updates (preserve nested objects on partial updates)
+  - Configurable default preferences
+  - Input validation (100KB size limit, 10-level nesting depth)
+  - **PostgreSQL Store** (`postgresPreferencesStore`)
+    - Creates `user_preferences` table with RLS policies
+    - `WITH CHECK` clause for complete RLS protection on writes
+  - **REST API endpoints**:
+    - `GET /api/preferences` - Get current user's preferences (merged with defaults)
+    - `PUT /api/preferences` - Update preferences (deep merge)
+    - `DELETE /api/preferences` - Reset to defaults
+  - **Helper functions**: `getPreferences()`, `updatePreferences()`, `deletePreferences()`, `getDefaultPreferences()`
+  - **Utility**: `deepMerge()` function exported for custom merge operations
+
 ### Changed
 
 - **Logo Configuration**: Consolidated redundant logo properties into single `logoIconUrl` (fixes #336)

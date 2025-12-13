@@ -130,3 +130,22 @@ export type {
   CachedEntitlements,
   EntitlementStats,
 } from './entitlements/index.js';
+
+// Preferences plugin (depends on Users)
+export {
+  createPreferencesPlugin,
+  getPreferencesStore,
+  getPreferences,
+  updatePreferences,
+  deletePreferences,
+  getDefaultPreferences,
+  postgresPreferencesStore,
+  deepMerge,
+} from './preferences/index.js';
+export type {
+  PreferencesPluginConfig,
+  PreferencesStore,
+  UserPreferences,
+  PostgresPreferencesStoreConfig,
+  PreferencesApiConfig,
+} from './preferences/index.js';
