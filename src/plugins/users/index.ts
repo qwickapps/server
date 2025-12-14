@@ -14,6 +14,7 @@ export {
   getUserById,
   getUserByEmail,
   findOrCreateUser,
+  buildUserInfo,
 } from './users-plugin.js';
 
 // Types
@@ -29,6 +30,8 @@ export type {
   UserSyncConfig,
   UsersApiConfig,
   UsersUiConfig,
+  UserInfo,
+  UserSyncInput,
 } from './types.js';
 
 // Stores

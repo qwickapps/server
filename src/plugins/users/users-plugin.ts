@@ -18,10 +18,18 @@ import type {
   CreateUserInput,
   UpdateUserInput,
   UserSearchParams,
+  UserInfo,
+  UserSyncInput,
 } from './types.js';
+// Import helpers from other plugins for buildUserInfo
+// Note: These imports are used dynamically based on registry.hasPlugin() checks
+import { getEntitlements } from '../entitlements/entitlements-plugin.js';
+import { getPreferences } from '../preferences/preferences-plugin.js';
+import { getActiveBan } from '../bans/bans-plugin.js';
 
 // Store instance for helper access
 let currentStore: UserStore | null = null;
+let currentRegistry: PluginRegistry | null = null;
 
 /**
  * Create the Users plugin
@@ -49,8 +57,9 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
       await config.store.initialize();
       log('Users plugin migrations complete');
 
-      // Store reference for helper access
+      // Store references for helper access
       currentStore = config.store;
+      currentRegistry = registry;
 
       // Register health check
       registry.registerHealthCheck({
@@ -191,6 +200,69 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
             }
           },
         });
+
+        // GET /users/:id/info - Get comprehensive user info
+        registry.addRoute({
+          method: 'get',
+          path: `${apiPrefix}/:id/info`,
+          pluginId: 'users',
+          handler: async (req: Request, res: Response) => {
+            try {
+              const user = await config.store.getById(req.params.id);
+              if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+              }
+
+              const info = await buildUserInfo(user, registry);
+              res.json(info);
+            } catch (error) {
+              console.error('[UsersPlugin] Get user info error:', error);
+              res.status(500).json({ error: 'Failed to get user info' });
+            }
+          },
+        });
+
+        // POST /users/sync - Find or create user, return comprehensive info
+        registry.addRoute({
+          method: 'post',
+          path: `${apiPrefix}/sync`,
+          pluginId: 'users',
+          handler: async (req: Request, res: Response) => {
+            try {
+              const input = req.body as UserSyncInput;
+
+              // Normalize and validate email
+              const email = input.email?.trim().toLowerCase();
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (!email || !emailRegex.test(email)) {
+                return res.status(400).json({ error: 'Valid email is required' });
+              }
+
+              // Validate required fields
+              if (!input.external_id) {
+                return res.status(400).json({ error: 'external_id is required' });
+              }
+              if (!input.provider) {
+                return res.status(400).json({ error: 'provider is required' });
+              }
+
+              // Find or create user
+              const user = await findOrCreateUser({
+                email: email,
+                external_id: input.external_id,
+                provider: input.provider,
+                name: input.name?.trim(),
+                picture: input.picture?.trim(),
+              });
+
+              const info = await buildUserInfo(user, registry);
+              res.json(info);
+            } catch (error) {
+              console.error('[UsersPlugin] User sync error:', error);
+              res.status(500).json({ error: 'Failed to sync user' });
+            }
+          },
+        });
       }
 
       log('Users plugin started');
@@ -200,6 +272,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
       log('Stopping users plugin');
       await config.store.shutdown();
       currentStore = null;
+      currentRegistry = null;
       log('Users plugin stopped');
     },
   };
@@ -260,10 +333,7 @@ export async function findOrCreateUser(data: {
   // Try to find by email
   user = await currentStore.getByEmail(data.email);
   if (user) {
-    // Update with external ID if not set
-    if (!user.external_id) {
-      await currentStore.update(user.id, {});
-    }
+    // Note: external_id cannot be updated after user creation for security reasons
     await currentStore.updateLastLogin(user.id);
     return user;
   }
@@ -278,4 +348,71 @@ export async function findOrCreateUser(data: {
   });
 
   return user;
+}
+
+/**
+ * Build comprehensive user info by aggregating data from all loaded plugins.
+ * This helper fetches data from entitlements, preferences, and bans plugins
+ * in parallel (if they are loaded) and returns a unified UserInfo object.
+ */
+export async function buildUserInfo(user: User, registry: PluginRegistry): Promise<UserInfo> {
+  const info: UserInfo = { user };
+
+  // Fetch data from other plugins in parallel
+  const promises: Promise<void>[] = [];
+
+  if (registry.hasPlugin('entitlements')) {
+    promises.push(
+      getEntitlements(user.email)
+        .then((result) => {
+          info.entitlements = result.entitlements;
+        })
+        .catch((error) => {
+          console.error('[UsersPlugin] Failed to fetch entitlements:', error);
+          // Continue without entitlements - don't fail the whole request
+        })
+    );
+  }
+
+  if (registry.hasPlugin('preferences')) {
+    promises.push(
+      getPreferences(user.id)
+        .then((prefs) => {
+          info.preferences = prefs;
+        })
+        .catch((error) => {
+          console.error('[UsersPlugin] Failed to fetch preferences:', error);
+          // Continue without preferences - don't fail the whole request
+        })
+    );
+  }
+
+  if (registry.hasPlugin('bans')) {
+    promises.push(
+      getActiveBan(user.id)
+        .then((ban) => {
+          // Transform Ban to UserInfo.ban shape (only include relevant fields)
+          info.ban = ban
+            ? {
+                id: ban.id,
+                reason: ban.reason,
+                banned_at: ban.banned_at,
+                expires_at: ban.expires_at,
+              }
+            : null;
+        })
+        .catch((error) => {
+          console.error('[UsersPlugin] Failed to fetch ban status:', error);
+          // Continue without ban info - don't fail the whole request
+        })
+    );
+  }
+
+  // Future: roles plugin
+  // if (registry.hasPlugin('roles')) {
+  //   promises.push(getUserRoles(user.id).then(roles => info.roles = roles));
+  // }
+
+  await Promise.all(promises);
+  return info;
 }

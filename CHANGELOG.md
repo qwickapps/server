@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Users Plugin: User Info API** - Comprehensive user information aggregation (#352)
+  - `GET /api/users/:id/info` - Get comprehensive user info from all loaded plugins
+  - `POST /api/users/sync` - Find or create user and return full info (for Auth0/OAuth triggers)
+  - `buildUserInfo()` helper aggregates data in parallel from:
+    - Entitlements plugin (user's entitlements)
+    - Preferences plugin (user's preferences)
+    - Bans plugin (active ban status)
+  - Graceful degradation when plugins are not loaded
+  - Error resilience - partial failures don't break the entire request
+  - New types: `UserInfo`, `UserSyncInput`
+
 - **Preferences Plugin** (`createPreferencesPlugin`) - User preferences management with PostgreSQL RLS (#349)
   - Row-Level Security (RLS) for database-level data isolation
   - Foreign key to users table with `ON DELETE CASCADE`

@@ -207,3 +207,41 @@ export interface UsersPluginConfig {
   /** Enable debug logging */
   debug?: boolean;
 }
+
+/**
+ * Comprehensive user information aggregated from multiple plugins.
+ * Used by /users/:id/info and /users/sync endpoints.
+ */
+export interface UserInfo {
+  /** Core user data from users plugin */
+  user: User;
+  /** User's entitlements (if entitlements plugin loaded) */
+  entitlements?: string[];
+  /** User's preferences (if preferences plugin loaded) */
+  preferences?: Record<string, unknown>;
+  /** Active ban info (if bans plugin loaded, null if not banned) */
+  ban?: {
+    id: string;
+    reason: string;
+    banned_at: Date;
+    expires_at?: Date;
+  } | null;
+  /** User's roles (if roles plugin loaded - future) */
+  roles?: string[];
+}
+
+/**
+ * Input for POST /users/sync endpoint
+ */
+export interface UserSyncInput {
+  /** User's email address */
+  email: string;
+  /** External provider ID (e.g., Auth0 user_id) */
+  external_id: string;
+  /** Provider name (e.g., 'auth0', 'google') */
+  provider: string;
+  /** User's display name (optional) */
+  name?: string;
+  /** Profile picture URL (optional) */
+  picture?: string;
+}
