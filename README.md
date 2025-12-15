@@ -445,6 +445,83 @@ await cache.flush(); // Clear all keys with prefix
 
 Pluggable authentication with support for multiple providers via the adapter pattern.
 
+##### Zero-Config Environment Setup
+
+The simplest way to configure auth is via environment variables:
+
+```typescript
+import { createAuthPluginFromEnv } from '@qwickapps/server';
+
+// Auto-configures based on AUTH_ADAPTER env var
+const authPlugin = createAuthPluginFromEnv();
+
+// With overrides
+const authPlugin = createAuthPluginFromEnv({
+  excludePaths: ['/health', '/metrics'],
+  authRequired: true,
+});
+```
+
+**Environment Variables:**
+
+```bash
+# General (required to enable auth)
+AUTH_ADAPTER=supertokens|auth0|supabase|basic
+AUTH_REQUIRED=true                    # Default: true
+AUTH_EXCLUDE_PATHS=/health,/metrics   # Comma-separated
+AUTH_DEBUG=false
+
+# Supertokens
+SUPERTOKENS_CONNECTION_URI=http://localhost:3567
+SUPERTOKENS_APP_NAME=MyApp
+SUPERTOKENS_API_DOMAIN=http://localhost:3000
+SUPERTOKENS_WEBSITE_DOMAIN=http://localhost:3000
+SUPERTOKENS_API_KEY=                  # Optional, for managed service
+SUPERTOKENS_GOOGLE_CLIENT_ID=         # Optional social providers
+SUPERTOKENS_GOOGLE_CLIENT_SECRET=
+SUPERTOKENS_GITHUB_CLIENT_ID=
+SUPERTOKENS_GITHUB_CLIENT_SECRET=
+
+# Auth0
+AUTH0_DOMAIN=myapp.auth0.com
+AUTH0_CLIENT_ID=
+AUTH0_CLIENT_SECRET=
+AUTH0_BASE_URL=http://localhost:3000
+AUTH0_SECRET=                         # Session encryption secret
+AUTH0_AUDIENCE=                       # Optional, for API access tokens
+AUTH0_SCOPES=openid,profile,email     # Default scopes
+
+# Supabase
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=
+
+# Basic Auth
+BASIC_AUTH_USERNAME=admin
+BASIC_AUTH_PASSWORD=
+BASIC_AUTH_REALM=Protected            # Default: Protected
+```
+
+**Plugin States:**
+
+| State | Condition | Behavior |
+|-------|-----------|----------|
+| `disabled` | `AUTH_ADAPTER` not set | No auth middleware |
+| `enabled` | Valid configuration | Auth active |
+| `error` | Invalid configuration | Disabled with error details |
+
+**Check Auth Status:**
+
+```typescript
+import { getAuthStatus } from '@qwickapps/server';
+
+const status = getAuthStatus();
+// { state: 'enabled', adapter: 'supertokens', config: {...} }
+```
+
+##### Programmatic Configuration
+
+For more control, configure adapters directly in code:
+
 ```typescript
 import { createAuthPlugin, auth0Adapter, basicAdapter } from '@qwickapps/server';
 
@@ -474,6 +551,7 @@ createAuthPlugin({
 ```
 
 **Available Adapters:**
+- `supertokensAdapter` - Supertokens email/password + social logins (requires `supertokens-node`)
 - `auth0Adapter` - Auth0 OIDC (requires `express-openid-connect`)
 - `supabaseAdapter` - Supabase JWT validation
 - `basicAdapter` - HTTP Basic authentication

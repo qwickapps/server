@@ -36,6 +36,7 @@ import { defaultConfig } from '../config/AppConfig';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LogsPage } from '../pages/LogsPage';
 import { SystemPage } from '../pages/SystemPage';
+import { AuthPage } from '../pages/AuthPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
 // Dashboard widget system
@@ -122,6 +123,7 @@ function getBaseNavigationItems(): MenuItem[] {
   return [
     { id: 'dashboard', label: 'Dashboard', route: '/', icon: 'dashboard' },
     { id: 'logs', label: 'Logs', route: '/logs', icon: 'article' },
+    { id: 'auth', label: 'Auth', route: '/auth', icon: 'lock' },
     { id: 'system', label: 'System', route: '/system', icon: 'settings' },
   ];
 }
@@ -192,6 +194,7 @@ export function ControlPanelApp({
               <>
                 {!hideBaseNavItems.includes('dashboard') && <Route path="/" element={<DashboardPage />} />}
                 {!hideBaseNavItems.includes('logs') && <Route path="/logs" element={<LogsPage />} />}
+                {!hideBaseNavItems.includes('auth') && <Route path="/auth" element={<AuthPage />} />}
                 {!hideBaseNavItems.includes('system') && <Route path="/system" element={<SystemPage />} />}
               </>
             )}

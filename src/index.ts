@@ -89,6 +89,8 @@ export {
   hasCache,
   // Auth plugin
   createAuthPlugin,
+  createAuthPluginFromEnv,
+  getAuthStatus,
   isAuthenticated,
   getAuthenticatedUser,
   getAccessToken,
@@ -98,6 +100,7 @@ export {
   auth0Adapter,
   basicAdapter,
   supabaseAdapter,
+  supertokensAdapter,
   isAuthenticatedRequest,
   // Users plugin
   createUsersPlugin,
@@ -159,6 +162,10 @@ export type {
   Auth0AdapterConfig,
   SupabaseAdapterConfig,
   BasicAdapterConfig,
+  SupertokensAdapterConfig,
+  AuthPluginState,
+  AuthEnvPluginOptions,
+  AuthConfigStatus,
   // Users plugin types
   UsersPluginConfig,
   UserStore,

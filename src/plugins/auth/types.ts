@@ -204,3 +204,42 @@ export interface AuthenticatedRequest extends Request {
 export function isAuthenticatedRequest(req: Request): req is AuthenticatedRequest {
   return 'auth' in req && (req as AuthenticatedRequest).auth?.isAuthenticated === true;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Environment Configuration Types
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Auth plugin state
+ */
+export type AuthPluginState = 'disabled' | 'enabled' | 'error';
+
+/**
+ * Options for createAuthPluginFromEnv (overrides only)
+ */
+export interface AuthEnvPluginOptions {
+  /** Paths to exclude from authentication (can also use AUTH_EXCLUDE_PATHS env var) */
+  excludePaths?: string[];
+  /** Whether auth is required (can also use AUTH_REQUIRED env var, default: true) */
+  authRequired?: boolean;
+  /** Enable debug logging (can also use AUTH_DEBUG env var) */
+  debug?: boolean;
+  /** Custom unauthorized handler */
+  onUnauthorized?: (req: Request, res: Response) => void;
+}
+
+/**
+ * Auth configuration status returned by getAuthStatus()
+ */
+export interface AuthConfigStatus {
+  /** Current plugin state */
+  state: AuthPluginState;
+  /** Active adapter name (null if disabled or error) */
+  adapter: string | null;
+  /** Error message if state is 'error' */
+  error?: string;
+  /** List of missing environment variables if state is 'error' */
+  missingVars?: string[];
+  /** Current configuration with secrets masked */
+  config?: Record<string, string>;
+}

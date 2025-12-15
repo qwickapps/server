@@ -10,6 +10,26 @@ import type { Request, Response, RequestHandler } from 'express';
 import type { AuthAdapter, AuthenticatedUser, SupabaseAdapterConfig } from '../types.js';
 
 /**
+ * Supabase user response from /auth/v1/user endpoint
+ * @see https://supabase.com/docs/reference/javascript/auth-getuser
+ */
+interface SupabaseUserResponse {
+  id: string;
+  email: string;
+  email_confirmed_at?: string;
+  user_metadata?: {
+    full_name?: string;
+    name?: string;
+    avatar_url?: string;
+    [key: string]: unknown;
+  };
+  app_metadata?: {
+    roles?: string[];
+    [key: string]: unknown;
+  };
+}
+
+/**
  * Create a Supabase authentication adapter
  */
 export function supabaseAdapter(config: SupabaseAdapterConfig): AuthAdapter {
@@ -68,7 +88,7 @@ export function supabaseAdapter(config: SupabaseAdapterConfig): AuthAdapter {
           return null;
         }
 
-        const supabaseUser = await response.json();
+        const supabaseUser = (await response.json()) as SupabaseUserResponse;
 
         const user: AuthenticatedUser = {
           id: supabaseUser.id,
@@ -77,7 +97,7 @@ export function supabaseAdapter(config: SupabaseAdapterConfig): AuthAdapter {
           picture: supabaseUser.user_metadata?.avatar_url,
           emailVerified: !!supabaseUser.email_confirmed_at,
           roles: supabaseUser.app_metadata?.roles || [],
-          raw: supabaseUser,
+          raw: supabaseUser as unknown as Record<string, unknown>,
         };
 
         // Cache the validated user

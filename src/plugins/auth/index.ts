@@ -15,6 +15,9 @@ export {
   requireAnyRole,
 } from './auth-plugin.js';
 
+// Environment-based configuration
+export { createAuthPluginFromEnv, getAuthStatus } from './env-config.js';
+
 // Types
 export type {
   AuthPluginConfig,
@@ -25,6 +28,10 @@ export type {
   SupabaseAdapterConfig,
   BasicAdapterConfig,
   SupertokensAdapterConfig,
+  // Environment config types
+  AuthPluginState,
+  AuthEnvPluginOptions,
+  AuthConfigStatus,
 } from './types.js';
 export { isAuthenticatedRequest } from './types.js';
 

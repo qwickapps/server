@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Supabase Adapter TypeScript Error** - Fix build failure with `response.json()` returning `unknown`
+  - Added `SupabaseUserResponse` interface for type-safe Supabase API responses
+  - Node.js fetch types (`undici-types`) correctly return `Promise<unknown>` from `json()`
+  - This caused TS18046 errors when accessing properties on the response
+  - Fixes GitHub Actions publish workflow failure
+
 ### Added
+
+- **Auth Plugin Environment Configuration** - Zero-code auth setup via environment variables (#393)
+  - New `createAuthPluginFromEnv()` factory function
+  - Supports ALL 4 adapters: Auth0, Supabase, Supertokens, Basic
+  - Plugin states: disabled (no config), enabled (valid config), error (invalid config)
+  - Clear error messages listing missing environment variables
+  - Control Panel Auth page showing configuration status
+  - `getAuthStatus()` function to check current auth state
+  - API endpoints: `GET /api/auth/config/status`, `GET /api/auth/config`
+  - New types: `AuthPluginState`, `AuthEnvPluginOptions`, `AuthConfigStatus`
+  - Comprehensive env var support (30+ variables across all adapters)
+  - Secrets automatically masked in status responses
 
 - **Supertokens Auth Adapter** - Self-hosted authentication with Supertokens (#392)
   - Supports email/password authentication via EmailPassword recipe

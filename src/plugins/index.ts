@@ -28,6 +28,8 @@ export type { CachePluginConfig, CacheInstance } from './cache-plugin.js';
 // Auth plugin
 export {
   createAuthPlugin,
+  createAuthPluginFromEnv,
+  getAuthStatus,
   isAuthenticated,
   getAuthenticatedUser,
   getAccessToken,
@@ -37,6 +39,7 @@ export {
   auth0Adapter,
   basicAdapter,
   supabaseAdapter,
+  supertokensAdapter,
   isAuthenticatedRequest,
 } from './auth/index.js';
 export type {
@@ -47,6 +50,10 @@ export type {
   Auth0AdapterConfig,
   SupabaseAdapterConfig,
   BasicAdapterConfig,
+  SupertokensAdapterConfig,
+  AuthPluginState,
+  AuthEnvPluginOptions,
+  AuthConfigStatus,
 } from './auth/index.js';
 
 // Users plugin

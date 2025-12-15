@@ -250,6 +250,20 @@ export interface PluginDetailResponse {
   contributions: PluginContributions;
 }
 
+// ==================
+// Auth Config Types
+// ==================
+
+export type AuthPluginState = 'disabled' | 'enabled' | 'error';
+
+export interface AuthConfigStatus {
+  state: AuthPluginState;
+  adapter: string | null;
+  error?: string;
+  missingVars?: string[];
+  config?: Record<string, string>;
+}
+
 class ControlPanelApi {
   private baseUrl: string;
 
@@ -551,6 +565,33 @@ class ControlPanelApi {
     const response = await fetch(`${this.baseUrl}/api/ui-contributions`);
     if (!response.ok) {
       throw new Error(`UI contributions request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  // ==================
+  // Auth Config API
+  // ==================
+
+  async getAuthConfigStatus(): Promise<AuthConfigStatus> {
+    const response = await fetch(`${this.baseUrl}/api/auth/config/status`);
+    if (!response.ok) {
+      // Return disabled state if endpoint not available
+      if (response.status === 404) {
+        return { state: 'disabled', adapter: null };
+      }
+      throw new Error(`Auth config status request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async getAuthConfig(): Promise<AuthConfigStatus> {
+    const response = await fetch(`${this.baseUrl}/api/auth/config`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { state: 'disabled', adapter: null };
+      }
+      throw new Error(`Auth config request failed: ${response.statusText}`);
     }
     return response.json();
   }
