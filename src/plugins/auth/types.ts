@@ -128,6 +128,47 @@ export interface BasicAdapterConfig {
 }
 
 /**
+ * Supertokens adapter configuration
+ */
+export interface SupertokensAdapterConfig {
+  /** Supertokens connection URI (e.g., 'http://localhost:3567') */
+  connectionUri: string;
+
+  /** Supertokens API key (for managed service) */
+  apiKey?: string;
+
+  /** App name for branding */
+  appName: string;
+
+  /** API domain (e.g., 'http://localhost:3000') */
+  apiDomain: string;
+
+  /** Website domain (e.g., 'http://localhost:3000') */
+  websiteDomain: string;
+
+  /** API base path (default: '/auth') */
+  apiBasePath?: string;
+
+  /** Website base path (default: '/auth') */
+  websiteBasePath?: string;
+
+  /** Enable email/password auth (default: true) */
+  enableEmailPassword?: boolean;
+
+  /** Social login providers */
+  socialProviders?: {
+    google?: { clientId: string; clientSecret: string };
+    apple?: {
+      clientId: string;
+      clientSecret: string;
+      keyId: string;
+      teamId: string;
+    };
+    github?: { clientId: string; clientSecret: string };
+  };
+}
+
+/**
  * Auth plugin configuration
  */
 export interface AuthPluginConfig {

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Supertokens Auth Adapter** - Self-hosted authentication with Supertokens (#392)
+  - Supports email/password authentication via EmailPassword recipe
+  - Supports social logins (Google, Apple, GitHub) via ThirdParty recipe
+  - Uses Supertokens' native session management (HTTP-only cookies)
+  - Lazy initialization - doesn't require supertokens-node unless used
+  - Configurable options: enable/disable email/password, custom API paths
+  - Integrates with existing `requireAuth()` middleware
+  - New types: `SupertokensAdapterConfig`
+  - Requires `supertokens-node` v20+ as optional peer dependency
+
 - **Users Plugin: User Info API** - Comprehensive user information aggregation (#352)
   - `GET /api/users/:id/info` - Get comprehensive user info from all loaded plugins
   - `POST /api/users/sync` - Find or create user and return full info (for Auth0/OAuth triggers)

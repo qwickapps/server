@@ -24,6 +24,7 @@ export type {
   Auth0AdapterConfig,
   SupabaseAdapterConfig,
   BasicAdapterConfig,
+  SupertokensAdapterConfig,
 } from './types.js';
 export { isAuthenticatedRequest } from './types.js';
 
@@ -31,3 +32,4 @@ export { isAuthenticatedRequest } from './types.js';
 export { auth0Adapter } from './adapters/auth0-adapter.js';
 export { basicAdapter } from './adapters/basic-adapter.js';
 export { supabaseAdapter } from './adapters/supabase-adapter.js';
+export { supertokensAdapter } from './adapters/supertokens-adapter.js';
