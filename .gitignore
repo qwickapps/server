@@ -1,11 +1,7 @@
 # Build outputs (regenerated on each build)
 dist/
-dist-ui/assets/
+dist-ui/
 dist-ui-lib/
-
-# Keep dist-ui/index.html tracked (static entry point)
-!dist-ui/
-!dist-ui/index.html
 
 # Ignore reports
 test-results/
