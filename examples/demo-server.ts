@@ -20,8 +20,12 @@ import {
   createUsersPlugin,
   createBansPlugin,
   createEntitlementsPlugin,
+  createRateLimitPlugin,
   type EntitlementSource,
   type EntitlementDefinition,
+  type RateLimitStore,
+  type StoredLimit,
+  type IncrementOptions,
 } from '../src/index.js';
 
 // In-memory entitlement source for demo/testing
@@ -333,6 +337,77 @@ function createInMemoryBanStore() {
   };
 }
 
+// In-memory rate limit store for demo
+function createInMemoryRateLimitStore(): RateLimitStore {
+  const limits = new Map<string, StoredLimit>();
+  let idCounter = 1;
+
+  return {
+    name: 'in-memory',
+
+    async initialize() {
+      console.log('[InMemoryRateLimitStore] Initialized');
+    },
+
+    async get(key: string): Promise<StoredLimit | null> {
+      return limits.get(key) || null;
+    },
+
+    async increment(key: string, options: IncrementOptions): Promise<StoredLimit> {
+      const now = new Date();
+      const windowMs = options.windowMs;
+      const windowStart = new Date(now.getTime() - (now.getTime() % windowMs));
+      const windowEnd = new Date(windowStart.getTime() + windowMs);
+
+      const existing = limits.get(key);
+      if (existing && existing.windowStart.getTime() === windowStart.getTime()) {
+        existing.count += options.amount || 1;
+        existing.updatedAt = now;
+        return existing;
+      }
+
+      const newRecord: StoredLimit = {
+        id: `limit-${idCounter++}`,
+        key,
+        count: options.amount || 1,
+        maxRequests: options.maxRequests,
+        windowMs: options.windowMs,
+        windowStart,
+        windowEnd,
+        strategy: options.strategy,
+        userId: options.userId,
+        tenantId: options.tenantId,
+        ipAddress: options.ipAddress,
+        createdAt: now,
+        updatedAt: now,
+      };
+      limits.set(key, newRecord);
+      return newRecord;
+    },
+
+    async clear(key: string): Promise<boolean> {
+      return limits.delete(key);
+    },
+
+    async cleanup(): Promise<number> {
+      const now = Date.now();
+      let deleted = 0;
+      for (const [key, record] of limits) {
+        if (record.windowEnd.getTime() < now) {
+          limits.delete(key);
+          deleted++;
+        }
+      }
+      return deleted;
+    },
+
+    async shutdown() {
+      console.log('[InMemoryRateLimitStore] Shutdown');
+      limits.clear();
+    },
+  };
+}
+
 async function main() {
   // Control panel runs on port 3101 by default (3100 is for main app services)
   const port = parseInt(process.env.PORT || '3101', 10);
@@ -382,6 +457,19 @@ async function main() {
           cache: { enabled: false }, // Disable cache for simpler testing
         }),
       },
+      {
+        plugin: createRateLimitPlugin({
+          store: createInMemoryRateLimitStore(),
+          defaults: {
+            windowMs: 60000, // 1 minute
+            maxRequests: 100,
+            strategy: 'sliding-window',
+          },
+          cache: { type: 'memory' },
+          cleanup: { enabled: true, intervalMs: 300000 },
+          debug: true,
+        }),
+      },
     ],
   });
 
@@ -404,6 +492,7 @@ async function main() {
 ║    ✓ Users Plugin (in-memory)                                 ║
 ║    ✓ Bans Plugin (in-memory)                                  ║
 ║    ✓ Entitlements Plugin (in-memory, writable)                ║
+║    ✓ Rate Limit Plugin (in-memory, config UI at /rate-limits) ║
 ║                                                               ║
 ║  Press Ctrl+C to stop                                         ║
 ╚═══════════════════════════════════════════════════════════════╝

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Rate Limit Plugin** (`createRateLimitPlugin`) - API rate limiting with multiple strategies (#401)
+  - Three rate limiting strategies: sliding window (default), fixed window, token bucket
+  - PostgreSQL persistence with Row-Level Security (RLS) for multi-tenant isolation
+  - Redis caching with in-memory fallback (via cache plugin)
+  - Express middleware (`rateLimitMiddleware`) for automatic enforcement
+  - Programmatic API: `isLimited`, `checkLimit`, `incrementLimit`, `getRemainingRequests`, `clearLimit`
+  - Standard rate limit headers: `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `Retry-After`
+  - Auto-cleanup of expired limits
+  - Configurable scopes: user, tenant, IP
+  - **Environment Config** (`createRateLimitPluginFromEnv`) for zero-config setup via env vars
+  - **Runtime Config UI** - Control Panel page for live configuration changes
+    - Edit window size, max requests, strategy at runtime
+    - Toggle cleanup job on/off
+    - View store and cache status
+  - **Config API** (`GET/PUT /api/rate-limit/config`) for programmatic runtime updates
+  - **PostgreSQL Store** (`postgresRateLimitStore`) with RLS policies
+  - **Cache Store** (`createRateLimitCache`) with Redis/memory support
+  - Status API endpoints: `GET /rate-limit/status`, `DELETE /rate-limit/clear/:key`
+  - New types: `RateLimitPluginConfig`, `LimitStatus`, `RateLimitMiddlewareOptions`, `RateLimitEnvPluginOptions`
+
 ### Fixed
 
 - **Supabase Adapter TypeScript Error** - Fix build failure with `response.json()` returning `unknown`

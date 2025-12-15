@@ -769,6 +769,163 @@ const merged = deepMerge(baseObject, overrides);
 - Input validation: 100KB size limit, 10-level nesting depth
 - Foreign key to users table with `ON DELETE CASCADE`
 
+#### Rate Limit Plugin
+
+API rate limiting with multiple strategies, PostgreSQL persistence, and Redis caching.
+
+```typescript
+import {
+  createRateLimitPlugin,
+  postgresRateLimitStore,
+  rateLimitMiddleware,
+} from '@qwickapps/server';
+import { Pool } from 'pg';
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// Add plugin to gateway
+createRateLimitPlugin({
+  store: postgresRateLimitStore({
+    pool,
+    tableName: 'rate_limits',
+    autoCreateTables: true,
+    enableRLS: true,
+  }),
+  defaults: {
+    windowMs: 60000,      // 1 minute window
+    maxRequests: 100,     // 100 requests per window
+    strategy: 'sliding-window',  // or 'fixed-window', 'token-bucket'
+  },
+  cache: {
+    type: 'auto',  // 'redis' | 'memory' | 'auto' (uses Redis if available)
+  },
+  cleanup: {
+    enabled: true,
+    intervalMs: 300000,  // Clean up expired limits every 5 minutes
+  },
+});
+
+// Use middleware on routes
+app.use('/api', rateLimitMiddleware());
+
+// Per-route configuration
+app.post('/api/chat', rateLimitMiddleware({
+  windowMs: 60000,
+  max: 50,  // Lower limit for expensive operations
+  keyGenerator: (req) => `chat:${req.user?.id}`,
+}));
+
+// Dynamic limits based on user tier
+app.use(rateLimitMiddleware({
+  max: (req) => req.user?.tier === 'premium' ? 1000 : 50,
+}));
+```
+
+**Rate Limiting Strategies:**
+| Strategy | Description | Best For |
+|----------|-------------|----------|
+| `sliding-window` | Smooth rate limiting with weighted overlap | Most use cases (default) |
+| `fixed-window` | Simple discrete time windows | High performance, simple needs |
+| `token-bucket` | Allows bursts while maintaining average rate | APIs needing burst capacity |
+
+**REST API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/rate-limit/status` | GET | Get rate limit status for current user |
+| `/api/rate-limit/status/:key` | GET | Get status for a specific key |
+| `/api/rate-limit/clear/:key` | DELETE | Clear a rate limit (requires auth) |
+
+**Programmatic API:**
+```typescript
+import {
+  isLimited,
+  checkLimit,
+  incrementLimit,
+  getRemainingRequests,
+  getLimitStatus,
+  clearLimit,
+} from '@qwickapps/server';
+
+// Check if rate limited
+const limited = await isLimited('user:123:api');
+
+// Get full status without incrementing
+const status = await checkLimit('user:123:api');
+// { limited: false, current: 45, limit: 100, remaining: 55, resetAt: 1702656000, retryAfter: 30 }
+
+// Increment and get status
+const result = await incrementLimit('user:123:api');
+
+// Clear limit (e.g., after CAPTCHA)
+await clearLimit('user:123:api');
+```
+
+**Response Headers:**
+```
+RateLimit-Limit: 100
+RateLimit-Remaining: 55
+RateLimit-Reset: 1702656000
+Retry-After: 30  (only when limited)
+```
+
+**Security Features:**
+- PostgreSQL Row-Level Security isolates rate limits per user
+- Redis caching with in-memory fallback for high availability
+- Fail-open by default (allows requests on errors)
+
+**Environment Variable Configuration:**
+
+Use `createRateLimitPluginFromEnv()` for zero-config setup:
+
+```typescript
+import { createRateLimitPluginFromEnv, createPostgresPlugin } from '@qwickapps/server';
+
+// Requires postgres-plugin to be registered first
+const gateway = createGateway({
+  plugins: [
+    createPostgresPlugin({ /* ... */ }),
+    createRateLimitPluginFromEnv(),  // Reads config from env vars
+  ],
+});
+```
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `RATE_LIMIT_ENABLED` | `true` | Enable rate limiting |
+| `RATE_LIMIT_STRATEGY` | `sliding-window` | Strategy: `sliding-window`, `fixed-window`, `token-bucket` |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Window size in milliseconds |
+| `RATE_LIMIT_MAX_REQUESTS` | `100` | Maximum requests per window |
+| `RATE_LIMIT_CACHE_TYPE` | `auto` | Cache type: `redis`, `memory`, `auto` |
+| `RATE_LIMIT_CLEANUP_ENABLED` | `true` | Enable cleanup job |
+| `RATE_LIMIT_CLEANUP_INTERVAL_MS` | `300000` | Cleanup interval (5 min) |
+| `RATE_LIMIT_API_ENABLED` | `true` | Enable status API endpoints |
+| `RATE_LIMIT_API_PREFIX` | `/rate-limit` | API route prefix |
+| `RATE_LIMIT_TABLE_NAME` | `rate_limits` | PostgreSQL table name |
+| `RATE_LIMIT_ENABLE_RLS` | `true` | Enable Row-Level Security |
+| `RATE_LIMIT_AUTO_CREATE_TABLES` | `true` | Auto-create tables |
+| `RATE_LIMIT_DEBUG` | `false` | Enable debug logging |
+
+Config status endpoint: `GET /api/rate-limit/config/status`
+
+**Runtime Configuration UI:**
+
+The Rate Limit plugin includes a Control Panel page for live configuration:
+- Navigate to `/rate-limits` in the Control Panel
+- Edit default window size, max requests, and strategy
+- Toggle cleanup job on/off and adjust interval
+- Changes take effect immediately (no restart required)
+
+**Runtime Config API:**
+```bash
+# Get current config
+curl http://localhost:3000/api/rate-limit/config
+
+# Update config at runtime
+curl -X PUT http://localhost:3000/api/rate-limit/config \
+  -H "Content-Type: application/json" \
+  -d '{"maxRequests": 200, "windowMs": 120000, "strategy": "token-bucket"}'
+```
+
 ### Creating Custom Plugins
 
 ```typescript

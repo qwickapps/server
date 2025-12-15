@@ -10,6 +10,7 @@ import { SystemPage } from './pages/SystemPage';
 import { PluginsPage } from './pages/PluginsPage';
 import { UsersPage } from './pages/UsersPage';
 import { EntitlementsPage } from './pages/EntitlementsPage';
+import { RateLimitPage } from './pages/RateLimitPage';
 import { PluginPage } from './pages/PluginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { api, type MenuContribution } from './api/controlPanelApi';
@@ -36,7 +37,7 @@ const builtInPluginNavItems: Record<string, NavigationItem> = {
 };
 
 // Routes that have dedicated page components
-const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements']);
+const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/rate-limits']);
 
 // Package version - injected at build time or fallback
 const SERVER_VERSION = '1.0.0';
@@ -200,6 +201,9 @@ export function App() {
             )}
             {registeredPlugins.has('entitlements') && (
               <Route path="/entitlements" element={<EntitlementsPage />} />
+            )}
+            {registeredPlugins.has('rate-limit') && (
+              <Route path="/rate-limits" element={<RateLimitPage />} />
             )}
 
             {/* Dynamic plugin routes - render generic PluginPage for non-dedicated routes */}

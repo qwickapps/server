@@ -264,6 +264,36 @@ export interface AuthConfigStatus {
   config?: Record<string, string>;
 }
 
+// ==================
+// Rate Limit Config Types
+// ==================
+
+export type RateLimitStrategy = 'sliding-window' | 'fixed-window' | 'token-bucket';
+
+export interface RateLimitConfig {
+  windowMs: number;
+  maxRequests: number;
+  strategy: RateLimitStrategy;
+  cleanupEnabled: boolean;
+  cleanupIntervalMs: number;
+  store: string;
+  cache: string;
+  cacheAvailable: boolean;
+}
+
+export interface RateLimitConfigUpdateRequest {
+  windowMs?: number;
+  maxRequests?: number;
+  strategy?: RateLimitStrategy;
+  cleanupEnabled?: boolean;
+  cleanupIntervalMs?: number;
+}
+
+export interface RateLimitConfigUpdateResponse {
+  success: boolean;
+  config: RateLimitConfig;
+}
+
 class ControlPanelApi {
   private baseUrl: string;
 
@@ -592,6 +622,31 @@ class ControlPanelApi {
         return { state: 'disabled', adapter: null };
       }
       throw new Error(`Auth config request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  // ==================
+  // Rate Limit Config API
+  // ==================
+
+  async getRateLimitConfig(): Promise<RateLimitConfig> {
+    const response = await fetch(`${this.baseUrl}/api/rate-limit/config`);
+    if (!response.ok) {
+      throw new Error(`Rate limit config request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async updateRateLimitConfig(updates: RateLimitConfigUpdateRequest): Promise<RateLimitConfigUpdateResponse> {
+    const response = await fetch(`${this.baseUrl}/api/rate-limit/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Rate limit config update failed: ${response.statusText}`);
     }
     return response.json();
   }
