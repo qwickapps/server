@@ -100,16 +100,19 @@ export function PluginWidgetRenderer({
 
   return (
     <>
-      {visibleWidgets.map(widget => (
-        <Box key={widget.id} sx={{ mt: 4 }}>
-          {widget.title && (
-            <Typography variant="h6" sx={{ mb: 2, color: 'var(--theme-text-primary)' }}>
-              {widget.title}
-            </Typography>
-          )}
-          {getComponent(widget.component)}
-        </Box>
-      ))}
+      {visibleWidgets.map(widget => {
+        const Component = getComponent(widget.component);
+        return (
+          <Box key={widget.id} sx={{ mt: 4 }}>
+            {widget.title && (
+              <Typography variant="h6" sx={{ mb: 2, color: 'var(--theme-text-primary)' }}>
+                {widget.title}
+              </Typography>
+            )}
+            {Component && <Component />}
+          </Box>
+        );
+      })}
     </>
   );
 }
