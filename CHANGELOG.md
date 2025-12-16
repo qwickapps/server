@@ -5,7 +5,7 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] - 2025-12-16
 
 ### Added
 
@@ -38,6 +38,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes GitHub Actions publish workflow failure
 
 ### Added
+
+- **Auth Plugin Runtime Configuration** - Control Panel UI for auth config with hot-reload (#394)
+  - Editable configuration forms for all auth providers (Auth0, Supabase, SuperTokens, Basic)
+  - PostgreSQL-backed config store with `pg_notify` for cross-instance sync
+  - Adapter wrapper pattern enables hot-reload without server restart
+  - Test connection feature validates provider before saving
+  - API endpoints: `PUT /api/auth/config`, `DELETE /api/auth/config`, `POST /api/auth/test-provider`
+  - New exports: `postgresAuthConfigStore()`, `setAuthConfigStore()`, `createAdapterWrapper()`, `getAdapterWrapper()`
+  - New types: `RuntimeAuthConfig`, `UpdateAuthConfigRequest`, `TestProviderRequest`, `TestProviderResponse`, `AuthConfigStore`, `PostgresAuthConfigStoreConfig`
+  - Social providers panel for SuperTokens (Google, GitHub, Apple)
+  - Reset to environment variables functionality
+  - SQL injection protection with identifier validation
+  - URL validation for SSRF protection in test connections
+  - Exponential backoff for pg_notify reconnection (1s → 60s max)
+  - **Note**: Hot-reload swaps `isAuthenticated/getUser` methods immediately; Express middleware routes (e.g., OAuth callbacks) require server restart to fully apply
 
 - **Auth Plugin Environment Configuration** - Zero-code auth setup via environment variables (#393)
   - New `createAuthPluginFromEnv()` factory function

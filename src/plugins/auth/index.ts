@@ -16,7 +16,20 @@ export {
 } from './auth-plugin.js';
 
 // Environment-based configuration
-export { createAuthPluginFromEnv, getAuthStatus } from './env-config.js';
+export {
+  createAuthPluginFromEnv,
+  getAuthStatus,
+  setAuthConfigStore,
+  getAdapterWrapper,
+} from './env-config.js';
+export type { AuthEnvPluginOptionsExtended } from './env-config.js';
+
+// Config store
+export { postgresAuthConfigStore } from './config-store.js';
+
+// Adapter wrapper
+export { createAdapterWrapper } from './adapter-wrapper.js';
+export type { AdapterWrapper } from './adapter-wrapper.js';
 
 // Types
 export type {
@@ -32,6 +45,14 @@ export type {
   AuthPluginState,
   AuthEnvPluginOptions,
   AuthConfigStatus,
+  // Runtime config types
+  AuthAdapterType,
+  RuntimeAuthConfig,
+  UpdateAuthConfigRequest,
+  TestProviderRequest,
+  TestProviderResponse,
+  AuthConfigStore,
+  PostgresAuthConfigStoreConfig,
 } from './types.js';
 export { isAuthenticatedRequest } from './types.js';
 

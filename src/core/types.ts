@@ -175,6 +175,23 @@ export interface ControlPanelConfig {
 
   /** Optional: Custom path to a dist-ui folder for serving a custom React UI */
   customUiPath?: string;
+
+  /**
+   * Optional: Landing page configuration for root path (/).
+   * Only used when mountPath is not '/'.
+   * If not provided, a default landing page is generated.
+   * Set to false to disable the landing page.
+   */
+  landingPage?: {
+    /** Page title */
+    title?: string;
+    /** Main heading */
+    heading?: string;
+    /** Description text */
+    description?: string;
+    /** Additional links */
+    links?: Array<{ label: string; url: string }>;
+  } | false;
 }
 
 // Plugin types are now in plugin-registry.ts

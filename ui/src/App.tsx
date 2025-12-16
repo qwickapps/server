@@ -3,14 +3,20 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QwickApp, ProductLogo, Text } from '@qwickapps/react-framework';
 import { Link, Box } from '@mui/material';
 import { defaultConfig } from './config/AppConfig';
-import { DashboardWidgetProvider } from './dashboard';
+import {
+  DashboardWidgetProvider,
+  WidgetComponentRegistryProvider,
+  getBuiltInWidgetComponents,
+} from './dashboard';
 import { DashboardPage } from './pages/DashboardPage';
 import { LogsPage } from './pages/LogsPage';
 import { SystemPage } from './pages/SystemPage';
 import { PluginsPage } from './pages/PluginsPage';
 import { UsersPage } from './pages/UsersPage';
 import { EntitlementsPage } from './pages/EntitlementsPage';
+import { AuthPage } from './pages/AuthPage';
 import { RateLimitPage } from './pages/RateLimitPage';
+import { IntegrationsPage } from './pages/IntegrationsPage';
 import { PluginPage } from './pages/PluginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { api, type MenuContribution } from './api/controlPanelApi';
@@ -37,7 +43,7 @@ const builtInPluginNavItems: Record<string, NavigationItem> = {
 };
 
 // Routes that have dedicated page components
-const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/rate-limits']);
+const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/auth', '/rate-limits', '/integrations']);
 
 // Package version - injected at build time or fallback
 const SERVER_VERSION = '1.0.0';
@@ -178,16 +184,17 @@ export function App() {
 
   return (
     <BrowserRouter basename={basePath || undefined}>
-      <DashboardWidgetProvider>
-        <QwickApp
-          config={defaultConfig}
-          logo={logo}
-          footerContent={footerContent}
-          enableScaffolding={true}
-          navigationItems={navigationItems}
-          showThemeSwitcher={true}
-          showPaletteSwitcher={true}
-        >
+      <WidgetComponentRegistryProvider initialComponents={getBuiltInWidgetComponents()}>
+        <DashboardWidgetProvider>
+          <QwickApp
+            config={defaultConfig}
+            logo={logo}
+            footerContent={footerContent}
+            enableScaffolding={true}
+            navigationItems={navigationItems}
+            showThemeSwitcher={true}
+            showPaletteSwitcher={true}
+          >
           <Routes>
             {/* Core routes */}
             <Route path="/" element={<DashboardPage />} />
@@ -202,8 +209,14 @@ export function App() {
             {registeredPlugins.has('entitlements') && (
               <Route path="/entitlements" element={<EntitlementsPage />} />
             )}
+            {registeredPlugins.has('auth') && (
+              <Route path="/auth" element={<AuthPage />} />
+            )}
             {registeredPlugins.has('rate-limit') && (
               <Route path="/rate-limits" element={<RateLimitPage />} />
+            )}
+            {registeredPlugins.has('ai-proxy') && (
+              <Route path="/integrations" element={<IntegrationsPage />} />
             )}
 
             {/* Dynamic plugin routes - render generic PluginPage for non-dedicated routes */}
@@ -219,8 +232,9 @@ export function App() {
 
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-        </QwickApp>
-      </DashboardWidgetProvider>
+          </QwickApp>
+        </DashboardWidgetProvider>
+      </WidgetComponentRegistryProvider>
     </BrowserRouter>
   );
 }

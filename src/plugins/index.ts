@@ -30,6 +30,8 @@ export {
   createAuthPlugin,
   createAuthPluginFromEnv,
   getAuthStatus,
+  setAuthConfigStore,
+  postgresAuthConfigStore,
   isAuthenticated,
   getAuthenticatedUser,
   getAccessToken,
@@ -54,6 +56,8 @@ export type {
   AuthPluginState,
   AuthEnvPluginOptions,
   AuthConfigStatus,
+  AuthConfigStore,
+  PostgresAuthConfigStoreConfig,
 } from './auth/index.js';
 
 // Users plugin

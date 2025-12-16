@@ -255,6 +255,7 @@ export interface PluginDetailResponse {
 // ==================
 
 export type AuthPluginState = 'disabled' | 'enabled' | 'error';
+export type AuthAdapterType = 'auth0' | 'supabase' | 'supertokens' | 'basic';
 
 export interface AuthConfigStatus {
   state: AuthPluginState;
@@ -262,6 +263,88 @@ export interface AuthConfigStatus {
   error?: string;
   missingVars?: string[];
   config?: Record<string, string>;
+  /** Runtime config from database (if available) */
+  runtimeConfig?: RuntimeAuthConfig;
+}
+
+export interface RuntimeAuthConfig {
+  adapter: AuthAdapterType | null;
+  config: {
+    auth0?: Auth0AdapterConfig;
+    supabase?: SupabaseAdapterConfig;
+    supertokens?: SupertokensAdapterConfig;
+    basic?: BasicAdapterConfig;
+  };
+  settings: {
+    authRequired?: boolean;
+    excludePaths?: string[];
+    debug?: boolean;
+  };
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+export interface Auth0AdapterConfig {
+  domain: string;
+  clientId: string;
+  clientSecret: string;
+  baseUrl: string;
+  secret: string;
+  audience?: string;
+  scopes?: string[];
+  allowedRoles?: string[];
+  allowedDomains?: string[];
+}
+
+export interface SupabaseAdapterConfig {
+  url: string;
+  anonKey: string;
+}
+
+export interface BasicAdapterConfig {
+  username: string;
+  password: string;
+  realm?: string;
+}
+
+export interface SupertokensAdapterConfig {
+  connectionUri: string;
+  apiKey?: string;
+  appName: string;
+  apiDomain: string;
+  websiteDomain: string;
+  apiBasePath?: string;
+  websiteBasePath?: string;
+  enableEmailPassword?: boolean;
+  socialProviders?: {
+    google?: { clientId: string; clientSecret: string };
+    apple?: { clientId: string; clientSecret: string; keyId: string; teamId: string };
+    github?: { clientId: string; clientSecret: string };
+  };
+}
+
+export interface UpdateAuthConfigRequest {
+  adapter: AuthAdapterType;
+  config: Record<string, unknown>;
+  settings?: {
+    authRequired?: boolean;
+    excludePaths?: string[];
+  };
+}
+
+export interface TestProviderRequest {
+  adapter: AuthAdapterType;
+  config: Record<string, unknown>;
+  provider?: 'google' | 'github' | 'apple';
+}
+
+export interface TestProviderResponse {
+  success: boolean;
+  message: string;
+  details?: {
+    latency?: number;
+    version?: string;
+  };
 }
 
 // ==================
@@ -307,6 +390,33 @@ class ControlPanelApi {
    */
   setBaseUrl(baseUrl: string): void {
     this.baseUrl = baseUrl;
+  }
+
+  /**
+   * Get the base URL for API requests.
+   */
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  /**
+   * Generic fetch method for API requests.
+   * Automatically prepends the base URL and /api prefix.
+   */
+  async fetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
+    const url = `${this.baseUrl}/api${path.startsWith('/') ? path : `/${path}`}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || error.message || `Request failed: ${response.statusText}`);
+    }
+    return response.json();
   }
 
   // ==================
@@ -622,6 +732,67 @@ class ControlPanelApi {
         return { state: 'disabled', adapter: null };
       }
       throw new Error(`Auth config request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
+   * Update auth configuration (save to database for hot-reload)
+   */
+  async updateAuthConfig(request: UpdateAuthConfigRequest): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${this.baseUrl}/api/auth/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Auth config update failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
+   * Delete auth configuration (revert to environment variables)
+   */
+  async deleteAuthConfig(): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${this.baseUrl}/api/auth/config`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Auth config delete failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
+   * Test auth provider connection without saving
+   */
+  async testAuthProvider(request: TestProviderRequest): Promise<TestProviderResponse> {
+    const response = await fetch(`${this.baseUrl}/api/auth/test-provider`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Provider test failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
+   * Test current auth provider connection (uses existing env/runtime config)
+   */
+  async testCurrentAuthProvider(): Promise<TestProviderResponse> {
+    const response = await fetch(`${this.baseUrl}/api/auth/test-current`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Provider test failed: ${response.statusText}`);
     }
     return response.json();
   }

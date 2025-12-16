@@ -20,6 +20,9 @@ import {
   createUsersPlugin,
   createBansPlugin,
   createEntitlementsPlugin,
+  createAuthPluginFromEnv,
+  postgresAuthConfigStore,
+  setAuthConfigStore,
   createRateLimitPlugin,
   type EntitlementSource,
   type EntitlementDefinition,
@@ -27,6 +30,7 @@ import {
   type StoredLimit,
   type IncrementOptions,
 } from '../src/index.js';
+import pg from 'pg';
 
 // In-memory entitlement source for demo/testing
 function createInMemoryEntitlementSource(): EntitlementSource {
@@ -412,6 +416,21 @@ async function main() {
   // Control panel runs on port 3101 by default (3100 is for main app services)
   const port = parseInt(process.env.PORT || '3101', 10);
 
+  // Set up PostgreSQL pool for auth config store
+  const pool = new pg.Pool({
+    host: process.env.POSTGRES_HOST || 'localhost',
+    port: parseInt(process.env.POSTGRES_PORT || '5433', 10),
+    user: process.env.POSTGRES_USER || 'middleware',
+    password: process.env.POSTGRES_PASSWORD || 'middleware_dev',
+    database: process.env.POSTGRES_DB || 't3live_middleware',
+  });
+
+  // Initialize auth config store
+  const authConfigStore = postgresAuthConfigStore({ pool });
+  await authConfigStore.initialize();
+  setAuthConfigStore(authConfigStore);
+  console.log('[AuthConfigStore] PostgreSQL config store initialized');
+
   // Create control panel with all plugins
   const controlPanel = createControlPanel({
     config: {
@@ -457,6 +476,9 @@ async function main() {
           cache: { enabled: false }, // Disable cache for simpler testing
         }),
       },
+      // Auth plugin configured from environment variables
+      // Will be disabled if AUTH_ADAPTER is not set
+      { plugin: createAuthPluginFromEnv() },
       {
         plugin: createRateLimitPlugin({
           store: createInMemoryRateLimitStore(),
@@ -492,6 +514,7 @@ async function main() {
 ║    ✓ Users Plugin (in-memory)                                 ║
 ║    ✓ Bans Plugin (in-memory)                                  ║
 ║    ✓ Entitlements Plugin (in-memory, writable)                ║
+║    ✓ Auth Plugin (PostgreSQL config store)                    ║
 ║    ✓ Rate Limit Plugin (in-memory, config UI at /rate-limits) ║
 ║                                                               ║
 ║  Press Ctrl+C to stop                                         ║

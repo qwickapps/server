@@ -320,6 +320,22 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     }
   }
 
+  // Serve landing page at root (/) when control panel is mounted elsewhere
+  if (mountPath !== '/' && config.landingPage !== false) {
+    const landingConfig = config.landingPage || {};
+    app.get('/', (_req: Request, res: Response) => {
+      const html = generateLandingPageHtml({
+        productName: config.productName,
+        title: landingConfig.title || config.productName,
+        heading: landingConfig.heading || `Welcome to ${config.productName}`,
+        description: landingConfig.description || `${config.productName} is running.`,
+        controlPanelPath: mountPath,
+        links: landingConfig.links,
+      });
+      res.type('html').send(html);
+    });
+  }
+
   // Start a plugin with the registry
   const startPlugin = async (plugin: Plugin, pluginConfig: PluginConfig = {}): Promise<boolean> => {
     return pluginRegistry.startPlugin(plugin, pluginConfig);
@@ -561,6 +577,118 @@ function generateDashboardHtml(
     // Auto-refresh health status every 10 seconds
     setTimeout(() => location.reload(), 10000);
   </script>
+</body>
+</html>`;
+}
+
+/**
+ * Generate landing page HTML for root path
+ */
+function generateLandingPageHtml(options: {
+  productName: string;
+  title: string;
+  heading: string;
+  description: string;
+  controlPanelPath: string;
+  links?: Array<{ label: string; url: string }>;
+}): string {
+  const { productName, title, heading, description, controlPanelPath, links = [] } = options;
+
+  const linksHtml = [
+    { label: 'Control Panel', url: controlPanelPath },
+    ...links,
+  ]
+    .map(
+      (link) =>
+        `<a href="${link.url}" class="link">${link.label}</a>`
+    )
+    .join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      text-align: center;
+      max-width: 600px;
+      padding: 2rem;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      border-radius: 20px;
+      margin: 0 auto 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: bold;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #6366f1 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 1.125rem;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .link {
+      display: inline-block;
+      padding: 0.875rem 2rem;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
+    }
+    .footer {
+      margin-top: 3rem;
+      color: #475569;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">${productName.charAt(0)}</div>
+    <h1>${heading}</h1>
+    <p>${description}</p>
+    <div class="links">${linksHtml}</div>
+    <div class="footer">
+      Powered by QwickApps Server
+    </div>
+  </div>
 </body>
 </html>`;
 }

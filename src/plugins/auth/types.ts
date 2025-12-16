@@ -243,3 +243,141 @@ export interface AuthConfigStatus {
   /** Current configuration with secrets masked */
   config?: Record<string, string>;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Runtime Configuration Types
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Supported adapter types for runtime configuration
+ */
+export type AuthAdapterType = 'auth0' | 'supabase' | 'supertokens' | 'basic';
+
+/**
+ * Runtime auth configuration (persisted to database)
+ */
+export interface RuntimeAuthConfig {
+  /** Which adapter to use */
+  adapter: AuthAdapterType | null;
+
+  /** Adapter-specific configuration */
+  config: {
+    auth0?: Auth0AdapterConfig;
+    supabase?: SupabaseAdapterConfig;
+    supertokens?: SupertokensAdapterConfig;
+    basic?: BasicAdapterConfig;
+  };
+
+  /** General auth settings */
+  settings: {
+    authRequired?: boolean;
+    excludePaths?: string[];
+    debug?: boolean;
+  };
+
+  /** When the config was last updated */
+  updatedAt: string;
+
+  /** Who updated the config (optional) */
+  updatedBy?: string;
+}
+
+/**
+ * Request body for PUT /api/auth/config
+ */
+export interface UpdateAuthConfigRequest {
+  /** Which adapter to use */
+  adapter: AuthAdapterType;
+
+  /** Adapter-specific configuration */
+  config: Record<string, unknown>;
+
+  /** General settings (optional) */
+  settings?: {
+    authRequired?: boolean;
+    excludePaths?: string[];
+  };
+}
+
+/**
+ * Request body for POST /api/auth/test-provider
+ */
+export interface TestProviderRequest {
+  /** Which adapter to test */
+  adapter: AuthAdapterType;
+
+  /** Adapter configuration to test */
+  config: Record<string, unknown>;
+
+  /** For social provider test (optional) */
+  provider?: 'google' | 'github' | 'apple';
+}
+
+/**
+ * Response for POST /api/auth/test-provider
+ */
+export interface TestProviderResponse {
+  /** Whether the test was successful */
+  success: boolean;
+
+  /** Human-readable message */
+  message: string;
+
+  /** Additional details */
+  details?: {
+    latency?: number;
+    version?: string;
+  };
+}
+
+/**
+ * Auth configuration store interface
+ */
+export interface AuthConfigStore {
+  /** Store name for identification */
+  name: string;
+
+  /** Initialize the store (create tables if needed) */
+  initialize(): Promise<void>;
+
+  /** Load configuration from store */
+  load(): Promise<RuntimeAuthConfig | null>;
+
+  /** Save configuration to store */
+  save(config: RuntimeAuthConfig): Promise<void>;
+
+  /** Delete configuration (revert to env vars) */
+  delete(): Promise<boolean>;
+
+  /**
+   * Subscribe to configuration changes
+   * Returns unsubscribe function
+   */
+  onChange(callback: (config: RuntimeAuthConfig | null) => void): () => void;
+
+  /** Shutdown and cleanup */
+  shutdown(): Promise<void>;
+}
+
+/**
+ * PostgreSQL auth config store configuration
+ */
+export interface PostgresAuthConfigStoreConfig {
+  /** PostgreSQL pool instance or factory function for lazy initialization */
+  pool: unknown | (() => unknown);
+
+  /** Table name (default: 'auth_config') */
+  tableName?: string;
+
+  /** Schema name (default: 'public') */
+  schema?: string;
+
+  /** Auto-create table on initialization (default: true) */
+  autoCreateTable?: boolean;
+
+  /** Enable pg_notify for cross-instance config updates (default: true) */
+  enableNotify?: boolean;
+
+  /** Channel name for pg_notify (default: 'auth_config_changed') */
+  notifyChannel?: string;
+}
