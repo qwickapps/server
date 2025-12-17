@@ -399,3 +399,23 @@ export type {
   PostgresParentalStoreConfig,
   KidsAdapterConfig,
 } from './parental/index.js';
+
+// Notifications plugin
+export {
+  createNotificationsPlugin,
+  NotificationsManager,
+  getNotificationsManager,
+  hasNotificationsManager,
+  broadcastToDevice,
+  broadcastToUser,
+  broadcastToAll,
+} from './notifications/index.js';
+export type {
+  NotificationsPluginConfig,
+  SSEClient,
+  NotifyPayload,
+  SSEEvent,
+  NotificationsStats,
+  ConnectionHealth,
+  NotificationsManagerInterface,
+} from './notifications/index.js';
