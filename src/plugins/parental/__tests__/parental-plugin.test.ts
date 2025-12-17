@@ -102,20 +102,14 @@ describe('Parental Plugin', () => {
     // Activity logging
     logActivity: vi.fn().mockResolvedValue(mockActivityLog),
     getActivityLog: vi.fn().mockResolvedValue([mockActivityLog]),
-    // Enforcement
-    checkProfileAccess: vi.fn().mockResolvedValue({
-      allowed: true,
-      reason: undefined,
-    }),
-    getTimeRemaining: vi.fn().mockResolvedValue(45),
     shutdown: vi.fn().mockResolvedValue(undefined),
   });
 
   // Mock adapter factory
   const createMockAdapter = (): ParentalAdapter => ({
     name: 'kids',
-    activityTypes: ['conversation_start', 'conversation_end', 'content_filtered'],
-    defaultDailyLimitMinutes: 60,
+    getActivityTypes: vi.fn().mockReturnValue(['conversation_start', 'conversation_end', 'content_filtered']),
+    getDefaultDailyLimit: vi.fn().mockReturnValue(60),
     validateRestriction: vi.fn().mockReturnValue({ valid: true }),
     formatActivityDetails: vi.fn().mockImplementation((activity) => activity.details || {}),
     onRestrictionViolation: vi.fn().mockResolvedValue(undefined),
@@ -399,6 +393,7 @@ describe('Parental Plugin', () => {
         await expect(
           logActivity({
             user_id: 'user-123',
+            adapter_type: 'kids',
             activity_type: 'conversation_start',
           })
         ).rejects.toThrow('Parental plugin not initialized');
@@ -411,6 +406,7 @@ describe('Parental Plugin', () => {
         const result = await logActivity({
           user_id: 'user-123',
           profile_id: 'profile-123',
+          adapter_type: 'kids',
           activity_type: 'conversation_start',
           details: { topic: 'dinosaurs' },
         });
