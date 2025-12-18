@@ -1,6 +1,6 @@
 {
   "name": "@qwickapps/server",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Plugin-based application server framework for building websites, APIs, admin dashboards, and full-stack products",
   "type": "module",
   "main": "dist/index.js",
@@ -24,7 +24,8 @@
     "dist-ui",
     "dist-ui-lib",
     "src",
-    "ui"
+    "ui",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "npm run build:server && npm run build:ui && npm run build:ui-lib",

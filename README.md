@@ -12,6 +12,15 @@ A flexible, pluggable control panel framework for QwickApps services. Provides a
 - **Frontend App Support**: Handle root path with redirect, static files, or landing page
 - **Theming**: Customizable branding and styling
 
+## What's New in v1.5.0
+
+- **Notifications Plugin UI** - Full management page for SSE notifications with stats widget, connected clients table, and disconnect controls
+- **Users Plugin Enhancements** - Multi-identifier user lookup (`getUserByIdentifier`), batch queries (`getUsersByIds`), and identifier linking
+- **User Search & Ban Management** - Enhanced Control Panel with user search by email/name/ID and ban/unban actions
+- **Audit Logging** - Admin actions now include user context (email, IP) for better traceability
+
+See [CHANGELOG.md](./CHANGELOG.md) for full release history.
+
 ## Installation
 
 ```bash

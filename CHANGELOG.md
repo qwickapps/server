@@ -5,6 +5,21 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2025-12-18
+
+### Fixed
+
+- **npm Package** - Include CHANGELOG.md in published package
+- **README** - Add "What's New" section highlighting v1.5.0 features
+- **Input Validation** - `getByIdentifier()` now throws if no identifiers provided
+- **Zero-value IDs** - Fixed `wp_user_id` and `keap_contact_id` to allow 0 as valid identifier
+- **Memory Leak** - Fixed potential memory leak in NotificationsPage component
+- **Audit Logging** - Disconnect actions now log admin user info (userId, email, IP)
+
+### Added
+
+- **Unit Tests** - Comprehensive tests for postgres store methods (`getByIdentifier`, `linkIdentifiers`, `getByIds`)
+
 ## [1.5.0] - 2025-12-18
 
 ### Added
