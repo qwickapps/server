@@ -7,3 +7,4 @@
 export { ServiceHealthWidget } from './ServiceHealthWidget';
 export { IntegrationStatusWidget } from './IntegrationStatusWidget';
 export { AuthStatusWidget } from './AuthStatusWidget';
+export { NotificationsStatsWidget } from './NotificationsStatsWidget';

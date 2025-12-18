@@ -12,7 +12,10 @@ export {
   createUsersPlugin,
   getUserStore,
   getUserById,
+  getUsersByIds,
   getUserByEmail,
+  getUserByIdentifier,
+  linkUserIdentifiers,
   findOrCreateUser,
   buildUserInfo,
 } from './users-plugin.js';
@@ -32,6 +35,9 @@ export type {
   UsersUiConfig,
   UserInfo,
   UserSyncInput,
+  UserIdentifiers,
+  StoredIdentifiers,
+  UserProfileInput,
 } from './types.js';
 
 // Stores

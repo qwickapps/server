@@ -348,6 +348,51 @@ export interface TestProviderResponse {
 }
 
 // ==================
+// Notifications API Types
+// ==================
+
+export interface NotificationsConnectionHealth {
+  isConnected: boolean;
+  isHealthy: boolean;
+  lastEventAt: string | null;
+  timeSinceLastEvent: number;
+  channelCount: number;
+  isReconnecting: boolean;
+  reconnectAttempts: number;
+}
+
+export interface NotificationsStatsResponse {
+  totalConnections: number;
+  currentConnections: number;
+  eventsProcessed: number;
+  eventsRouted: number;
+  eventsParseFailed: number;
+  eventsDroppedNoClients: number;
+  reconnectionAttempts: number;
+  lastReconnectionAt?: string;
+  clientsByType: {
+    device: number;
+    user: number;
+  };
+  connectionHealth: NotificationsConnectionHealth;
+  channels: string[];
+  lastEventAt?: string;
+}
+
+export interface NotificationsClient {
+  id: string;
+  deviceId?: string;
+  userId?: string;
+  connectedAt: string;
+  durationMs: number;
+}
+
+export interface NotificationsClientsResponse {
+  clients: NotificationsClient[];
+  total: number;
+}
+
+// ==================
 // Rate Limit Config Types
 // ==================
 
@@ -470,7 +515,7 @@ class ControlPanelApi {
     const params = new URLSearchParams();
     if (options.limit) params.set('limit', options.limit.toString());
     if (options.page) params.set('page', options.page.toString());
-    if (options.search) params.set('search', options.search);
+    if (options.search) params.set('q', options.search);
 
     const response = await fetch(`${this.baseUrl}/api/users?${params}`);
     if (!response.ok) {
@@ -500,10 +545,18 @@ class ControlPanelApi {
   }
 
   async banUser(email: string, reason: string, expiresAt?: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/bans`, {
+    // Convert expiresAt datetime to duration in seconds
+    let duration: number | undefined;
+    if (expiresAt) {
+      const expiresDate = new Date(expiresAt);
+      const now = new Date();
+      duration = Math.max(0, Math.floor((expiresDate.getTime() - now.getTime()) / 1000));
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, reason, expiresAt }),
+      body: JSON.stringify({ reason, duration }),
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -512,7 +565,7 @@ class ControlPanelApi {
   }
 
   async unbanUser(email: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/bans/${encodeURIComponent(email)}`, {
+    const response = await fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -521,11 +574,13 @@ class ControlPanelApi {
   }
 
   async checkBan(email: string): Promise<{ banned: boolean; ban?: Ban }> {
-    const response = await fetch(`${this.baseUrl}/api/bans/check/${encodeURIComponent(email)}`);
+    const response = await fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`);
     if (!response.ok) {
       throw new Error(`Ban check failed: ${response.statusText}`);
     }
-    return response.json();
+    const data = await response.json();
+    // Backend returns { email, isBanned }, transform to expected shape
+    return { banned: data.isBanned };
   }
 
   // ==================
@@ -818,6 +873,48 @@ class ControlPanelApi {
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       throw new Error(error.error || `Rate limit config update failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  // ==================
+  // Notifications API
+  // ==================
+
+  async getNotificationsStats(): Promise<NotificationsStatsResponse> {
+    const response = await fetch(`${this.baseUrl}/api/notifications/stats`);
+    if (!response.ok) {
+      throw new Error(`Notifications stats request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async getNotificationsClients(): Promise<NotificationsClientsResponse> {
+    const response = await fetch(`${this.baseUrl}/api/notifications/clients`);
+    if (!response.ok) {
+      throw new Error(`Notifications clients request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async disconnectNotificationsClient(clientId: string): Promise<{ success: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/notifications/clients/${encodeURIComponent(clientId)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Disconnect client failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async forceNotificationsReconnect(): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${this.baseUrl}/api/notifications/reconnect`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Force reconnect failed: ${response.statusText}`);
     }
     return response.json();
   }

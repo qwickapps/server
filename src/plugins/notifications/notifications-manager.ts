@@ -546,6 +546,70 @@ export class NotificationsManager implements NotificationsManagerInterface {
   }
 
   // ===========================================================================
+  // Client Management
+  // ===========================================================================
+
+  /**
+   * Get list of connected clients
+   */
+  getClients(): Array<{
+    id: string;
+    deviceId?: string;
+    userId?: string;
+    connectedAt: string;
+    durationMs: number;
+  }> {
+    const now = Date.now();
+    return Array.from(this.clients.values()).map((client) => ({
+      id: client.id,
+      deviceId: client.deviceId,
+      userId: client.userId,
+      connectedAt: client.connectedAt.toISOString(),
+      durationMs: now - client.connectedAt.getTime(),
+    }));
+  }
+
+  /**
+   * Disconnect a specific client by ID
+   * @param clientId - The client ID to disconnect
+   * @param disconnectedBy - Optional info about who initiated the disconnect (for audit logging)
+   * @returns true if client was found and disconnected, false otherwise
+   */
+  disconnectClient(
+    clientId: string,
+    disconnectedBy?: { userId?: string; email?: string; ip?: string }
+  ): boolean {
+    const client = this.clients.get(clientId);
+    if (!client) {
+      return false;
+    }
+
+    // Audit log with details about who disconnected the client
+    const disconnectInfo = disconnectedBy
+      ? ` by ${disconnectedBy.email || disconnectedBy.userId || disconnectedBy.ip || 'admin'}`
+      : '';
+    this.logger.info(
+      `Force disconnecting client ${this.truncateId(clientId)}${disconnectInfo}` +
+        (client.deviceId ? ` (device: ${this.truncateId(client.deviceId)})` : '') +
+        (client.userId ? ` (user: ${this.truncateId(client.userId)})` : '')
+    );
+
+    // Send disconnect event before closing
+    try {
+      this.sendEvent(client, 'disconnected', {
+        reason: 'Disconnected by administrator',
+        timestamp: new Date().toISOString(),
+      });
+      client.response.end();
+    } catch {
+      // Ignore errors - client may have already disconnected
+    }
+
+    // The unregisterClient will be called by the 'close' event handler
+    return true;
+  }
+
+  // ===========================================================================
   // Statistics & Health
   // ===========================================================================
 

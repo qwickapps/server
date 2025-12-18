@@ -109,6 +109,8 @@ export {
   getUserStore,
   getUserById,
   getUserByEmail,
+  getUserByIdentifier,
+  linkUserIdentifiers,
   findOrCreateUser,
   postgresUserStore,
   // Bans plugin (separate from Users, depends on Users)
@@ -300,6 +302,8 @@ export type {
   UserSyncConfig,
   UsersApiConfig,
   UsersUiConfig,
+  UserIdentifiers,
+  StoredIdentifiers,
   // Bans plugin types
   BansPluginConfig,
   BanStore,

@@ -17,6 +17,8 @@ import type {
   UserSearchParams,
   UserListResponse,
   PostgresUserStoreConfig,
+  UserIdentifiers,
+  StoredIdentifiers,
 } from '../types.js';
 
 // Pool interface (from pg package)
@@ -86,6 +88,12 @@ export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
       return (result.rows[0] as User) || null;
     },
 
+    async getByIds(ids: string[]): Promise<User[]> {
+      if (ids.length === 0) return [];
+      const result = await getPool().query(`SELECT * FROM ${usersTableFull} WHERE id = ANY($1)`, [ids]);
+      return result.rows as User[];
+    },
+
     async getByEmail(email: string): Promise<User | null> {
       const result = await getPool().query(`SELECT * FROM ${usersTableFull} WHERE LOWER(email) = LOWER($1)`, [
         email,
@@ -99,6 +107,102 @@ export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
         [externalId, provider]
       );
       return (result.rows[0] as User) || null;
+    },
+
+    async getByIdentifier(identifiers: UserIdentifiers): Promise<User | null> {
+      // Validate that at least one identifier is provided
+      const hasIdentifier =
+        identifiers.email ||
+        identifiers.auth0_user_id ||
+        identifiers.wp_user_id !== undefined ||
+        identifiers.keap_contact_id !== undefined;
+
+      if (!hasIdentifier) {
+        throw new Error('At least one identifier must be provided');
+      }
+
+      // Priority 1: Email (most reliable, always unique)
+      if (identifiers.email) {
+        const result = await getPool().query(
+          `SELECT * FROM ${usersTableFull} WHERE LOWER(email) = LOWER($1)`,
+          [identifiers.email]
+        );
+        if (result.rows[0]) return result.rows[0] as User;
+      }
+
+      // Priority 2: Auth0 user ID (stored in metadata.identifiers.auth0_user_id)
+      if (identifiers.auth0_user_id) {
+        const result = await getPool().query(
+          `SELECT * FROM ${usersTableFull}
+           WHERE metadata->'identifiers'->>'auth0_user_id' = $1`,
+          [identifiers.auth0_user_id]
+        );
+        if (result.rows[0]) return result.rows[0] as User;
+
+        // Also check legacy external_id field for backwards compatibility
+        const legacyResult = await getPool().query(
+          `SELECT * FROM ${usersTableFull} WHERE external_id = $1`,
+          [identifiers.auth0_user_id]
+        );
+        if (legacyResult.rows[0]) return legacyResult.rows[0] as User;
+      }
+
+      // Priority 3: WordPress user ID (stored in metadata.identifiers.wp_user_id)
+      // Note: Use !== undefined to allow 0 as a valid ID
+      if (identifiers.wp_user_id !== undefined) {
+        const result = await getPool().query(
+          `SELECT * FROM ${usersTableFull}
+           WHERE (metadata->'identifiers'->>'wp_user_id')::int = $1`,
+          [identifiers.wp_user_id]
+        );
+        if (result.rows[0]) return result.rows[0] as User;
+      }
+
+      // Priority 4: Keap contact ID (stored in metadata.identifiers.keap_contact_id)
+      // Note: Use !== undefined to allow 0 as a valid ID
+      if (identifiers.keap_contact_id !== undefined) {
+        const result = await getPool().query(
+          `SELECT * FROM ${usersTableFull}
+           WHERE (metadata->'identifiers'->>'keap_contact_id')::int = $1`,
+          [identifiers.keap_contact_id]
+        );
+        if (result.rows[0]) return result.rows[0] as User;
+      }
+
+      return null;
+    },
+
+    async linkIdentifiers(userId: string, identifiers: Partial<StoredIdentifiers>): Promise<void> {
+      // Build the identifiers object to merge
+      const identifiersToMerge: Record<string, unknown> = {};
+
+      if (identifiers.wp_user_id !== undefined) {
+        identifiersToMerge.wp_user_id = identifiers.wp_user_id;
+      }
+      if (identifiers.auth0_user_id !== undefined) {
+        identifiersToMerge.auth0_user_id = identifiers.auth0_user_id;
+      }
+      if (identifiers.keap_contact_id !== undefined) {
+        identifiersToMerge.keap_contact_id = identifiers.keap_contact_id;
+      }
+
+      if (Object.keys(identifiersToMerge).length === 0) {
+        return; // Nothing to update
+      }
+
+      // Merge new identifiers with existing ones using jsonb_set and coalesce
+      // This preserves existing identifiers while adding/updating new ones
+      await getPool().query(
+        `UPDATE ${usersTableFull}
+         SET metadata = jsonb_set(
+           COALESCE(metadata, '{}'::jsonb),
+           '{identifiers}',
+           COALESCE(metadata->'identifiers', '{}'::jsonb) || $1::jsonb
+         ),
+         updated_at = NOW()
+         WHERE id = $2`,
+        [JSON.stringify(identifiersToMerge), userId]
+      );
     },
 
     async create(input: CreateUserInput): Promise<User> {

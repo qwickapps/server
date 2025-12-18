@@ -16,6 +16,7 @@ import { UsersPage } from './pages/UsersPage';
 import { EntitlementsPage } from './pages/EntitlementsPage';
 import { AuthPage } from './pages/AuthPage';
 import { RateLimitPage } from './pages/RateLimitPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
 import { PluginPage } from './pages/PluginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -43,7 +44,7 @@ const builtInPluginNavItems: Record<string, NavigationItem> = {
 };
 
 // Routes that have dedicated page components
-const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/auth', '/rate-limits', '/integrations']);
+const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/auth', '/rate-limits', '/notifications', '/integrations']);
 
 // Package version - injected at build time or fallback
 const SERVER_VERSION = '1.0.0';
@@ -214,6 +215,9 @@ export function App() {
             )}
             {registeredPlugins.has('rate-limit') && (
               <Route path="/rate-limits" element={<RateLimitPage />} />
+            )}
+            {registeredPlugins.has('notifications') && (
+              <Route path="/notifications" element={<NotificationsPage />} />
             )}
             {registeredPlugins.has('ai-proxy') && (
               <Route path="/integrations" element={<IntegrationsPage />} />

@@ -20,6 +20,8 @@ import type {
   UserSearchParams,
   UserInfo,
   UserSyncInput,
+  UserIdentifiers,
+  StoredIdentifiers,
 } from './types.js';
 // Import helpers from other plugins for buildUserInfo
 // Note: These imports are used dynamically based on registry.hasPlugin() checks
@@ -310,6 +312,16 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 /**
+ * Get multiple users by IDs (batch query - more efficient than multiple getUserById calls)
+ */
+export async function getUsersByIds(ids: string[]): Promise<User[]> {
+  if (!currentStore) {
+    throw new Error('Users plugin not initialized');
+  }
+  return currentStore.getByIds(ids);
+}
+
+/**
  * Find or create a user from auth provider data
  */
 export async function findOrCreateUser(data: {
@@ -415,4 +427,29 @@ export async function buildUserInfo(user: User, registry: PluginRegistry): Promi
 
   await Promise.all(promises);
   return info;
+}
+
+/**
+ * Get a user by any known identifier.
+ * Tries identifiers in priority order: email > auth0_user_id > wp_user_id > keap_contact_id.
+ */
+export async function getUserByIdentifier(identifiers: UserIdentifiers): Promise<User | null> {
+  if (!currentStore) {
+    throw new Error('Users plugin not initialized');
+  }
+  return currentStore.getByIdentifier(identifiers);
+}
+
+/**
+ * Link external identifiers to a user.
+ * Stores identifiers in metadata.identifiers for future lookups.
+ */
+export async function linkUserIdentifiers(
+  userId: string,
+  identifiers: Partial<StoredIdentifiers>
+): Promise<void> {
+  if (!currentStore) {
+    throw new Error('Users plugin not initialized');
+  }
+  return currentStore.linkIdentifiers(userId, identifiers);
 }

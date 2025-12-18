@@ -57,6 +57,32 @@ export interface UpdateUserInput {
 }
 
 /**
+ * Known user identifiers for multi-system lookup.
+ * Users can be looked up by any of these identifiers.
+ * At least one identifier must be provided for lookup.
+ */
+export interface UserIdentifiers {
+  /** User's email address (most reliable) */
+  email?: string;
+  /** WordPress user ID */
+  wp_user_id?: number;
+  /** Auth0 user ID (sub claim, e.g., "auth0|123" or "google-oauth2|456") */
+  auth0_user_id?: string;
+  /** Keap CRM contact ID */
+  keap_contact_id?: number;
+}
+
+/**
+ * Stored identifiers in user metadata.
+ * These are stored in metadata.identifiers for multi-system linking.
+ */
+export interface StoredIdentifiers {
+  wp_user_id?: number;
+  auth0_user_id?: string;
+  keap_contact_id?: number;
+}
+
+/**
  * User search parameters
  */
 export interface UserSearchParams {
@@ -103,6 +129,11 @@ export interface UserStore {
   getById(id: string): Promise<User | null>;
 
   /**
+   * Get multiple users by IDs (batch query)
+   */
+  getByIds(ids: string[]): Promise<User[]>;
+
+  /**
    * Get a user by email
    */
   getByEmail(email: string): Promise<User | null>;
@@ -111,6 +142,20 @@ export interface UserStore {
    * Get a user by external ID
    */
   getByExternalId(externalId: string, provider: string): Promise<User | null>;
+
+  /**
+   * Get a user by any known identifier.
+   * Tries identifiers in priority order: email > auth0_user_id > wp_user_id > keap_contact_id.
+   * Returns the first match found.
+   */
+  getByIdentifier(identifiers: UserIdentifiers): Promise<User | null>;
+
+  /**
+   * Link external identifiers to a user.
+   * Stores identifiers in metadata.identifiers for future lookups.
+   * Merges with existing identifiers (doesn't overwrite unless value provided).
+   */
+  linkIdentifiers(userId: string, identifiers: Partial<StoredIdentifiers>): Promise<void>;
 
   /**
    * Create a new user
@@ -231,17 +276,48 @@ export interface UserInfo {
 }
 
 /**
- * Input for POST /users/sync endpoint
+ * Input for POST /users/sync endpoint.
+ * Supports multiple identifiers for cross-system user linking.
  */
 export interface UserSyncInput {
-  /** User's email address */
+  /** User's email address (required for user lookup/creation) */
   email: string;
-  /** External provider ID (e.g., Auth0 user_id) */
-  external_id: string;
-  /** Provider name (e.g., 'auth0', 'google') */
-  provider: string;
+  /** WordPress user ID (optional) */
+  wp_user_id?: number;
+  /** Auth0 user ID (sub claim) (optional) */
+  auth0_user_id?: string;
+  /** Keap CRM contact ID (optional - typically looked up by AuthKeaper) */
+  keap_contact_id?: number;
+  /** Provider name indicating source of sync request (e.g., 'auth0', 'wordpress') */
+  provider?: string;
   /** User's display name (optional) */
   name?: string;
   /** Profile picture URL (optional) */
   picture?: string;
+
+  // Legacy fields for backwards compatibility
+  /** @deprecated Use auth0_user_id instead */
+  external_id?: string;
+}
+
+/**
+ * Input for PUT /users/profile endpoint.
+ * At least one identifier is required for user lookup.
+ */
+export interface UserProfileInput {
+  /** User's email address */
+  email?: string;
+  /** WordPress user ID */
+  wp_user_id?: number;
+  /** Auth0 user ID */
+  auth0_user_id?: string;
+  /** Profile data to update */
+  profile: {
+    name?: string;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    birthday?: string;
+    [key: string]: unknown;
+  };
 }

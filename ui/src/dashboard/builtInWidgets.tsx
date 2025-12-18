@@ -10,7 +10,7 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import { ServiceHealthWidget, IntegrationStatusWidget, AuthStatusWidget } from './widgets';
+import { ServiceHealthWidget, IntegrationStatusWidget, AuthStatusWidget, NotificationsStatsWidget } from './widgets';
 import type { WidgetComponent } from './WidgetComponentRegistry';
 
 /**
@@ -21,6 +21,7 @@ export const builtInWidgetComponents: Record<string, React.ComponentType> = {
   ServiceHealthWidget: ServiceHealthWidget,
   IntegrationStatusWidget: IntegrationStatusWidget,
   AuthStatusWidget: AuthStatusWidget,
+  NotificationsStatsWidget: NotificationsStatsWidget,
 };
 
 /**
@@ -35,5 +36,6 @@ export function getBuiltInWidgetComponents(): WidgetComponent[] {
     { name: 'ServiceHealthWidget', component: ServiceHealthWidget },
     { name: 'IntegrationStatusWidget', component: IntegrationStatusWidget },
     { name: 'AuthStatusWidget', component: AuthStatusWidget },
+    { name: 'NotificationsStatsWidget', component: NotificationsStatsWidget },
   ];
 }

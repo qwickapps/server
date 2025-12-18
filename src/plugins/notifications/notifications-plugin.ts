@@ -70,6 +70,7 @@ import {
   setNotificationsManager,
 } from './notifications-manager.js';
 import { getPostgres, hasPostgres } from '../postgres-plugin.js';
+import { getAuthenticatedUser } from '../auth/auth-plugin.js';
 
 // Validation constants
 const MAX_ID_LENGTH = 128;
@@ -280,6 +281,107 @@ export function createNotificationsPlugin(config: NotificationsPluginConfig): Pl
         });
 
         logger.debug(`Stats endpoint registered: GET ${apiPrefix}/stats`);
+
+        // Register clients endpoint
+        registry.addRoute({
+          method: 'get',
+          path: `${apiPrefix}/clients`,
+          pluginId: 'notifications',
+          handler: (_req: Request, res: Response) => {
+            if (!manager) {
+              res.status(503).json({ error: 'Service unavailable' });
+              return;
+            }
+
+            const clients = manager.getClients();
+            res.json({
+              clients,
+              total: clients.length,
+            });
+          },
+        });
+
+        logger.debug(`Clients endpoint registered: GET ${apiPrefix}/clients`);
+
+        // Register disconnect client endpoint
+        registry.addRoute({
+          method: 'delete',
+          path: `${apiPrefix}/clients/:id`,
+          pluginId: 'notifications',
+          handler: (req: Request, res: Response) => {
+            if (!manager) {
+              res.status(503).json({ error: 'Service unavailable' });
+              return;
+            }
+
+            const clientId = req.params.id;
+            if (!clientId) {
+              res.status(400).json({ error: 'Bad Request', message: 'Client ID is required' });
+              return;
+            }
+
+            // Get admin user info for audit logging
+            const adminUser = getAuthenticatedUser(req);
+            const disconnectedBy = {
+              userId: adminUser?.id,
+              email: adminUser?.email,
+              ip: req.ip || req.socket.remoteAddress,
+            };
+
+            const disconnected = manager.disconnectClient(clientId, disconnectedBy);
+            if (!disconnected) {
+              res.status(404).json({ error: 'Not Found', message: 'Client not found' });
+              return;
+            }
+
+            res.json({ success: true });
+          },
+        });
+
+        logger.debug(`Disconnect endpoint registered: DELETE ${apiPrefix}/clients/:id`);
+
+        // Register force reconnect endpoint
+        registry.addRoute({
+          method: 'post',
+          path: `${apiPrefix}/reconnect`,
+          pluginId: 'notifications',
+          handler: async (_req: Request, res: Response) => {
+            if (!manager) {
+              res.status(503).json({ error: 'Service unavailable' });
+              return;
+            }
+
+            try {
+              await manager.forceReconnect();
+              res.json({ success: true, message: 'Reconnection initiated' });
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+              res.status(500).json({ error: 'Reconnection failed', message: errorMsg });
+            }
+          },
+        });
+
+        logger.debug(`Reconnect endpoint registered: POST ${apiPrefix}/reconnect`);
+
+        // Register UI menu item for management page
+        registry.addMenuItem({
+          pluginId: 'notifications',
+          id: 'notifications:sidebar',
+          label: 'Notifications',
+          icon: 'notifications',
+          route: '/notifications',
+          order: 45, // After Rate Limits (40)
+        });
+
+        // Register dashboard widget
+        registry.addWidget({
+          id: 'notifications-stats',
+          title: 'Notifications',
+          component: 'NotificationsStatsWidget',
+          priority: 25, // After ServiceHealthWidget (10) and AuthStatusWidget (20)
+          showByDefault: true,
+          pluginId: 'notifications',
+        });
       }
 
       logger.info('Notifications plugin started');

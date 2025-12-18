@@ -5,6 +5,27 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-12-18
+
+### Added
+
+- **Notifications Plugin UI** - Stats widget and management UI for notifications (#484)
+  - `NotificationsStatsWidget` - Dashboard widget showing notification statistics
+  - `NotificationsPage` - Full management UI for viewing and managing notifications
+  - `StatCard` component - Reusable statistics display component
+  - `formatters` utility - Number and date formatting helpers
+
+- **Users Plugin Enhancements** - Improved user search and ban management (#491)
+  - Enhanced search functionality in Control Panel users page
+  - Search users by email, name, or external ID
+  - Ban management directly from user list with ban/unban actions
+  - Updated `controlPanelApi` with expanded user management endpoints
+
+### Fixed
+
+- **Profile Sync** - Multi-identifier lookup for Auth0 profile sync (#492)
+  - Improved user matching with multiple identifier support
+
 ## [1.4.0] - 2025-12-16
 
 ### Added

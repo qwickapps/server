@@ -497,4 +497,141 @@ describe('NotificationsManager - Additional Coverage', () => {
       }).not.toThrow();
     });
   });
+
+  describe('getClients()', () => {
+    it('should return empty array when no clients (UT-001)', () => {
+      const clients = manager.getClients();
+
+      expect(clients).toEqual([]);
+    });
+
+    it('should return client info with correct shape (UT-002)', () => {
+      const res = createMockResponse();
+      manager.registerClient('client-1', 'device-123', 'user-456', res);
+
+      const clients = manager.getClients();
+
+      expect(clients).toHaveLength(1);
+      expect(clients[0]).toHaveProperty('id', 'client-1');
+      expect(clients[0]).toHaveProperty('deviceId', 'device-123');
+      expect(clients[0]).toHaveProperty('userId', 'user-456');
+      expect(clients[0]).toHaveProperty('connectedAt');
+      expect(clients[0]).toHaveProperty('durationMs');
+      expect(typeof clients[0].connectedAt).toBe('string');
+      expect(typeof clients[0].durationMs).toBe('number');
+    });
+
+    it('should return multiple clients (UT-003)', () => {
+      const res1 = createMockResponse();
+      const res2 = createMockResponse();
+      const res3 = createMockResponse();
+
+      manager.registerClient('client-1', 'device-1', undefined, res1);
+      manager.registerClient('client-2', 'device-2', undefined, res2);
+      manager.registerClient('client-3', undefined, 'user-1', res3);
+
+      const clients = manager.getClients();
+
+      expect(clients).toHaveLength(3);
+      expect(clients.map(c => c.id).sort()).toEqual(['client-1', 'client-2', 'client-3']);
+    });
+
+    it('should calculate durationMs correctly (UT-004)', () => {
+      const res = createMockResponse();
+      manager.registerClient('client-1', 'device-1', undefined, res);
+
+      // Advance time by 5 minutes
+      vi.advanceTimersByTime(5 * 60 * 1000);
+
+      const clients = manager.getClients();
+
+      expect(clients[0].durationMs).toBeGreaterThanOrEqual(5 * 60 * 1000);
+      // Allow some tolerance for test execution time
+      expect(clients[0].durationMs).toBeLessThan(5 * 60 * 1000 + 1000);
+    });
+  });
+
+  describe('disconnectClient()', () => {
+    it('should return false for unknown client (UT-005)', () => {
+      const result = manager.disconnectClient('unknown-client-id');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true for valid client (UT-006)', () => {
+      const res = createMockResponse();
+      manager.registerClient('client-1', 'device-1', undefined, res);
+
+      const result = manager.disconnectClient('client-1');
+
+      expect(result).toBe(true);
+    });
+
+    it('should remove client after disconnect - client not in getClients() (UT-007)', () => {
+      const res = createMockResponse();
+      let closeHandler: (() => void) | undefined;
+
+      // Capture the close handler
+      (res.on as ReturnType<typeof vi.fn>).mockImplementation((event: string, handler: () => void) => {
+        if (event === 'close') {
+          closeHandler = handler;
+        }
+      });
+
+      manager.registerClient('client-1', 'device-1', undefined, res);
+      expect(manager.getClients()).toHaveLength(1);
+
+      manager.disconnectClient('client-1');
+
+      // Simulate the close event that would be triggered by response.end()
+      closeHandler?.();
+
+      expect(manager.getClients()).toHaveLength(0);
+    });
+
+    it('should send disconnected event before closing (UT-008)', () => {
+      const res = createMockResponse();
+      manager.registerClient('client-1', 'device-1', undefined, res);
+
+      // Clear previous write calls from registration
+      (res.write as ReturnType<typeof vi.fn>).mockClear();
+
+      manager.disconnectClient('client-1');
+
+      // Should have sent disconnected event
+      expect(res.write).toHaveBeenCalledWith('event: disconnected\n');
+      // Should have sent data with reason
+      const dataCalls = (res.write as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (call: unknown[]) => call[0]?.toString().startsWith('data:')
+      );
+      expect(dataCalls.length).toBeGreaterThan(0);
+      const dataStr = dataCalls[0][0] as string;
+      const data = JSON.parse(dataStr.replace('data: ', '').trim());
+      expect(data.payload).toHaveProperty('reason');
+      expect(data.payload.reason).toContain('administrator');
+    });
+
+    it('should call response.end() on disconnect', () => {
+      const res = createMockResponse();
+      manager.registerClient('client-1', 'device-1', undefined, res);
+
+      manager.disconnectClient('client-1');
+
+      expect(res.end).toHaveBeenCalled();
+    });
+
+    it('should accept disconnectedBy parameter for audit logging (UT-009)', () => {
+      const res = createMockResponse();
+      manager.registerClient('client-1', 'device-1', undefined, res);
+
+      const result = manager.disconnectClient('client-1', {
+        userId: 'admin-123',
+        email: 'admin@example.com',
+        ip: '192.168.1.1',
+      });
+
+      expect(result).toBe(true);
+      expect(res.end).toHaveBeenCalled();
+    });
+  });
 });

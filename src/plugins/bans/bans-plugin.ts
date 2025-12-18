@@ -21,7 +21,7 @@ import type {
   RemoveBanInput,
 } from './types.js';
 import type { AuthenticatedRequest } from '../auth/types.js';
-import { getUserByEmail, getUserById } from '../users/users-plugin.js';
+import { getUserByEmail, getUserById, getUsersByIds } from '../users/users-plugin.js';
 
 // Store instance for helper access
 let currentStore: BanStore | null = null;
@@ -95,7 +95,7 @@ export function createBansPlugin(config: BansPluginConfig): Plugin {
 
       // Add API routes if enabled
       if (apiEnabled) {
-        // List active bans
+        // List active bans (enriched with user email)
         registry.addRoute({
           method: 'get',
           path: apiPrefix,
@@ -106,7 +106,19 @@ export function createBansPlugin(config: BansPluginConfig): Plugin {
               const offset = parseInt(req.query.offset as string) || 0;
 
               const result = await config.store.listActiveBans({ limit, offset });
-              res.json(result);
+
+              // Batch fetch users for all bans (single query instead of N queries)
+              const userIds = [...new Set(result.bans.map((ban) => ban.user_id))];
+              const users = await getUsersByIds(userIds);
+              const userMap = new Map(users.map((u) => [u.id, u]));
+
+              // Enrich bans with user email
+              const enrichedBans = result.bans.map((ban) => ({
+                ...ban,
+                email: userMap.get(ban.user_id)?.email || 'Unknown',
+              }));
+
+              res.json({ bans: enrichedBans, total: result.total });
             } catch (error) {
               console.error('[BansPlugin] List bans error:', error);
               res.status(500).json({ error: 'Failed to list bans' });

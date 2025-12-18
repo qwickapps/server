@@ -66,6 +66,8 @@ export {
   getUserStore,
   getUserById,
   getUserByEmail,
+  getUserByIdentifier,
+  linkUserIdentifiers,
   findOrCreateUser,
   postgresUserStore,
 } from './users/index.js';
@@ -81,6 +83,8 @@ export type {
   UserSyncConfig,
   UsersApiConfig,
   UsersUiConfig,
+  UserIdentifiers,
+  StoredIdentifiers,
 } from './users/index.js';
 
 // Bans plugin (separate from Users, depends on Users)
