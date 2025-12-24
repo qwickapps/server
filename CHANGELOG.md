@@ -5,6 +5,27 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2025-12-21
+
+### Fixed
+
+- **Basic Auth Guard** - Fixed repeated login prompts in Control Panel (#523)
+  - Added session cookie support to basic auth guard
+  - After successful authentication, a signed session cookie is set
+  - Subsequent requests use the session cookie instead of re-prompting for credentials
+  - Configurable session duration via `sessionDurationHours` (default: 8 hours)
+  - Adds `Secure` flag automatically when running over HTTPS
+  - Fixes issue where users had to login 4-5 times to access `/cpanel/users`
+
+### Added
+
+- **Auth Plugin onAuthenticated Callback** - New callback for syncing users on authentication
+  - Added `onAuthenticated` callback to `AuthPluginConfig` and `AuthEnvPluginOptions`
+  - Called after successful authentication with the authenticated user's info
+  - Use this to sync users to a local database on first login
+  - Errors in callback are logged but don't fail the authentication
+- **Guards Unit Tests** - Comprehensive test suite for route guards (14 tests)
+
 ## [1.5.1] - 2025-12-18
 
 ### Fixed

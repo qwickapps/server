@@ -182,6 +182,11 @@ export interface AuthPluginConfig {
   authRequired?: boolean;
   /** Custom unauthorized handler */
   onUnauthorized?: (req: Request, res: Response) => void;
+  /**
+   * Callback invoked after successful authentication.
+   * Use this to sync users to a local database on first login.
+   */
+  onAuthenticated?: (user: AuthenticatedUser) => Promise<void>;
   /** Enable debug logging */
   debug?: boolean;
 }
@@ -226,6 +231,11 @@ export interface AuthEnvPluginOptions {
   debug?: boolean;
   /** Custom unauthorized handler */
   onUnauthorized?: (req: Request, res: Response) => void;
+  /**
+   * Callback invoked after successful authentication.
+   * Use this to sync users to a local database on first login.
+   */
+  onAuthenticated?: (user: AuthenticatedUser) => Promise<void>;
 }
 
 /**

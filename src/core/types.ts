@@ -24,6 +24,8 @@ export interface BasicAuthGuardConfig {
   realm?: string;
   /** Paths to exclude from authentication (e.g., ['/health']) */
   excludePaths?: string[];
+  /** Session cookie duration in hours (default: 8) */
+  sessionDurationHours?: number;
 }
 
 /**

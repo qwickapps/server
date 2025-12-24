@@ -174,3 +174,170 @@ describe('Auth Plugin helpers', () => {
     expect(authModule.requireAnyRole).toBeDefined();
   });
 });
+
+describe('onAuthenticated callback', () => {
+  // Mock adapter that always authenticates
+  function createMockAdapter(user: AuthenticatedUser | null): ReturnType<typeof basicAdapter> {
+    return {
+      name: 'mock',
+      initialize: () => (_req: Request, _res: Response, next: NextFunction) => next(),
+      isAuthenticated: () => user !== null,
+      getUser: () => user,
+    };
+  }
+
+  it('should call onAuthenticated callback after successful authentication', async () => {
+    const { createAuthPlugin } = await import('./auth-plugin.js');
+    const mockUser: AuthenticatedUser = {
+      id: 'user-123',
+      email: 'test@example.com',
+      name: 'Test User',
+    };
+    const onAuthenticated = vi.fn().mockResolvedValue(undefined);
+
+    const plugin = createAuthPlugin({
+      adapter: createMockAdapter(mockUser),
+      authRequired: false,
+      onAuthenticated,
+    });
+
+    // Create mock registry
+    const mockApp = {
+      use: vi.fn(),
+    };
+    const mockRegistry = {
+      getApp: () => mockApp,
+      addRoute: vi.fn(),
+    };
+
+    // Start the plugin to register middleware
+    await plugin.onStart?.({} as never, mockRegistry as never);
+
+    // Get the auth middleware (last middleware added)
+    const authMiddleware = mockApp.use.mock.calls[mockApp.use.mock.calls.length - 1][0];
+
+    // Call middleware
+    const req = createMockRequest();
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await authMiddleware(req, res, next);
+
+    expect(onAuthenticated).toHaveBeenCalledWith(mockUser);
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('should not call onAuthenticated when authentication fails', async () => {
+    const { createAuthPlugin } = await import('./auth-plugin.js');
+    const onAuthenticated = vi.fn().mockResolvedValue(undefined);
+
+    const plugin = createAuthPlugin({
+      adapter: createMockAdapter(null), // null user = not authenticated
+      authRequired: false,
+      onAuthenticated,
+    });
+
+    const mockApp = {
+      use: vi.fn(),
+    };
+    const mockRegistry = {
+      getApp: () => mockApp,
+      addRoute: vi.fn(),
+    };
+
+    await plugin.onStart?.({} as never, mockRegistry as never);
+
+    const authMiddleware = mockApp.use.mock.calls[mockApp.use.mock.calls.length - 1][0];
+
+    const req = createMockRequest();
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await authMiddleware(req, res, next);
+
+    expect(onAuthenticated).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('should not fail authentication when onAuthenticated throws an error', async () => {
+    const { createAuthPlugin } = await import('./auth-plugin.js');
+    const mockUser: AuthenticatedUser = {
+      id: 'user-123',
+      email: 'test@example.com',
+      name: 'Test User',
+    };
+    const onAuthenticated = vi.fn().mockRejectedValue(new Error('Sync failed'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const plugin = createAuthPlugin({
+      adapter: createMockAdapter(mockUser),
+      authRequired: false,
+      onAuthenticated,
+    });
+
+    const mockApp = {
+      use: vi.fn(),
+    };
+    const mockRegistry = {
+      getApp: () => mockApp,
+      addRoute: vi.fn(),
+    };
+
+    await plugin.onStart?.({} as never, mockRegistry as never);
+
+    const authMiddleware = mockApp.use.mock.calls[mockApp.use.mock.calls.length - 1][0];
+
+    const req = createMockRequest();
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await authMiddleware(req, res, next);
+
+    // Callback was called
+    expect(onAuthenticated).toHaveBeenCalledWith(mockUser);
+    // Error was logged
+    expect(consoleSpy).toHaveBeenCalled();
+    // Request still proceeds
+    expect(next).toHaveBeenCalled();
+    // Auth info is still set correctly
+    expect((req as unknown as { auth: { isAuthenticated: boolean } }).auth.isAuthenticated).toBe(true);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not call onAuthenticated when callback is not provided', async () => {
+    const { createAuthPlugin } = await import('./auth-plugin.js');
+    const mockUser: AuthenticatedUser = {
+      id: 'user-123',
+      email: 'test@example.com',
+      name: 'Test User',
+    };
+
+    const plugin = createAuthPlugin({
+      adapter: createMockAdapter(mockUser),
+      authRequired: false,
+      // No onAuthenticated callback
+    });
+
+    const mockApp = {
+      use: vi.fn(),
+    };
+    const mockRegistry = {
+      getApp: () => mockApp,
+      addRoute: vi.fn(),
+    };
+
+    await plugin.onStart?.({} as never, mockRegistry as never);
+
+    const authMiddleware = mockApp.use.mock.calls[mockApp.use.mock.calls.length - 1][0];
+
+    const req = createMockRequest();
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    // Should not throw
+    await authMiddleware(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+  });
+});

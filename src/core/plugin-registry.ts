@@ -51,9 +51,18 @@ export interface PluginInfo {
   id: string;
   name: string;
   version?: string;
+  type: PluginType;
+  slug?: string;  // Current slug (may be customized)
   status: 'starting' | 'active' | 'stopped' | 'error';
   error?: string;
 }
+
+/**
+ * Plugin type determines routing capabilities
+ * - regular: Can only handle routes under their slug prefix (e.g., /mcp/*)
+ * - system: Can handle any path (e.g., /*, /auth/*)
+ */
+export type PluginType = 'regular' | 'system';
 
 /**
  * The Plugin interface - simple lifecycle with event handling
@@ -67,6 +76,30 @@ export interface Plugin {
 
   /** Plugin version (semver) */
   version?: string;
+
+  /**
+   * Plugin type determines routing capabilities
+   * - regular: Must use slug prefix for all routes
+   * - system: Can register routes at any path
+   * Default: 'regular'
+   */
+  type?: PluginType;
+
+  /**
+   * Default slug for regular plugins (path prefix for routes)
+   * Example: 'mcp' makes routes available under /mcp/*
+   * Can be overridden via plugin config
+   * Ignored for system plugins
+   */
+  slug?: string;
+
+  /**
+   * Configuration options for this plugin
+   */
+  configurable?: {
+    /** Allow users to customize the slug via UI */
+    slug?: boolean;
+  };
 
   /**
    * Called when the plugin starts.
@@ -151,17 +184,33 @@ export interface WidgetContribution {
 }
 
 /**
+ * Auth configuration for routes
+ */
+export interface RouteAuthConfig {
+  /** Whether authentication is required */
+  required: boolean;
+  /** Allowed roles (if auth required) */
+  roles?: string[];
+  /** Paths to exclude from auth (for middleware routes using 'use' method) */
+  excludePaths?: string[];
+}
+
+/**
  * Route definition for API routes
  */
 export interface RouteDefinition {
-  /** HTTP method */
-  method: 'get' | 'post' | 'put' | 'delete' | 'patch';
-  /** Route path */
+  /** HTTP method (including 'use' for middleware) */
+  method: 'get' | 'post' | 'put' | 'delete' | 'patch' | 'use';
+  /** Route path (will be auto-prefixed with slug for regular plugins) */
   path: string;
   /** Request handler */
   handler: RequestHandler;
-  /** Plugin ID that contributed this */
-  pluginId: string;
+  /** Authentication configuration */
+  auth?: RouteAuthConfig;
+  /** Plugin ID that contributed this (set automatically) */
+  pluginId?: string;
+  /** Original path before slug prefixing (set automatically) */
+  originalPath?: string;
 }
 
 /**
@@ -321,6 +370,8 @@ export class PluginRegistryImpl implements PluginRegistry {
   private pluginStatus = new Map<string, PluginInfo['status']>();
   private pluginErrors = new Map<string, string>();
   private pluginConfigs = new Map<string, PluginConfig>();
+  private pluginSlugs = new Map<string, string>();  // pluginId -> slug
+  private currentPlugin: string | null = null;  // Track plugin during onStart
 
   private routes: RouteDefinition[] = [];
   private menuItems: MenuContribution[] = [];
@@ -371,6 +422,8 @@ export class PluginRegistryImpl implements PluginRegistry {
       id: plugin.id,
       name: plugin.name,
       version: plugin.version,
+      type: plugin.type || 'regular',
+      slug: this.pluginSlugs.get(plugin.id),
       status: this.pluginStatus.get(plugin.id) || 'stopped',
       error: this.pluginErrors.get(plugin.id),
     }));
@@ -381,28 +434,34 @@ export class PluginRegistryImpl implements PluginRegistry {
   // ---------------------------------------------------------------------------
 
   addRoute(route: RouteDefinition): void {
-    this.routes.push(route);
-
-    // Register with Express router
-    switch (route.method) {
-      case 'get':
-        this.router.get(route.path, route.handler);
-        break;
-      case 'post':
-        this.router.post(route.path, route.handler);
-        break;
-      case 'put':
-        this.router.put(route.path, route.handler);
-        break;
-      case 'delete':
-        this.router.delete(route.path, route.handler);
-        break;
-      case 'patch':
-        this.router.patch(route.path, route.handler);
-        break;
+    if (!this.currentPlugin) {
+      throw new Error('addRoute can only be called during plugin.onStart()');
     }
 
-    this.logger.debug(`Route registered: ${route.method.toUpperCase()} ${route.path} by ${route.pluginId}`);
+    const plugin = this.plugins.get(this.currentPlugin)!;
+    const pluginType = plugin.type || 'regular';
+    const originalPath = route.path;
+    let fullPath = route.path;
+
+    // Auto-prefix for regular plugins
+    if (pluginType === 'regular') {
+      const slug = this.pluginSlugs.get(this.currentPlugin)!;
+      fullPath = `/${slug}${route.path}`;
+    }
+
+    const routeWithMetadata: RouteDefinition = {
+      ...route,
+      path: fullPath,
+      pluginId: this.currentPlugin,
+      originalPath,
+    };
+
+    this.routes.push(routeWithMetadata);
+
+    this.logger.debug(
+      `Route registered: ${route.method.toUpperCase()} ${fullPath} by ${this.currentPlugin}` +
+      (pluginType === 'regular' ? ` (original: ${originalPath})` : '')
+    );
   }
 
   addMenuItem(menu: MenuContribution): void {
@@ -573,6 +632,22 @@ export class PluginRegistryImpl implements PluginRegistry {
   }
 
   // ---------------------------------------------------------------------------
+  // Slug management (internal)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Check if a slug is available
+   */
+  private isSlugAvailable(slug: string, excludePluginId?: string): boolean {
+    for (const [pluginId, existingSlug] of this.pluginSlugs.entries()) {
+      if (pluginId !== excludePluginId && existingSlug === slug) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
   // Plugin lifecycle management (internal)
   // ---------------------------------------------------------------------------
 
@@ -583,6 +658,27 @@ export class PluginRegistryImpl implements PluginRegistry {
     this.plugins.set(plugin.id, plugin);
     this.pluginConfigs.set(plugin.id, config);
     this.pluginStatus.set(plugin.id, 'starting');
+    this.currentPlugin = plugin.id;
+
+    const pluginType = plugin.type || 'regular';
+
+    // Handle slug for regular plugins
+    if (pluginType === 'regular') {
+      const slug = (config.slug as string | undefined) || plugin.slug || plugin.id;
+
+      // Validate slug uniqueness
+      if (!this.isSlugAvailable(slug, plugin.id)) {
+        this.currentPlugin = null;
+        const errorMessage = `Slug conflict: "${slug}" already in use`;
+        this.pluginStatus.set(plugin.id, 'error');
+        this.pluginErrors.set(plugin.id, errorMessage);
+        this.logger.error(`Plugin ${plugin.id} failed to start: ${errorMessage}`);
+        return false;
+      }
+
+      this.pluginSlugs.set(plugin.id, slug);
+      this.logger.debug(`Plugin ${plugin.id} registered with slug: ${slug}`);
+    }
 
     try {
       await Promise.race([
@@ -592,6 +688,7 @@ export class PluginRegistryImpl implements PluginRegistry {
 
       this.pluginStatus.set(plugin.id, 'active');
       this.pluginErrors.delete(plugin.id);
+      this.currentPlugin = null;
 
       this.emit({
         type: 'plugin:started',
@@ -605,6 +702,7 @@ export class PluginRegistryImpl implements PluginRegistry {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.pluginStatus.set(plugin.id, 'error');
       this.pluginErrors.set(plugin.id, errorMessage);
+      this.currentPlugin = null;
 
       this.emit({
         type: 'plugin:error',

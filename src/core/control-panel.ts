@@ -378,6 +378,53 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
       }
     }
 
+    // Register all routes with automatic ordering by path specificity
+    const routes = pluginRegistry.getRoutes();
+
+    // Sort routes by path specificity (longest first, wildcards last)
+    routes.sort((a, b) => {
+      // Wildcards last
+      const aWild = a.path.includes('*') ? 1 : 0;
+      const bWild = b.path.includes('*') ? 1 : 0;
+      if (aWild !== bWild) return aWild - bWild;
+
+      // Longer paths first (more specific)
+      return b.path.length - a.path.length;
+    });
+
+    // Register routes with Express
+    logger.debug(`Registering ${routes.length} routes in priority order:`);
+    for (const route of routes) {
+      // TODO: Add auth middleware if route.auth?.required
+      // For now, just register the handler
+      // Auth will be handled by auth plugin middleware globally
+
+      const handlers = [route.handler];
+
+      switch (route.method) {
+        case 'get':
+          app.get(route.path, ...handlers);
+          break;
+        case 'post':
+          app.post(route.path, ...handlers);
+          break;
+        case 'put':
+          app.put(route.path, ...handlers);
+          break;
+        case 'delete':
+          app.delete(route.path, ...handlers);
+          break;
+        case 'patch':
+          app.patch(route.path, ...handlers);
+          break;
+        case 'use':
+          app.use(route.path, ...handlers);
+          break;
+      }
+
+      logger.debug(`  ${route.method.toUpperCase()} ${route.path}`);
+    }
+
     return new Promise((resolve) => {
       server = app.listen(config.port, () => {
         logger.debug(`Control panel listening on port ${config.port}`);

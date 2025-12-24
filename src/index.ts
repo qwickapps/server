@@ -262,6 +262,10 @@ export {
   getActivityLog,
   postgresParentalStore,
   kidsAdapter,
+  // QwickBrain plugin
+  createQwickBrainPlugin,
+  getConnectionStatus,
+  isConnected,
 } from './plugins/index.js';
 export type {
   HealthPluginConfig,
@@ -414,4 +418,11 @@ export type {
   ParentalApiConfig,
   PostgresParentalStoreConfig,
   KidsAdapterConfig,
+  // QwickBrain plugin types
+  QwickBrainPluginConfig,
+  MCPToolDefinition,
+  MCPToolCallRequest,
+  MCPToolCallResponse,
+  QwickBrainConnectionStatus,
+  MCPRateLimitConfig,
 } from './plugins/index.js';

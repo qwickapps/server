@@ -50,6 +50,7 @@ export function createFrontendAppPlugin(config: FrontendAppPluginConfig): Plugin
     id: 'frontend-app',
     name: 'Frontend App Plugin',
     version: '1.0.0',
+    type: 'system' as const,
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const logger = registry.getLogger('frontend-app');
@@ -80,11 +81,25 @@ export function createFrontendAppPlugin(config: FrontendAppPluginConfig): Plugin
       // Priority 2: Serve static files
       if (config.staticPath && existsSync(config.staticPath)) {
         logger.info(`Frontend app: Serving static files from ${config.staticPath}`);
-        app.use('/', express.static(config.staticPath));
 
-        // SPA fallback
-        app.get('/', (_req, res) => {
-          res.sendFile(resolve(config.staticPath!, 'index.html'));
+        // Serve static assets first
+        app.use(express.static(config.staticPath, { index: false }));
+
+        // SPA fallback for all non-API routes
+        // This must be registered after static files but handles routes that don't match files
+        app.get('*', (req, res, next) => {
+          // Skip API routes and control panel
+          if (req.path.startsWith('/api') || req.path.startsWith(config.mountPath || '/cpanel')) {
+            return next();
+          }
+
+          // Serve index.html for all other routes (SPA routing)
+          const indexPath = resolve(config.staticPath!, 'index.html');
+          if (existsSync(indexPath)) {
+            res.sendFile(indexPath);
+          } else {
+            next();
+          }
         });
         return;
       }

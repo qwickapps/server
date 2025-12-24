@@ -423,3 +423,18 @@ export type {
   ConnectionHealth,
   NotificationsManagerInterface,
 } from './notifications/index.js';
+
+// QwickBrain MCP plugin
+export {
+  createQwickBrainPlugin,
+  getConnectionStatus,
+  isConnected,
+} from './qwickbrain/index.js';
+export type {
+  QwickBrainPluginConfig,
+  MCPToolDefinition,
+  MCPToolCallRequest,
+  MCPToolCallResponse,
+  QwickBrainConnectionStatus,
+  MCPRateLimitConfig,
+} from './qwickbrain/index.js';

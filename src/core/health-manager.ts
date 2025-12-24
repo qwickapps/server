@@ -182,6 +182,10 @@ export class HealthManager {
 
   /**
    * Get aggregated status
+   *
+   * Returns 'degraded' instead of 'unhealthy' when subsystems fail,
+   * allowing the service to remain available even when dependencies are down.
+   * This ensures the control panel and other features remain accessible.
    */
   getAggregatedStatus(): HealthStatus {
     const results = Array.from(this.results.values());
@@ -191,7 +195,8 @@ export class HealthManager {
     const unhealthyCount = results.filter((r) => r.status === 'unhealthy').length;
     const degradedCount = results.filter((r) => r.status === 'degraded').length;
 
-    if (unhealthyCount > 0) return 'unhealthy';
+    // Return 'degraded' instead of 'unhealthy' to keep service available (HTTP 200)
+    if (unhealthyCount > 0) return 'degraded';
     if (degradedCount > 0) return 'degraded';
 
     const hasUnknown = results.some((r) => r.status === 'unknown');

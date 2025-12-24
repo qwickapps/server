@@ -38,6 +38,7 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
     id: 'auth',
     name: 'Auth Plugin',
     version: '1.0.0',
+    type: 'system' as const,
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const app = registry.getApp();
@@ -180,6 +181,21 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
         adapter: activeAdapter.name,
         accessToken: activeAdapter.getAccessToken?.(req) || undefined,
       };
+
+      // Call onAuthenticated callback if provided and user is authenticated
+      if (authenticated && user && config.onAuthenticated) {
+        try {
+          await config.onAuthenticated(user);
+          log('onAuthenticated callback completed', { userId: user.id, email: user.email });
+        } catch (error) {
+          // Log error but don't fail the request - auth succeeded, sync is optional
+          console.error('[AuthPlugin] onAuthenticated callback error:', {
+            userId: user.id,
+            email: user.email,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
 
       // Check if auth is required but user is not authenticated
       if (authRequired && !authenticated) {

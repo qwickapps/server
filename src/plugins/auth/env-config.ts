@@ -403,6 +403,7 @@ export function createAuthPluginFromEnv(options?: AuthEnvPluginOptions): Plugin 
     authRequired,
     debug,
     onUnauthorized: options?.onUnauthorized,
+    onAuthenticated: options?.onAuthenticated,
   };
 
   // Update status
@@ -418,6 +419,7 @@ export function createAuthPluginFromEnv(options?: AuthEnvPluginOptions): Plugin 
   // Wrap to add config status routes
   return {
     ...basePlugin,
+    type: 'system' as const,  // Explicit system type (auth can handle any path)
     async onStart(pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       // Call base plugin onStart
       await basePlugin.onStart?.(pluginConfig, registry);
@@ -825,6 +827,7 @@ function createDisabledPlugin(): Plugin {
     id: 'auth',
     name: 'Auth Plugin (Disabled)',
     version: '1.0.0',
+    type: 'system' as const,
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const logger = registry.getLogger('auth');
@@ -848,6 +851,7 @@ function createErrorPlugin(error: string): Plugin {
     id: 'auth',
     name: 'Auth Plugin (Error)',
     version: '1.0.0',
+    type: 'system' as const,
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const logger = registry.getLogger('auth');

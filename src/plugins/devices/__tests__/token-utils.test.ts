@@ -24,13 +24,15 @@ describe('Token Utilities', () => {
 
     it('should generate a 43-character secret after prefix', async () => {
       const result = await generateDeviceToken('mob');
-      const secret = result.token.split('_')[1];
+      // Use slice to get everything after 'mob_' since base64url can contain '_'
+      const secret = result.token.slice(4); // 'mob_'.length = 4
       expect(secret.length).toBe(43);
     });
 
     it('should generate base64url-safe characters', async () => {
       const result = await generateDeviceToken('test');
-      const secret = result.token.split('_')[1];
+      // Use slice to get everything after 'test_' since base64url can contain '_'
+      const secret = result.token.slice(5); // 'test_'.length = 5
       expect(secret).toMatch(/^[A-Za-z0-9_-]+$/);
     });
 

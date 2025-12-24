@@ -445,12 +445,24 @@ class ControlPanelApi {
   }
 
   /**
+   * Internal fetch wrapper that includes credentials for Basic Auth support.
+   * Using 'same-origin' ensures the browser sends stored Basic Auth credentials
+   * without embedding them in the URL (which would cause fetch to fail).
+   */
+  private async _fetch(url: string, options?: RequestInit): Promise<Response> {
+    return fetch(url, {
+      ...options,
+      credentials: 'same-origin',
+    });
+  }
+
+  /**
    * Generic fetch method for API requests.
    * Automatically prepends the base URL and /api prefix.
    */
   async fetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}/api${path.startsWith('/') ? path : `/${path}`}`;
-    const response = await fetch(url, {
+    const response = await this._fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -494,7 +506,7 @@ class ControlPanelApi {
 
   private async checkEndpoint(path: string): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}${path}`, { method: 'HEAD' });
+      const response = await this._fetch(`${this.baseUrl}${path}`, { method: 'HEAD' });
       // 200, 401, 403 mean the endpoint exists (might need auth)
       // 404 means it doesn't exist
       return response.status !== 404;
@@ -517,7 +529,7 @@ class ControlPanelApi {
     if (options.page) params.set('page', options.page.toString());
     if (options.search) params.set('q', options.search);
 
-    const response = await fetch(`${this.baseUrl}/api/users?${params}`);
+    const response = await this._fetch(`${this.baseUrl}/api/users?${params}`);
     if (!response.ok) {
       throw new Error(`Users request failed: ${response.statusText}`);
     }
@@ -525,7 +537,7 @@ class ControlPanelApi {
   }
 
   async getUserById(id: string): Promise<User> {
-    const response = await fetch(`${this.baseUrl}/api/users/${id}`);
+    const response = await this._fetch(`${this.baseUrl}/api/users/${id}`);
     if (!response.ok) {
       throw new Error(`User request failed: ${response.statusText}`);
     }
@@ -537,7 +549,7 @@ class ControlPanelApi {
   // ==================
 
   async getBans(): Promise<BansResponse> {
-    const response = await fetch(`${this.baseUrl}/api/bans`);
+    const response = await this._fetch(`${this.baseUrl}/api/bans`);
     if (!response.ok) {
       throw new Error(`Bans request failed: ${response.statusText}`);
     }
@@ -553,7 +565,7 @@ class ControlPanelApi {
       duration = Math.max(0, Math.floor((expiresDate.getTime() - now.getTime()) / 1000));
     }
 
-    const response = await fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`, {
+    const response = await this._fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason, duration }),
@@ -565,7 +577,7 @@ class ControlPanelApi {
   }
 
   async unbanUser(email: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`, {
+    const response = await this._fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -574,7 +586,7 @@ class ControlPanelApi {
   }
 
   async checkBan(email: string): Promise<{ banned: boolean; ban?: Ban }> {
-    const response = await fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`);
+    const response = await this._fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(email)}`);
     if (!response.ok) {
       throw new Error(`Ban check failed: ${response.statusText}`);
     }
@@ -588,7 +600,7 @@ class ControlPanelApi {
   // ==================
 
   async getEntitlements(email: string): Promise<EntitlementResult> {
-    const response = await fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}`);
+    const response = await this._fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}`);
     if (!response.ok) {
       throw new Error(`Entitlements request failed: ${response.statusText}`);
     }
@@ -596,7 +608,7 @@ class ControlPanelApi {
   }
 
   async refreshEntitlements(email: string): Promise<EntitlementResult> {
-    const response = await fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}/refresh`, {
+    const response = await this._fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}/refresh`, {
       method: 'POST',
     });
     if (!response.ok) {
@@ -606,7 +618,7 @@ class ControlPanelApi {
   }
 
   async checkEntitlement(email: string, entitlement: string): Promise<{ has: boolean }> {
-    const response = await fetch(
+    const response = await this._fetch(
       `${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}/check/${encodeURIComponent(entitlement)}`
     );
     if (!response.ok) {
@@ -616,7 +628,7 @@ class ControlPanelApi {
   }
 
   async getAvailableEntitlements(): Promise<EntitlementDefinition[]> {
-    const response = await fetch(`${this.baseUrl}/api/entitlements/available`);
+    const response = await this._fetch(`${this.baseUrl}/api/entitlements/available`);
     if (!response.ok) {
       throw new Error(`Available entitlements request failed: ${response.statusText}`);
     }
@@ -625,7 +637,7 @@ class ControlPanelApi {
   }
 
   async grantEntitlement(email: string, entitlement: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}`, {
+    const response = await this._fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ entitlement }),
@@ -637,7 +649,7 @@ class ControlPanelApi {
   }
 
   async revokeEntitlement(email: string, entitlement: string): Promise<void> {
-    const response = await fetch(
+    const response = await this._fetch(
       `${this.baseUrl}/api/entitlements/${encodeURIComponent(email)}/${encodeURIComponent(entitlement)}`,
       { method: 'DELETE' }
     );
@@ -647,7 +659,7 @@ class ControlPanelApi {
   }
 
   async invalidateEntitlementCache(email: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/entitlements/cache/${encodeURIComponent(email)}`, {
+    const response = await this._fetch(`${this.baseUrl}/api/entitlements/cache/${encodeURIComponent(email)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -656,7 +668,7 @@ class ControlPanelApi {
   }
 
   async getEntitlementsStatus(): Promise<EntitlementsStatus> {
-    const response = await fetch(`${this.baseUrl}/api/entitlements/status`);
+    const response = await this._fetch(`${this.baseUrl}/api/entitlements/status`);
     if (!response.ok) {
       throw new Error(`Entitlements status request failed: ${response.statusText}`);
     }
@@ -668,7 +680,7 @@ class ControlPanelApi {
   // ==================
 
   async getHealth(): Promise<HealthResponse> {
-    const response = await fetch(`${this.baseUrl}/api/health`);
+    const response = await this._fetch(`${this.baseUrl}/api/health`);
     if (!response.ok) {
       throw new Error(`Health check failed: ${response.statusText}`);
     }
@@ -676,7 +688,7 @@ class ControlPanelApi {
   }
 
   async getInfo(): Promise<InfoResponse> {
-    const response = await fetch(`${this.baseUrl}/api/info`);
+    const response = await this._fetch(`${this.baseUrl}/api/info`);
     if (!response.ok) {
       throw new Error(`Info request failed: ${response.statusText}`);
     }
@@ -684,7 +696,7 @@ class ControlPanelApi {
   }
 
   async getDiagnostics(): Promise<DiagnosticsResponse> {
-    const response = await fetch(`${this.baseUrl}/api/diagnostics`);
+    const response = await this._fetch(`${this.baseUrl}/api/diagnostics`);
     if (!response.ok) {
       throw new Error(`Diagnostics request failed: ${response.statusText}`);
     }
@@ -692,7 +704,7 @@ class ControlPanelApi {
   }
 
   async getConfig(): Promise<ConfigResponse> {
-    const response = await fetch(`${this.baseUrl}/api/config`);
+    const response = await this._fetch(`${this.baseUrl}/api/config`);
     if (!response.ok) {
       throw new Error(`Config request failed: ${response.statusText}`);
     }
@@ -713,7 +725,7 @@ class ControlPanelApi {
     if (options.limit) params.set('limit', options.limit.toString());
     if (options.page) params.set('page', options.page.toString());
 
-    const response = await fetch(`${this.baseUrl}/api/logs?${params}`);
+    const response = await this._fetch(`${this.baseUrl}/api/logs?${params}`);
     if (!response.ok) {
       throw new Error(`Logs request failed: ${response.statusText}`);
     }
@@ -721,7 +733,7 @@ class ControlPanelApi {
   }
 
   async getLogSources(): Promise<LogSource[]> {
-    const response = await fetch(`${this.baseUrl}/api/logs/sources`);
+    const response = await this._fetch(`${this.baseUrl}/api/logs/sources`);
     if (!response.ok) {
       throw new Error(`Log sources request failed: ${response.statusText}`);
     }
@@ -734,7 +746,7 @@ class ControlPanelApi {
   // ==================
 
   async getPlugins(): Promise<PluginsResponse> {
-    const response = await fetch(`${this.baseUrl}/api/plugins`);
+    const response = await this._fetch(`${this.baseUrl}/api/plugins`);
     if (!response.ok) {
       throw new Error(`Plugins request failed: ${response.statusText}`);
     }
@@ -742,7 +754,7 @@ class ControlPanelApi {
   }
 
   async getPluginDetail(id: string): Promise<PluginDetailResponse> {
-    const response = await fetch(`${this.baseUrl}/api/plugins/${encodeURIComponent(id)}`);
+    const response = await this._fetch(`${this.baseUrl}/api/plugins/${encodeURIComponent(id)}`);
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error(`Plugin not found: ${id}`);
@@ -757,7 +769,7 @@ class ControlPanelApi {
   // ==================
 
   async getUiContributions(): Promise<UiContributionsResponse> {
-    const response = await fetch(`${this.baseUrl}/api/ui-contributions`);
+    const response = await this._fetch(`${this.baseUrl}/api/ui-contributions`);
     if (!response.ok) {
       throw new Error(`UI contributions request failed: ${response.statusText}`);
     }
@@ -769,7 +781,7 @@ class ControlPanelApi {
   // ==================
 
   async getAuthConfigStatus(): Promise<AuthConfigStatus> {
-    const response = await fetch(`${this.baseUrl}/api/auth/config/status`);
+    const response = await this._fetch(`${this.baseUrl}/api/auth/config/status`);
     if (!response.ok) {
       // Return disabled state if endpoint not available
       if (response.status === 404) {
@@ -781,7 +793,7 @@ class ControlPanelApi {
   }
 
   async getAuthConfig(): Promise<AuthConfigStatus> {
-    const response = await fetch(`${this.baseUrl}/api/auth/config`);
+    const response = await this._fetch(`${this.baseUrl}/api/auth/config`);
     if (!response.ok) {
       if (response.status === 404) {
         return { state: 'disabled', adapter: null };
@@ -795,7 +807,7 @@ class ControlPanelApi {
    * Update auth configuration (save to database for hot-reload)
    */
   async updateAuthConfig(request: UpdateAuthConfigRequest): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${this.baseUrl}/api/auth/config`, {
+    const response = await this._fetch(`${this.baseUrl}/api/auth/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
@@ -811,7 +823,7 @@ class ControlPanelApi {
    * Delete auth configuration (revert to environment variables)
    */
   async deleteAuthConfig(): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${this.baseUrl}/api/auth/config`, {
+    const response = await this._fetch(`${this.baseUrl}/api/auth/config`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -825,7 +837,7 @@ class ControlPanelApi {
    * Test auth provider connection without saving
    */
   async testAuthProvider(request: TestProviderRequest): Promise<TestProviderResponse> {
-    const response = await fetch(`${this.baseUrl}/api/auth/test-provider`, {
+    const response = await this._fetch(`${this.baseUrl}/api/auth/test-provider`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
@@ -841,7 +853,7 @@ class ControlPanelApi {
    * Test current auth provider connection (uses existing env/runtime config)
    */
   async testCurrentAuthProvider(): Promise<TestProviderResponse> {
-    const response = await fetch(`${this.baseUrl}/api/auth/test-current`, {
+    const response = await this._fetch(`${this.baseUrl}/api/auth/test-current`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -857,7 +869,7 @@ class ControlPanelApi {
   // ==================
 
   async getRateLimitConfig(): Promise<RateLimitConfig> {
-    const response = await fetch(`${this.baseUrl}/api/rate-limit/config`);
+    const response = await this._fetch(`${this.baseUrl}/api/rate-limit/config`);
     if (!response.ok) {
       throw new Error(`Rate limit config request failed: ${response.statusText}`);
     }
@@ -865,7 +877,7 @@ class ControlPanelApi {
   }
 
   async updateRateLimitConfig(updates: RateLimitConfigUpdateRequest): Promise<RateLimitConfigUpdateResponse> {
-    const response = await fetch(`${this.baseUrl}/api/rate-limit/config`, {
+    const response = await this._fetch(`${this.baseUrl}/api/rate-limit/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -882,7 +894,7 @@ class ControlPanelApi {
   // ==================
 
   async getNotificationsStats(): Promise<NotificationsStatsResponse> {
-    const response = await fetch(`${this.baseUrl}/api/notifications/stats`);
+    const response = await this._fetch(`${this.baseUrl}/api/notifications/stats`);
     if (!response.ok) {
       throw new Error(`Notifications stats request failed: ${response.statusText}`);
     }
@@ -890,7 +902,7 @@ class ControlPanelApi {
   }
 
   async getNotificationsClients(): Promise<NotificationsClientsResponse> {
-    const response = await fetch(`${this.baseUrl}/api/notifications/clients`);
+    const response = await this._fetch(`${this.baseUrl}/api/notifications/clients`);
     if (!response.ok) {
       throw new Error(`Notifications clients request failed: ${response.statusText}`);
     }
@@ -898,7 +910,7 @@ class ControlPanelApi {
   }
 
   async disconnectNotificationsClient(clientId: string): Promise<{ success: boolean }> {
-    const response = await fetch(`${this.baseUrl}/api/notifications/clients/${encodeURIComponent(clientId)}`, {
+    const response = await this._fetch(`${this.baseUrl}/api/notifications/clients/${encodeURIComponent(clientId)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -909,7 +921,7 @@ class ControlPanelApi {
   }
 
   async forceNotificationsReconnect(): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${this.baseUrl}/api/notifications/reconnect`, {
+    const response = await this._fetch(`${this.baseUrl}/api/notifications/reconnect`, {
       method: 'POST',
     });
     if (!response.ok) {
