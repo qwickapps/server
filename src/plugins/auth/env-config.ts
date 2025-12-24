@@ -323,8 +323,8 @@ type AdapterName = (typeof VALID_ADAPTERS)[number];
 export function createAuthPluginFromEnv(options?: AuthEnvPluginOptions): Plugin {
   const adapterName = getEnv('AUTH_ADAPTER')?.toLowerCase();
 
-  // No adapter specified - return disabled plugin
-  if (!adapterName) {
+  // No adapter specified OR explicitly disabled - return disabled plugin
+  if (!adapterName || adapterName === 'none') {
     currentStatus = {
       state: 'disabled',
       adapter: null,
