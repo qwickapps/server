@@ -88,8 +88,13 @@ export function createFrontendAppPlugin(config: FrontendAppPluginConfig): Plugin
         // SPA fallback for all non-API routes
         // This must be registered after static files but handles routes that don't match files
         app.get('*', (req, res, next) => {
-          // Skip API routes and control panel
-          if (req.path.startsWith('/api') || req.path.startsWith(config.mountPath || '/cpanel')) {
+          // Skip API routes, control panel, auth, and MCP endpoints
+          if (
+            req.path.startsWith('/api') ||
+            req.path.startsWith(config.mountPath || '/cpanel') ||
+            req.path.startsWith('/auth') ||
+            req.path.startsWith('/mcp')
+          ) {
             return next();
           }
 
