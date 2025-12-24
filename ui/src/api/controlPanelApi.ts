@@ -117,6 +117,44 @@ export interface BansResponse {
 }
 
 // ==================
+// API Keys Types
+// ==================
+export interface ApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  key_type: 'm2m' | 'pat';
+  scopes: Array<'read' | 'write' | 'admin'>;
+  last_used_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiKeyWithPlaintext extends ApiKey {
+  key: string; // Only available on creation
+}
+
+export interface ApiKeysResponse {
+  keys: ApiKey[];
+}
+
+export interface CreateApiKeyRequest {
+  name: string;
+  key_type: 'm2m' | 'pat';
+  scopes: Array<'read' | 'write' | 'admin'>;
+  expires_at?: string;
+}
+
+export interface UpdateApiKeyRequest {
+  name?: string;
+  scopes?: Array<'read' | 'write' | 'admin'>;
+  expires_at?: string;
+  is_active?: boolean;
+}
+
+// ==================
 // Entitlements API Types
 // ==================
 export interface EntitlementDefinition {
@@ -929,6 +967,62 @@ class ControlPanelApi {
       throw new Error(error.error || `Force reconnect failed: ${response.statusText}`);
     }
     return response.json();
+  }
+
+  // ==================
+  // API Keys API
+  // ==================
+
+  async getApiKeys(): Promise<ApiKeysResponse> {
+    const response = await this._fetch(`${this.baseUrl}/api/api-keys`);
+    if (!response.ok) {
+      throw new Error(`API keys request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async createApiKey(request: CreateApiKeyRequest): Promise<ApiKeyWithPlaintext> {
+    const response = await this._fetch(`${this.baseUrl}/api/api-keys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `API key creation failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async getApiKey(keyId: string): Promise<ApiKey> {
+    const response = await this._fetch(`${this.baseUrl}/api/api-keys/${encodeURIComponent(keyId)}`);
+    if (!response.ok) {
+      throw new Error(`API key request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async updateApiKey(keyId: string, updates: UpdateApiKeyRequest): Promise<ApiKey> {
+    const response = await this._fetch(`${this.baseUrl}/api/api-keys/${encodeURIComponent(keyId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `API key update failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async deleteApiKey(keyId: string): Promise<void> {
+    const response = await this._fetch(`${this.baseUrl}/api/api-keys/${encodeURIComponent(keyId)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `API key deletion failed: ${response.statusText}`);
+    }
   }
 }
 

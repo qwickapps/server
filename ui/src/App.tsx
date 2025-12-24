@@ -18,6 +18,7 @@ import { AuthPage } from './pages/AuthPage';
 import { RateLimitPage } from './pages/RateLimitPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
+import { APIKeysPage } from './pages/APIKeysPage';
 import { PluginPage } from './pages/PluginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { api, type MenuContribution } from './api/controlPanelApi';
@@ -41,10 +42,11 @@ const coreNavigationItems: NavigationItem[] = [
 // Built-in optional navigation items - shown if corresponding plugin is registered
 const builtInPluginNavItems: Record<string, NavigationItem> = {
   users: { id: 'users', label: 'Users', route: '/users', icon: 'people' },
+  'api-keys': { id: 'api-keys', label: 'API Keys', route: '/api-keys', icon: 'key' },
 };
 
 // Routes that have dedicated page components
-const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/auth', '/rate-limits', '/notifications', '/integrations']);
+const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/auth', '/rate-limits', '/notifications', '/integrations', '/api-keys']);
 
 // Package version - injected at build time or fallback
 const SERVER_VERSION = '1.0.0';
@@ -221,6 +223,9 @@ export function App() {
             )}
             {registeredPlugins.has('ai-proxy') && (
               <Route path="/integrations" element={<IntegrationsPage />} />
+            )}
+            {registeredPlugins.has('api-keys') && (
+              <Route path="/api-keys" element={<APIKeysPage />} />
             )}
 
             {/* Dynamic plugin routes - render generic PluginPage for non-dedicated routes */}
