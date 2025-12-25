@@ -38,6 +38,7 @@ import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import BlockIcon from '@mui/icons-material/Block';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import {
   api,
   type User,
@@ -93,6 +94,10 @@ export function UsersPage({
   const [bans, setBans] = useState<Ban[]>([]);
   const [bansTotal, setBansTotal] = useState(0);
 
+  // Invitations state
+  const [invitations, setInvitations] = useState<User[]>([]);
+  const [invitationsTotal, setInvitationsTotal] = useState(0);
+
   // Shared state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +110,16 @@ export function UsersPage({
     reason: '',
     expiresAt: '',
   });
+
+  // Invite dialog state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [newInvite, setNewInvite] = useState({
+    email: '',
+    name: '',
+    role: '',
+    expiresInDays: 7,
+  });
+  const [inviteResult, setInviteResult] = useState<{ token: string; inviteLink: string } | null>(null);
 
   // Entitlements lookup state
   const [entitlementsDialogOpen, setEntitlementsDialogOpen] = useState(false);
@@ -192,6 +207,23 @@ export function UsersPage({
     }
   }, [features.bans]);
 
+  // Fetch invitations
+  const fetchInvitations = useCallback(async () => {
+    if (!features.users) return;
+
+    setLoading(true);
+    try {
+      const data = await api.getInvitations();
+      setInvitations(data.users || []);
+      setInvitationsTotal(data.total);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch invitations');
+    } finally {
+      setLoading(false);
+    }
+  }, [features.users]);
+
   // Initial fetch and tab-based fetching
   useEffect(() => {
     if (!featuresLoaded) return;
@@ -200,8 +232,10 @@ export function UsersPage({
       fetchUsers();
     } else if (activeTab === 1 && features.bans) {
       fetchBans();
+    } else if (activeTab === 2 && features.users) {
+      fetchInvitations();
     }
-  }, [activeTab, featuresLoaded, features.users, features.bans, fetchUsers, fetchBans]);
+  }, [activeTab, featuresLoaded, features.users, features.bans, fetchUsers, fetchBans, fetchInvitations]);
 
   // Fetch bans count for stats (only on initial load)
   useEffect(() => {
@@ -246,6 +280,36 @@ export function UsersPage({
     } catch (err) {
       setError('Failed to unban user');
     }
+  };
+
+  // Invite handlers
+  const handleInviteUser = async () => {
+    try {
+      const result = await api.inviteUser({
+        email: newInvite.email,
+        name: newInvite.name || undefined,
+        role: newInvite.role || undefined,
+        expiresInDays: newInvite.expiresInDays,
+      });
+      setInviteResult({ token: result.token, inviteLink: result.inviteLink });
+      setSuccess('User invitation created successfully');
+      fetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to invite user');
+    }
+  };
+
+  const handleCopyInviteLink = () => {
+    if (inviteResult) {
+      navigator.clipboard.writeText(inviteResult.inviteLink);
+      setSuccess('Invite link copied to clipboard');
+    }
+  };
+
+  const handleCloseInviteDialog = () => {
+    setInviteDialogOpen(false);
+    setNewInvite({ email: '', name: '', role: '', expiresInDays: 7 });
+    setInviteResult(null);
   };
 
   // Entitlements handlers
@@ -362,6 +426,7 @@ export function UsersPage({
   const tabs: { label: string; count?: number }[] = [];
   if (features.users) tabs.push({ label: 'Users', count: usersTotal });
   if (features.bans) tabs.push({ label: 'Banned', count: bansTotal });
+  if (features.users) tabs.push({ label: 'Invitations', count: invitationsTotal });
 
   if (!featuresLoaded) {
     return (
@@ -380,6 +445,14 @@ export function UsersPage({
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           {headerActions}
+          {features.users && (
+            <Button
+              variant="primary"
+              icon="person_add"
+              label="Invite User"
+              onClick={() => setInviteDialogOpen(true)}
+            />
+          )}
           {features.entitlements && (
             <Button
               variant="outlined"
@@ -390,7 +463,7 @@ export function UsersPage({
           )}
           {features.bans && (
             <Button
-              variant="primary"
+              variant="outlined"
               color="error"
               icon="block"
               label="Ban User"
@@ -645,8 +718,158 @@ export function UsersPage({
               </Table>
             </TableContainer>
           )}
+
+          {/* Invitations Tab */}
+          {activeTab === 2 && features.users && (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>Email</TableCell>
+                    <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>Name</TableCell>
+                    <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>Created</TableCell>
+                    <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>Expires</TableCell>
+                    <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {invitations.map((invitation) => {
+                    const isExpired = invitation.invitation_expires_at && new Date(invitation.invitation_expires_at) < new Date();
+                    return (
+                      <TableRow key={invitation.id}>
+                        <TableCell sx={{ color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)' }}>
+                          <Text variant="body1" content={invitation.email} fontWeight="500" />
+                        </TableCell>
+                        <TableCell sx={{ color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)' }}>
+                          {invitation.name || '--'}
+                        </TableCell>
+                        <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>
+                          {formatDate(invitation.created_at)}
+                        </TableCell>
+                        <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }}>
+                          {formatDate(invitation.invitation_expires_at)}
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'var(--theme-border)' }}>
+                          <Chip
+                            size="small"
+                            label={isExpired ? 'Expired' : 'Pending'}
+                            sx={{
+                              bgcolor: isExpired ? 'var(--theme-error)20' : 'var(--theme-warning)20',
+                              color: isExpired ? 'var(--theme-error)' : 'var(--theme-warning)',
+                            }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {invitations.length === 0 && !loading && (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'var(--theme-text-secondary)' }}>
+                        No pending invitations
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </CardContent>
       </Card>
+
+      {/* Invite User Dialog */}
+      {features.users && (
+        <Dialog
+          open={inviteDialogOpen}
+          onClose={handleCloseInviteDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Invite User</DialogTitle>
+          <DialogContent>
+            {!inviteResult ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                <TextField
+                  label="Email"
+                  fullWidth
+                  required
+                  value={newInvite.email}
+                  onChange={(e) => setNewInvite({ ...newInvite, email: e.target.value })}
+                  placeholder="user@example.com"
+                  type="email"
+                />
+                <TextField
+                  label="Name (Optional)"
+                  fullWidth
+                  value={newInvite.name}
+                  onChange={(e) => setNewInvite({ ...newInvite, name: e.target.value })}
+                  placeholder="Enter user's full name"
+                />
+                <TextField
+                  label="Role (Optional)"
+                  fullWidth
+                  value={newInvite.role}
+                  onChange={(e) => setNewInvite({ ...newInvite, role: e.target.value })}
+                  placeholder="e.g., admin, editor, viewer"
+                  helperText="Stored in user metadata for your app to use"
+                />
+                <TextField
+                  label="Invitation Expiry"
+                  type="number"
+                  fullWidth
+                  value={newInvite.expiresInDays}
+                  onChange={(e) => setNewInvite({ ...newInvite, expiresInDays: parseInt(e.target.value) || 7 })}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">days</InputAdornment>,
+                  }}
+                  helperText="How many days until the invitation expires"
+                />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                <Alert severity="success">
+                  Invitation created successfully! Share this link with the user:
+                </Alert>
+                <TextField
+                  label="Invitation Link"
+                  fullWidth
+                  value={inviteResult.inviteLink}
+                  InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Tooltip title="Copy to clipboard">
+                          <IconButton onClick={handleCopyInviteLink} edge="end">
+                            <ContentCopyIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </InputAdornment>
+                    ),
+                  }}
+                  helperText="Click the icon to copy the link to clipboard"
+                />
+                <Alert severity="info">
+                  The user will need to visit this link to activate their account.
+                </Alert>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="text"
+              label="Close"
+              onClick={handleCloseInviteDialog}
+            />
+            {!inviteResult && (
+              <Button
+                variant="primary"
+                label="Create Invitation"
+                onClick={handleInviteUser}
+                disabled={!newInvite.email}
+              />
+            )}
+          </DialogActions>
+        </Dialog>
+      )}
 
       {/* Ban User Dialog */}
       {features.bans && (

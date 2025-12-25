@@ -392,7 +392,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
       return b.path.length - a.path.length;
     });
 
-    // Register routes with Express
+    // Register routes with Express router (mounted at apiBasePath)
     logger.debug(`Registering ${routes.length} routes in priority order:`);
     for (const route of routes) {
       // TODO: Add auth middleware if route.auth?.required
@@ -403,26 +403,26 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
 
       switch (route.method) {
         case 'get':
-          app.get(route.path, ...handlers);
+          router.get(route.path, ...handlers);
           break;
         case 'post':
-          app.post(route.path, ...handlers);
+          router.post(route.path, ...handlers);
           break;
         case 'put':
-          app.put(route.path, ...handlers);
+          router.put(route.path, ...handlers);
           break;
         case 'delete':
-          app.delete(route.path, ...handlers);
+          router.delete(route.path, ...handlers);
           break;
         case 'patch':
-          app.patch(route.path, ...handlers);
+          router.patch(route.path, ...handlers);
           break;
         case 'use':
-          app.use(route.path, ...handlers);
+          router.use(route.path, ...handlers);
           break;
       }
 
-      logger.debug(`  ${route.method.toUpperCase()} ${route.path}`);
+      logger.debug(`  ${route.method.toUpperCase()} ${apiBasePath}${route.path}`);
     }
 
     return new Promise((resolve) => {

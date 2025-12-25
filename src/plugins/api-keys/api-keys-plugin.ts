@@ -97,7 +97,6 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
               if (!validation.success) {
                 return res.status(400).json({
                   error: 'Invalid request',
-                  details: validation.error.errors,
                 });
               }
 
@@ -228,7 +227,6 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
               if (!validation.success) {
                 return res.status(400).json({
                   error: 'Invalid request',
-                  details: validation.error.errors,
                 });
               }
 

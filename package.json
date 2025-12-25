@@ -1,6 +1,6 @@
 {
   "name": "@qwickapps/server",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "description": "Plugin-based application server framework for building websites, APIs, admin dashboards, and full-stack products",
   "type": "module",
   "main": "dist/index.js",

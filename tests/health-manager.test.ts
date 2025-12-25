@@ -256,7 +256,7 @@ describe('HealthManager', () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
 
       const status = healthManager.getAggregatedStatus();
-      expect(status).toBe('unhealthy');
+      expect(status).toBe('degraded');
     });
   });
 

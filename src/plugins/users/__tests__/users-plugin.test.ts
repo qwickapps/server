@@ -44,6 +44,7 @@ describe('Users Plugin', () => {
     external_id: 'auth0|abc123',
     provider: 'auth0',
     picture: 'https://example.com/avatar.jpg',
+    status: 'active',
     created_at: new Date('2025-01-01'),
     updated_at: new Date('2025-01-01'),
     last_login_at: new Date('2025-12-13'),
@@ -64,6 +65,8 @@ describe('Users Plugin', () => {
     delete: vi.fn().mockResolvedValue(true),
     search: vi.fn().mockResolvedValue({ users: [mockUser], total: 1, page: 1, limit: 20, totalPages: 1 }),
     updateLastLogin: vi.fn().mockResolvedValue(undefined),
+    getByInvitationToken: vi.fn().mockResolvedValue(mockUser),
+    acceptInvitation: vi.fn().mockResolvedValue(mockUser),
     shutdown: vi.fn().mockResolvedValue(undefined),
   });
 

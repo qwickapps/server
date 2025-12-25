@@ -18,6 +18,7 @@ export { SystemPage } from '../pages/SystemPage';
 export { NotFoundPage } from '../pages/NotFoundPage';
 export { UsersPage, type UsersPageProps } from '../pages/UsersPage';
 export { EntitlementsPage, type EntitlementsPageProps } from '../pages/EntitlementsPage';
+export { AcceptInvitationPage, type AcceptInvitationPageProps } from '../pages/AcceptInvitationPage';
 
 // Re-export dashboard widget system (legacy context-based + new plugin-based)
 export {
@@ -50,8 +51,13 @@ export type {
   LogsResponse,
   LogSource,
   // User management types
+  UserStatus,
   User,
   UsersResponse,
+  InviteUserRequest,
+  InvitationResponse,
+  AcceptInvitationRequest,
+  AcceptInvitationResponse,
   Ban,
   BansResponse,
   EntitlementDefinition,

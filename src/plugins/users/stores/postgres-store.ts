@@ -72,6 +72,9 @@ export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
           external_id VARCHAR(255),
           provider VARCHAR(50),
           picture TEXT,
+          status VARCHAR(20) DEFAULT 'active',
+          invitation_token VARCHAR(255),
+          invitation_expires_at TIMESTAMPTZ,
           metadata JSONB DEFAULT '{}',
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -80,6 +83,41 @@ export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
 
         CREATE INDEX IF NOT EXISTS idx_${usersTable}_email ON ${usersTableFull}(email);
         CREATE INDEX IF NOT EXISTS idx_${usersTable}_external_id ON ${usersTableFull}(external_id, provider);
+        CREATE INDEX IF NOT EXISTS idx_${usersTable}_invitation_token ON ${usersTableFull}(invitation_token);
+        CREATE INDEX IF NOT EXISTS idx_${usersTable}_status ON ${usersTableFull}(status);
+      `);
+
+      // Add new columns to existing tables (migration)
+      await getPool().query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = '${schema}'
+            AND table_name = '${usersTable}'
+            AND column_name = 'status'
+          ) THEN
+            ALTER TABLE ${usersTableFull} ADD COLUMN status VARCHAR(20) DEFAULT 'active';
+          END IF;
+
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = '${schema}'
+            AND table_name = '${usersTable}'
+            AND column_name = 'invitation_token'
+          ) THEN
+            ALTER TABLE ${usersTableFull} ADD COLUMN invitation_token VARCHAR(255);
+          END IF;
+
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = '${schema}'
+            AND table_name = '${usersTable}'
+            AND column_name = 'invitation_expires_at'
+          ) THEN
+            ALTER TABLE ${usersTableFull} ADD COLUMN invitation_expires_at TIMESTAMPTZ;
+          END IF;
+        END $$;
       `);
     },
 
@@ -263,6 +301,7 @@ export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
       const {
         query,
         provider,
+        status,
         page = 1,
         limit = 20,
         sortBy = 'created_at',
@@ -282,6 +321,12 @@ export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
       if (provider) {
         conditions.push(`provider = $${paramIndex}`);
         values.push(provider);
+        paramIndex++;
+      }
+
+      if (status) {
+        conditions.push(`status = $${paramIndex}`);
+        values.push(status);
         paramIndex++;
       }
 
@@ -320,6 +365,30 @@ export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
 
     async updateLastLogin(id: string): Promise<void> {
       await getPool().query(`UPDATE ${usersTableFull} SET last_login_at = NOW() WHERE id = $1`, [id]);
+    },
+
+    async getByInvitationToken(token: string): Promise<User | null> {
+      const result = await getPool().query(
+        `SELECT * FROM ${usersTableFull} WHERE invitation_token = $1 AND invitation_expires_at > NOW()`,
+        [token]
+      );
+      return (result.rows[0] as User) || null;
+    },
+
+    async acceptInvitation(token: string): Promise<User | null> {
+      const result = await getPool().query(
+        `UPDATE ${usersTableFull}
+         SET status = 'active',
+             invitation_token = NULL,
+             invitation_expires_at = NULL,
+             updated_at = NOW()
+         WHERE invitation_token = $1
+           AND invitation_expires_at > NOW()
+           AND status = 'invited'
+         RETURNING *`,
+        [token]
+      );
+      return (result.rows[0] as User) || null;
     },
 
     async shutdown(): Promise<void> {

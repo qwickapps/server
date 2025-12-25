@@ -394,7 +394,6 @@ describe('API Keys Plugin - Routes', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           error: 'Invalid request',
-          details: expect.any(Array),
         })
       );
     });
@@ -636,7 +635,6 @@ describe('API Keys Plugin - Routes', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           error: 'Invalid request',
-          details: expect.any(Array),
         })
       );
     });

@@ -19,6 +19,7 @@ const mockUser: User = {
   external_id: 'auth0|abc123',
   provider: 'auth0',
   picture: 'https://example.com/avatar.jpg',
+  status: 'active',
   metadata: {
     identifiers: {
       auth0_user_id: 'auth0|abc123',

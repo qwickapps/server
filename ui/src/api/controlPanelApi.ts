@@ -81,10 +81,15 @@ export interface LogSource {
 // ==================
 // Users API Types
 // ==================
+export type UserStatus = 'invited' | 'active' | 'suspended';
+
 export interface User {
   id: string;
   email: string;
   name?: string;
+  status: UserStatus;
+  invitation_token?: string;
+  invitation_expires_at?: string;
   created_at?: string;
   updated_at?: string;
   last_login?: string;
@@ -96,6 +101,30 @@ export interface UsersResponse {
   total: number;
   page: number;
   limit: number;
+}
+
+export interface InviteUserRequest {
+  email: string;
+  name?: string;
+  role?: string;
+  metadata?: Record<string, unknown>;
+  expiresInDays?: number;
+}
+
+export interface InvitationResponse {
+  user: User;
+  token: string;
+  inviteLink: string;
+  expiresAt: string;
+}
+
+export interface AcceptInvitationRequest {
+  token: string;
+}
+
+export interface AcceptInvitationResponse {
+  success: boolean;
+  user: User;
 }
 
 // ==================
@@ -578,6 +607,40 @@ class ControlPanelApi {
     const response = await this._fetch(`${this.baseUrl}/api/users/${id}`);
     if (!response.ok) {
       throw new Error(`User request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async inviteUser(request: InviteUserRequest): Promise<InvitationResponse> {
+    const response = await this._fetch(`${this.baseUrl}/api/users/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Invite user failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async acceptInvitation(token: string): Promise<AcceptInvitationResponse> {
+    const response = await this._fetch(`${this.baseUrl}/api/users/accept-invitation/${encodeURIComponent(token)}`);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Accept invitation failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async getInvitations(): Promise<UsersResponse> {
+    const params = new URLSearchParams();
+    params.set('status', 'invited');
+    params.set('limit', '100');
+
+    const response = await this._fetch(`${this.baseUrl}/api/users?${params}`);
+    if (!response.ok) {
+      throw new Error(`Invitations request failed: ${response.statusText}`);
     }
     return response.json();
   }

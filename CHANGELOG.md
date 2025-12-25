@@ -5,6 +5,28 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2025-12-25
+
+### Added
+
+- **User Invitation System** - Complete user invitation workflow for control panel
+  - Added invitation creation, acceptance, and management APIs
+  - Added `AcceptInvitationPage` UI for users to accept invitations
+  - Added invitation UI to `UsersPage` for admins to send invitations
+  - Store invitations in PostgreSQL with expiration and token validation
+  - Support for role assignment during invitation
+
+### Fixed
+
+- **Route Registration** - Fixed plugin routes not being accessible
+  - Plugin routes now correctly register on the router instead of app
+  - Routes are properly mounted at `/cpanel/api/*` endpoints
+  - Fixes 404 errors for `/cpanel/api/users`, `/cpanel/api/logs`, etc.
+- **Auth Exclusion Paths** - Fixed auth middleware blocking control panel
+  - Added `/cpanel` to excludePaths to match both `/cpanel` and `/cpanel/*`
+  - Control panel now correctly bypasses SuperTokens authentication
+  - Basic auth guard works properly for admin access
+
 ## [1.5.2] - 2025-12-21
 
 ### Fixed

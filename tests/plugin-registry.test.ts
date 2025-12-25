@@ -361,7 +361,7 @@ describe('PluginRegistry', () => {
 
       const routes = registry.getRoutes();
       expect(routes).toHaveLength(1);
-      expect(routes[0].path).toBe('/test-route');
+      expect(routes[0].path).toBe('/route-plugin/test-route');
       expect(routes[0].method).toBe('get');
     });
   });
@@ -646,7 +646,7 @@ describe('PluginRegistry', () => {
       const contributions = registry.getPluginContributions('full-plugin');
 
       expect(contributions.routes).toHaveLength(1);
-      expect(contributions.routes[0]).toEqual({ method: 'get', path: '/test' });
+      expect(contributions.routes[0]).toEqual({ method: 'get', path: '/full-plugin/test' });
       expect(contributions.menuItems).toHaveLength(1);
       expect(contributions.pages).toHaveLength(1);
       expect(contributions.widgets).toHaveLength(1);
@@ -706,12 +706,12 @@ describe('PluginRegistry', () => {
       const contributions2 = registry.getPluginContributions('plugin-2');
 
       expect(contributions1.routes).toHaveLength(1);
-      expect(contributions1.routes[0].path).toBe('/plugin1');
+      expect(contributions1.routes[0].path).toBe('/plugin-1/plugin1');
       expect(contributions1.menuItems).toHaveLength(1);
       expect(contributions1.menuItems[0].label).toBe('Plugin 1 Menu');
 
       expect(contributions2.routes).toHaveLength(1);
-      expect(contributions2.routes[0].path).toBe('/plugin2');
+      expect(contributions2.routes[0].path).toBe('/plugin-2/plugin2');
       expect(contributions2.menuItems).toHaveLength(1);
       expect(contributions2.menuItems[0].label).toBe('Plugin 2 Menu');
     });
@@ -734,7 +734,7 @@ describe('PluginRegistry', () => {
       const contributions = registry.getPluginContributions('route-plugin');
 
       // Should only have method and path, not handler
-      expect(contributions.routes[0]).toEqual({ method: 'get', path: '/secret' });
+      expect(contributions.routes[0]).toEqual({ method: 'get', path: '/route-plugin/secret' });
       expect((contributions.routes[0] as any).handler).toBeUndefined();
     });
   });

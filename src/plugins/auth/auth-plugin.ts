@@ -78,7 +78,7 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
       // Register auth status route
       registry.addRoute({
         method: 'get',
-        path: '/api/auth/status',
+        path: '/auth/status',
         handler: (_req: Request, res: Response) => {
           const authReq = _req as AuthenticatedRequest;
           res.json({

@@ -10,6 +10,11 @@
  */
 
 /**
+ * User status in the system
+ */
+export type UserStatus = 'invited' | 'active' | 'suspended';
+
+/**
  * User record in the database
  */
 export interface User {
@@ -25,6 +30,12 @@ export interface User {
   provider?: string;
   /** Profile picture URL */
   picture?: string;
+  /** User status */
+  status: UserStatus;
+  /** Invitation token (set when user is invited) */
+  invitation_token?: string;
+  /** Invitation expiration timestamp */
+  invitation_expires_at?: Date;
   /** Additional metadata (JSON) */
   metadata?: Record<string, unknown>;
   /** When the user was created */
@@ -90,6 +101,8 @@ export interface UserSearchParams {
   query?: string;
   /** Filter by provider */
   provider?: string;
+  /** Filter by status */
+  status?: UserStatus;
   /** Page number (1-indexed) */
   page?: number;
   /** Items per page */
@@ -181,6 +194,18 @@ export interface UserStore {
    * Update last login timestamp
    */
   updateLastLogin(id: string): Promise<void>;
+
+  /**
+   * Get a user by invitation token (only if invitation is valid and not expired)
+   */
+  getByInvitationToken(token: string): Promise<User | null>;
+
+  /**
+   * Accept an invitation by token.
+   * Sets status to 'active' and clears invitation token fields.
+   * Returns the updated user or null if token is invalid/expired.
+   */
+  acceptInvitation(token: string): Promise<User | null>;
 
   /**
    * Shutdown the store
