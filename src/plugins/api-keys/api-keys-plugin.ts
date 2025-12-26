@@ -57,7 +57,18 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
 
       // Initialize the store (creates tables and RLS policies if needed)
       await config.store.initialize();
-      log('API keys plugin migrations complete');
+      log('API keys store initialized');
+
+      // Initialize optional Phase 2 stores
+      if (config.scopeStore) {
+        await config.scopeStore.initialize();
+        log('Plugin scope store initialized');
+      }
+
+      if (config.usageStore) {
+        await config.usageStore.initialize();
+        log('Usage log store initialized');
+      }
 
       // Store reference for helper access
       currentStore = config.store;
@@ -289,6 +300,107 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
             }
           },
         });
+
+        // Phase 2: GET /scopes - List all available scopes
+        if (config.scopeStore) {
+          registry.addRoute({
+            method: 'get',
+            path: '/scopes',
+            pluginId: 'api-keys',
+            handler: async (_req: Request, res: Response) => {
+              try {
+                const scopes = await config.scopeStore!.getAllScopes();
+
+                // Group by plugin
+                const grouped = scopes.reduce((acc, scope) => {
+                  if (!acc[scope.plugin_id]) {
+                    acc[scope.plugin_id] = [];
+                  }
+                  acc[scope.plugin_id].push({
+                    name: scope.name,
+                    description: scope.description,
+                    category: scope.category,
+                  });
+                  return acc;
+                }, {} as Record<string, Array<{ name: string; description: string; category?: string }>>);
+
+                // Convert to array format
+                const result = Object.entries(grouped).map(([pluginId, pluginScopes]) => ({
+                  pluginId,
+                  scopes: pluginScopes,
+                }));
+
+                res.json({ scopes: result });
+              } catch (error) {
+                console.error('[ApiKeysPlugin] Get scopes error:', error);
+                res.status(500).json({ error: 'Failed to retrieve scopes' });
+              }
+            },
+          });
+        }
+
+        // Phase 2: GET /api-keys/:id/usage - Get usage logs for a specific key
+        if (config.usageStore) {
+          registry.addRoute({
+            method: 'get',
+            path: `${apiPrefix}/:id/usage`,
+            pluginId: 'api-keys',
+            handler: async (req: Request, res: Response) => {
+              try {
+                const authReq = req as AuthenticatedRequest;
+                const userId = authReq.auth?.user?.id;
+
+                if (!userId) {
+                  return res.status(401).json({ error: 'Authentication required' });
+                }
+
+                const { id: keyId } = req.params;
+
+                // Verify key belongs to user
+                const key = await config.store.get(userId, keyId);
+                if (!key) {
+                  return res.status(404).json({ error: 'API key not found' });
+                }
+
+                // Parse query parameters
+                const limit = parseInt(req.query.limit as string) || 100;
+                const offset = parseInt(req.query.offset as string) || 0;
+                const since = req.query.since ? new Date(req.query.since as string) : undefined;
+                const until = req.query.until ? new Date(req.query.until as string) : undefined;
+                const endpoint = req.query.endpoint as string | undefined;
+                const method = req.query.method as string | undefined;
+                const statusCode = req.query.statusCode ? parseInt(req.query.statusCode as string) : undefined;
+
+                // Get usage logs
+                const logs = await config.usageStore!.getKeyUsage(keyId, {
+                  limit,
+                  offset,
+                  since,
+                  until,
+                  endpoint,
+                  method,
+                  statusCode,
+                });
+
+                // Get stats
+                const stats = await config.usageStore!.getKeyStats(keyId, { since, until });
+
+                res.json({
+                  keyId,
+                  keyName: key.name,
+                  totalCalls: stats.totalCalls,
+                  lastUsed: stats.lastUsed,
+                  callsByStatus: stats.callsByStatus,
+                  callsByEndpoint: stats.callsByEndpoint,
+                  logs,
+                });
+              } catch (error) {
+                console.error('[ApiKeysPlugin] Get usage error:', error);
+                res.status(500).json({ error: 'Failed to retrieve usage logs' });
+              }
+            },
+          });
+        }
       }
 
       log('API keys plugin started');
@@ -299,8 +411,32 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
       if (currentStore) {
         await currentStore.shutdown();
       }
+      if (config.scopeStore) {
+        await config.scopeStore.shutdown();
+      }
+      if (config.usageStore) {
+        await config.usageStore.shutdown();
+      }
       currentStore = null;
       log('API keys plugin stopped');
+    },
+
+    async onPluginEvent(event): Promise<void> {
+      // Automatically register plugin scopes when plugins start
+      if (event.type === 'plugin:started' && config.scopeStore) {
+        const { plugin } = event;
+
+        if (plugin.scopes && plugin.scopes.length > 0) {
+          try {
+            await config.scopeStore.registerScopes(plugin.id, plugin.scopes);
+            log(`Registered ${plugin.scopes.length} scopes for plugin: ${plugin.id}`, {
+              scopes: plugin.scopes.map(s => s.name),
+            });
+          } catch (error) {
+            console.error(`[ApiKeysPlugin] Failed to register scopes for ${plugin.id}:`, error);
+          }
+        }
+      }
     },
   };
 }

@@ -5,6 +5,24 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **API Keys Phase 2: Scope-Based Authorization** (#573)
+  - Plugin-declared scopes: Plugins can now declare scopes via `scopes` property
+  - QwickBrain declares `qwickbrain:read` and `qwickbrain:execute` scopes
+  - Automatic scope registration: API Keys plugin auto-registers scopes when plugins start
+  - Plugin scope store: PostgreSQL storage for plugin-declared scopes with caching
+  - Usage log store: Partitioned tables track all API key requests with 30-day intervals
+  - GET `/cpanel/api/auth/scopes` endpoint - List all available scopes grouped by plugin
+  - GET `/cpanel/api/auth/keys/:id/usage` endpoint - Usage logs with query filters and statistics
+  - Usage logging middleware: Async, non-blocking request logging using setImmediate
+  - Scope format: `plugin-id:action` (e.g., `qwickbrain:execute`)
+  - Backwards compatibility: Legacy scopes (`read`, `write`, `admin`) auto-convert to `system:*`
+  - System scopes seeded: `system:read`, `system:write`, `system:admin`
+  - Usage statistics: Calls by status code, calls by endpoint, total calls, last used timestamp
+
 ## [1.6.0] - 2025-12-25
 
 ### Added

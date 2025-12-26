@@ -297,6 +297,18 @@ export function createQwickBrainPlugin(config: QwickBrainPluginConfig): Plugin {
     configurable: {
       slug: true,  // Allow users to customize slug via UI
     },
+    scopes: [
+      {
+        name: 'qwickbrain:read',
+        description: 'Read access to MCP tools list, status, and health information',
+        category: 'read' as const,
+      },
+      {
+        name: 'qwickbrain:execute',
+        description: 'Execute MCP tools (search_codebase, explain_function, etc.)',
+        category: 'write' as const,
+      },
+    ],
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       log('Starting QwickBrain plugin');

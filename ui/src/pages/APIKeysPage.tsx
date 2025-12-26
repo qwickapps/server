@@ -55,7 +55,10 @@ import {
   type ApiKey,
   type ApiKeyWithPlaintext,
   type CreateApiKeyRequest,
+  type PluginScopesGroup,
+  type KeyUsageResponse,
 } from '../api/controlPanelApi';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 
 export interface APIKeysPageProps {
   title?: string;
@@ -72,13 +75,22 @@ export function APIKeysPage({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Phase 2: Available scopes
+  const [availableScopes, setAvailableScopes] = useState<PluginScopesGroup[]>([]);
+  const [scopesLoading, setScopesLoading] = useState(false);
+
+  // Phase 2: Usage modal
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
+  const [usageData, setUsageData] = useState<KeyUsageResponse | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+
   // Create key dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newKey, setNewKey] = useState<CreateApiKeyRequest>({
     name: '',
     key_type: 'pat',
-    scopes: ['read'],
+    scopes: [],
     expires_at: '',
   });
 
@@ -92,7 +104,7 @@ export function APIKeysPage({
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
-    scopes: [] as Array<'read' | 'write' | 'admin'>,
+    scopes: [] as string[],
     is_active: true,
   });
 
@@ -118,6 +130,39 @@ export function APIKeysPage({
     fetchKeys();
   }, [fetchKeys]);
 
+  // Phase 2: Fetch available scopes
+  const fetchScopes = useCallback(async () => {
+    setScopesLoading(true);
+    try {
+      const data = await api.getAvailableScopes();
+      setAvailableScopes(data.scopes || []);
+    } catch (err) {
+      console.error('Failed to fetch scopes:', err);
+      // Don't show error to user - scopes are optional
+    } finally {
+      setScopesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchScopes();
+  }, [fetchScopes]);
+
+  // Phase 2: Fetch key usage
+  const fetchUsage = async (keyId: string, keyName: string) => {
+    setUsageLoading(true);
+    setUsageModalOpen(true);
+    try {
+      const data = await api.getKeyUsage(keyId, { limit: 100 });
+      setUsageData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch usage data');
+      setUsageModalOpen(false);
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
   // Create key handler
   const handleCreateKey = async () => {
     setCreating(true);
@@ -128,7 +173,7 @@ export function APIKeysPage({
       setNewKey({
         name: '',
         key_type: 'pat',
-        scopes: ['read'],
+        scopes: [],
         expires_at: '',
       });
       fetchKeys();
@@ -204,8 +249,8 @@ export function APIKeysPage({
     setCopiedKey(false);
   };
 
-  // Toggle scope
-  const toggleScope = (scope: 'read' | 'write' | 'admin') => {
+  // Toggle scope (Phase 2: Support any scope string)
+  const toggleScope = (scope: string) => {
     setNewKey(prev => ({
       ...prev,
       scopes: prev.scopes.includes(scope)
@@ -214,7 +259,7 @@ export function APIKeysPage({
     }));
   };
 
-  const toggleEditScope = (scope: 'read' | 'write' | 'admin') => {
+  const toggleEditScope = (scope: string) => {
     setEditForm(prev => ({
       ...prev,
       scopes: prev.scopes.includes(scope)
@@ -235,18 +280,23 @@ export function APIKeysPage({
     });
   };
 
-  // Get scope color
+  // Get scope color (Phase 2: Support plugin scopes)
   const getScopeColor = (scope: string) => {
-    switch (scope) {
-      case 'read':
-        return 'var(--theme-info)';
-      case 'write':
-        return 'var(--theme-warning)';
-      case 'admin':
-        return 'var(--theme-error)';
-      default:
-        return 'var(--theme-text-secondary)';
+    // Legacy scopes
+    if (scope === 'read' || scope.includes(':read') || scope === 'system:read') {
+      return 'var(--theme-info)';
     }
+    if (scope === 'write' || scope.includes(':write') || scope === 'system:write') {
+      return 'var(--theme-warning)';
+    }
+    if (scope === 'admin' || scope.includes(':admin') || scope === 'system:admin') {
+      return 'var(--theme-error)';
+    }
+    // Other plugin scopes
+    if (scope.includes(':execute')) {
+      return 'var(--theme-success)';
+    }
+    return 'var(--theme-text-secondary)';
   };
 
   return (
@@ -387,6 +437,11 @@ export function APIKeysPage({
                       {formatDate(key.expires_at)}
                     </TableCell>
                     <TableCell sx={{ borderColor: 'var(--theme-border)' }} align="right">
+                      <Tooltip title="View Usage">
+                        <IconButton size="small" onClick={() => fetchUsage(key.id, key.name)}>
+                          <AssessmentIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Edit">
                         <IconButton size="small" onClick={() => openEditDialog(key)}>
                           <EditIcon fontSize="small" />
@@ -448,35 +503,38 @@ export function APIKeysPage({
 
             <FormControl component="fieldset">
               <Text variant="subtitle2" content="Scopes" customColor="var(--theme-text-primary)" />
-              <FormGroup>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={newKey.scopes.includes('read')}
-                      onChange={() => toggleScope('read')}
-                    />
-                  }
-                  label="Read - View data and resources"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={newKey.scopes.includes('write')}
-                      onChange={() => toggleScope('write')}
-                    />
-                  }
-                  label="Write - Create and update resources"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={newKey.scopes.includes('admin')}
-                      onChange={() => toggleScope('admin')}
-                    />
-                  }
-                  label="Admin - Full administrative access"
-                />
-              </FormGroup>
+              {scopesLoading ? (
+                <LinearProgress sx={{ mt: 1 }} />
+              ) : (
+                <Box sx={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {availableScopes.map((group) => (
+                    <Box key={group.pluginId} sx={{ mb: 2 }}>
+                      <Text
+                        variant="caption"
+                        content={group.pluginId.toUpperCase()}
+                        customColor="var(--theme-text-secondary)"
+                        fontWeight="600"
+                      />
+                      <FormGroup>
+                        {group.scopes.map((scope) => (
+                          <FormControlLabel
+                            key={scope.name}
+                            control={
+                              <Checkbox
+                                checked={newKey.scopes.includes(scope.name)}
+                                onChange={() => toggleScope(scope.name)}
+                                size="small"
+                              />
+                            }
+                            label={`${scope.name} - ${scope.description}`}
+                            sx={{ ml: 1 }}
+                          />
+                        ))}
+                      </FormGroup>
+                    </Box>
+                  ))}
+                </Box>
+              )}
             </FormControl>
 
             <TextField
@@ -577,35 +635,38 @@ export function APIKeysPage({
 
             <FormControl component="fieldset">
               <Text variant="subtitle2" content="Scopes" customColor="var(--theme-text-primary)" />
-              <FormGroup>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={editForm.scopes.includes('read')}
-                      onChange={() => toggleEditScope('read')}
-                    />
-                  }
-                  label="Read - View data and resources"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={editForm.scopes.includes('write')}
-                      onChange={() => toggleEditScope('write')}
-                    />
-                  }
-                  label="Write - Create and update resources"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={editForm.scopes.includes('admin')}
-                      onChange={() => toggleEditScope('admin')}
-                    />
-                  }
-                  label="Admin - Full administrative access"
-                />
-              </FormGroup>
+              {scopesLoading ? (
+                <LinearProgress sx={{ mt: 1 }} />
+              ) : (
+                <Box sx={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {availableScopes.map((group) => (
+                    <Box key={group.pluginId} sx={{ mb: 2 }}>
+                      <Text
+                        variant="caption"
+                        content={group.pluginId.toUpperCase()}
+                        customColor="var(--theme-text-secondary)"
+                        fontWeight="600"
+                      />
+                      <FormGroup>
+                        {group.scopes.map((scope) => (
+                          <FormControlLabel
+                            key={scope.name}
+                            control={
+                              <Checkbox
+                                checked={editForm.scopes.includes(scope.name)}
+                                onChange={() => toggleEditScope(scope.name)}
+                                size="small"
+                              />
+                            }
+                            label={`${scope.name} - ${scope.description}`}
+                            sx={{ ml: 1 }}
+                          />
+                        ))}
+                      </FormGroup>
+                    </Box>
+                  ))}
+                </Box>
+              )}
             </FormControl>
 
             <FormControlLabel
@@ -654,6 +715,133 @@ export function APIKeysPage({
               '&:hover': { bgcolor: 'var(--theme-error)' },
             }}
           />
+        </DialogActions>
+      </Dialog>
+
+      {/* Phase 2: Usage Modal */}
+      <Dialog open={usageModalOpen} onClose={() => setUsageModalOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>API Key Usage - {usageData?.keyName}</DialogTitle>
+        <DialogContent>
+          {usageLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <LinearProgress sx={{ width: '100%' }} />
+            </Box>
+          ) : usageData ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Stats Summary */}
+              <GridLayout columns={4} spacing="medium">
+                <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+                  <CardContent>
+                    <Text variant="h5" content={usageData.totalCalls.toString()} customColor="var(--theme-primary)" />
+                    <Text variant="body2" content="Total Calls" customColor="var(--theme-text-secondary)" />
+                  </CardContent>
+                </Card>
+
+                <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+                  <CardContent>
+                    <Text variant="h5" content={formatDate(usageData.lastUsed)} customColor="var(--theme-success)" />
+                    <Text variant="body2" content="Last Used" customColor="var(--theme-text-secondary)" />
+                  </CardContent>
+                </Card>
+
+                <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+                  <CardContent>
+                    <Text variant="h5" content={Object.keys(usageData.callsByEndpoint).length.toString()} customColor="var(--theme-warning)" />
+                    <Text variant="body2" content="Unique Endpoints" customColor="var(--theme-text-secondary)" />
+                  </CardContent>
+                </Card>
+
+                <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+                  <CardContent>
+                    <Text variant="h5" content={Object.keys(usageData.callsByStatus).length.toString()} customColor="var(--theme-info)" />
+                    <Text variant="body2" content="Status Codes" customColor="var(--theme-text-secondary)" />
+                  </CardContent>
+                </Card>
+              </GridLayout>
+
+              {/* Usage Logs Table */}
+              <Card sx={{ bgcolor: 'var(--theme-surface)' }}>
+                <CardContent sx={{ p: 0 }}>
+                  <Box sx={{ p: 2, borderBottom: '1px solid var(--theme-border)' }}>
+                    <Text variant="h6" content="Recent Requests" customColor="var(--theme-text-primary)" />
+                  </Box>
+                  <TableContainer sx={{ maxHeight: '400px' }}>
+                    <Table stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', bgcolor: 'var(--theme-surface)' }}>Timestamp</TableCell>
+                          <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', bgcolor: 'var(--theme-surface)' }}>Method</TableCell>
+                          <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', bgcolor: 'var(--theme-surface)' }}>Endpoint</TableCell>
+                          <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', bgcolor: 'var(--theme-surface)' }}>Status</TableCell>
+                          <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', bgcolor: 'var(--theme-surface)' }}>IP Address</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {usageData.logs.map((log) => (
+                          <TableRow key={log.id} hover>
+                            <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', fontSize: '0.85rem' }}>
+                              {formatDate(log.timestamp)}
+                            </TableCell>
+                            <TableCell sx={{ borderColor: 'var(--theme-border)' }}>
+                              <Chip
+                                size="small"
+                                label={log.method}
+                                sx={{
+                                  bgcolor: log.method === 'GET' ? 'var(--theme-info)20' : 'var(--theme-success)20',
+                                  color: log.method === 'GET' ? 'var(--theme-info)' : 'var(--theme-success)',
+                                  fontSize: '0.7rem',
+                                  fontFamily: 'monospace',
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                              {log.endpoint}
+                            </TableCell>
+                            <TableCell sx={{ borderColor: 'var(--theme-border)' }}>
+                              <Chip
+                                size="small"
+                                label={log.status_code || 'N/A'}
+                                sx={{
+                                  bgcolor:
+                                    log.status_code && log.status_code >= 200 && log.status_code < 300
+                                      ? 'var(--theme-success)20'
+                                      : log.status_code && log.status_code >= 400
+                                      ? 'var(--theme-error)20'
+                                      : 'var(--theme-text-secondary)20',
+                                  color:
+                                    log.status_code && log.status_code >= 200 && log.status_code < 300
+                                      ? 'var(--theme-success)'
+                                      : log.status_code && log.status_code >= 400
+                                      ? 'var(--theme-error)'
+                                      : 'var(--theme-text-secondary)',
+                                  fontSize: '0.7rem',
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                              {log.ip_address || 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {usageData.logs.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'var(--theme-text-secondary)' }}>
+                              No usage logs found for this key.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
+            </Box>
+          ) : (
+            <Alert severity="info">No usage data available</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" label="Close" onClick={() => setUsageModalOpen(false)} />
         </DialogActions>
       </Dialog>
     </Box>

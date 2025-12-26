@@ -23,7 +23,7 @@ import { HealthManager } from './health-manager.js';
  * Events that plugins can react to
  */
 export type PluginEvent =
-  | { type: 'plugin:started'; pluginId: string; config: unknown }
+  | { type: 'plugin:started'; pluginId: string; plugin: Plugin; config: unknown }
   | { type: 'plugin:stopped'; pluginId: string }
   | { type: 'plugin:config-changed'; pluginId: string; key: string; oldValue: unknown; newValue: unknown }
   | { type: 'plugin:error'; pluginId: string; error: Error };
@@ -65,6 +65,18 @@ export interface PluginInfo {
 export type PluginType = 'regular' | 'system';
 
 /**
+ * Plugin scope definition for API key authorization
+ */
+export interface PluginScope {
+  /** Scope name in format 'plugin-id:action' (e.g., 'qwickbrain:execute') */
+  name: string;
+  /** Human-readable description for UI */
+  description: string;
+  /** Optional category for grouping (read, write, admin) */
+  category?: 'read' | 'write' | 'admin';
+}
+
+/**
  * The Plugin interface - simple lifecycle with event handling
  */
 export interface Plugin {
@@ -92,6 +104,15 @@ export interface Plugin {
    * Ignored for system plugins
    */
   slug?: string;
+
+  /**
+   * Scopes that this plugin declares for API key authorization
+   * Format: 'plugin-id:action' (e.g., 'qwickbrain:execute')
+   *
+   * Scopes are registered automatically when the plugin starts and
+   * can be assigned to API keys for fine-grained access control.
+   */
+  scopes?: PluginScope[];
 
   /**
    * Configuration options for this plugin
@@ -693,6 +714,7 @@ export class PluginRegistryImpl implements PluginRegistry {
       this.emit({
         type: 'plugin:started',
         pluginId: plugin.id,
+        plugin,
         config,
       });
 

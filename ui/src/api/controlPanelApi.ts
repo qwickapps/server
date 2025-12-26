@@ -153,7 +153,7 @@ export interface ApiKey {
   name: string;
   key_prefix: string;
   key_type: 'm2m' | 'pat';
-  scopes: Array<'read' | 'write' | 'admin'>;
+  scopes: string[]; // Phase 2: Support plugin-declared scopes
   last_used_at: string | null;
   expires_at: string | null;
   is_active: boolean;
@@ -172,15 +172,60 @@ export interface ApiKeysResponse {
 export interface CreateApiKeyRequest {
   name: string;
   key_type: 'm2m' | 'pat';
-  scopes: Array<'read' | 'write' | 'admin'>;
+  scopes: string[]; // Phase 2: Support plugin-declared scopes
   expires_at?: string;
 }
 
 export interface UpdateApiKeyRequest {
   name?: string;
-  scopes?: Array<'read' | 'write' | 'admin'>;
+  scopes?: string[]; // Phase 2: Support plugin-declared scopes
   expires_at?: string;
   is_active?: boolean;
+}
+
+// Phase 2: Scope Management
+export interface PluginScope {
+  name: string;
+  description: string;
+  category?: 'read' | 'write' | 'admin';
+}
+
+export interface PluginScopesGroup {
+  pluginId: string;
+  scopes: PluginScope[];
+}
+
+export interface AvailableScopesResponse {
+  scopes: PluginScopesGroup[];
+}
+
+// Phase 2: Usage Tracking
+export interface UsageLogEntry {
+  id: string;
+  key_id: string;
+  endpoint: string;
+  method: string;
+  status_code?: number;
+  ip_address?: string;
+  user_agent?: string;
+  timestamp: string;
+}
+
+export interface UsageStats {
+  totalCalls: number;
+  lastUsed: string | null;
+  callsByStatus: Record<string, number>;
+  callsByEndpoint: Record<string, number>;
+}
+
+export interface KeyUsageResponse {
+  keyId: string;
+  keyName: string;
+  totalCalls: number;
+  lastUsed: string | null;
+  callsByStatus: Record<string, number>;
+  callsByEndpoint: Record<string, number>;
+  logs: UsageLogEntry[];
 }
 
 // ==================
@@ -1086,6 +1131,48 @@ class ControlPanelApi {
       const error = await response.json().catch(() => ({}));
       throw new Error(error.error || `API key deletion failed: ${response.statusText}`);
     }
+  }
+
+  // Phase 2: Scope Management
+  async getAvailableScopes(): Promise<AvailableScopesResponse> {
+    const response = await this._fetch(`${this.baseUrl}/api/auth/scopes`);
+    if (!response.ok) {
+      throw new Error(`Scopes request failed: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  // Phase 2: Usage Tracking
+  async getKeyUsage(
+    keyId: string,
+    params?: {
+      limit?: number;
+      offset?: number;
+      since?: string;
+      until?: string;
+      endpoint?: string;
+      method?: string;
+      statusCode?: number;
+    }
+  ): Promise<KeyUsageResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.since) queryParams.append('since', params.since);
+    if (params?.until) queryParams.append('until', params.until);
+    if (params?.endpoint) queryParams.append('endpoint', params.endpoint);
+    if (params?.method) queryParams.append('method', params.method);
+    if (params?.statusCode) queryParams.append('statusCode', params.statusCode.toString());
+
+    const url = `${this.baseUrl}/api/api-keys/${encodeURIComponent(keyId)}/usage${
+      queryParams.toString() ? `?${queryParams.toString()}` : ''
+    }`;
+
+    const response = await this._fetch(url);
+    if (!response.ok) {
+      throw new Error(`Usage request failed: ${response.statusText}`);
+    }
+    return response.json();
   }
 }
 

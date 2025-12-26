@@ -11,8 +11,61 @@ import { z } from 'zod';
 
 /**
  * API key scope type
+ *
+ * Scopes follow the format: 'plugin-id:action' (e.g., 'qwickbrain:execute')
+ *
+ * Legacy scopes ('read', 'write', 'admin') are automatically converted to
+ * 'system:read', 'system:write', 'system:admin' for backwards compatibility.
  */
-export type ApiKeyScope = 'read' | 'write' | 'admin';
+export type ApiKeyScope = string;
+
+/**
+ * Validate scope name format
+ *
+ * Valid formats:
+ * - Plugin scope: 'plugin-id:action' (e.g., 'qwickbrain:execute')
+ * - Legacy scope: 'read', 'write', 'admin' (converted to 'system:*')
+ *
+ * @param scope Scope name to validate
+ * @returns True if scope format is valid
+ */
+export function isValidScopeFormat(scope: string): boolean {
+  // Plugin scope format: plugin-id:action
+  if (/^[a-z0-9-]+:[a-z0-9-]+$/.test(scope)) {
+    return true;
+  }
+  // Legacy format: read, write, admin
+  if (['read', 'write', 'admin'].includes(scope)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Normalize scope to new format
+ *
+ * Converts legacy scopes ('read', 'write', 'admin') to new format ('system:*')
+ *
+ * @param scope Scope to normalize
+ * @returns Normalized scope
+ */
+export function normalizeScope(scope: string): string {
+  const legacyMap: Record<string, string> = {
+    'read': 'system:read',
+    'write': 'system:write',
+    'admin': 'system:admin',
+  };
+  return legacyMap[scope] || scope;
+}
+
+/**
+ * System scopes for backwards compatibility
+ */
+export const SystemScopes = {
+  READ: 'system:read',
+  WRITE: 'system:write',
+  ADMIN: 'system:admin',
+} as const;
 
 /**
  * API key type (M2M = machine-to-machine, PAT = personal access token)
@@ -181,6 +234,10 @@ export interface ApiKeysApiConfig {
 export interface ApiKeysPluginConfig {
   /** API key storage backend */
   store: ApiKeyStore;
+  /** Plugin scope storage backend (optional, for Phase 2) */
+  scopeStore?: import('./stores/plugin-scope-store.js').PluginScopeStore;
+  /** Usage log storage backend (optional, for Phase 2) */
+  usageStore?: import('./stores/usage-log-store.js').UsageLogStore;
   /** API configuration */
   api?: ApiKeysApiConfig;
   /** Enable debug logging */
@@ -193,8 +250,15 @@ export interface ApiKeysPluginConfig {
 
 /**
  * Zod schema for API key scope
+ *
+ * Validates scope format:
+ * - Plugin scope: 'plugin-id:action' (e.g., 'qwickbrain:execute')
+ * - Legacy scope: 'read', 'write', 'admin'
  */
-export const ApiKeyScopeSchema = z.enum(['read', 'write', 'admin']);
+export const ApiKeyScopeSchema = z.string().refine(
+  (scope) => isValidScopeFormat(scope),
+  { message: 'Scope must be in format "plugin-id:action" or a legacy scope (read, write, admin)' }
+);
 
 /**
  * Zod schema for API key type

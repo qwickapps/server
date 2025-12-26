@@ -10,3 +10,6 @@ export {
   type ApiKeyAuthenticatedRequest,
   type BearerTokenAuthOptions,
 } from './bearer-token-auth.js';
+export {
+  createUsageLoggingMiddleware,
+} from './usage-logging.js';
