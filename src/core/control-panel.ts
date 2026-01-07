@@ -386,7 +386,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
       const success = await pluginRegistry.startPlugin(plugin, pluginConfig || {});
       if (!success) {
         // Retrieve error details from registry for better debugging
-        const pluginInfo = pluginRegistry.getPlugin(plugin.id);
+        const pluginInfo = pluginRegistry.listPlugins().find(p => p.id === plugin.id);
         const errorDetails = pluginInfo?.error || 'Unknown error';
         logger.error(`Failed to start plugin: ${plugin.id}`, { error: errorDetails });
       }

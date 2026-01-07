@@ -63,62 +63,71 @@ export function postgresUserStore(config: PostgresUserStoreConfig): UserStore {
     async initialize(): Promise<void> {
       if (!autoCreateTables) return;
 
-      // Create users table
-      await getPool().query(`
-        CREATE TABLE IF NOT EXISTS ${usersTableFull} (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          email VARCHAR(255) NOT NULL UNIQUE,
-          name VARCHAR(255),
-          external_id VARCHAR(255),
-          provider VARCHAR(50),
-          picture TEXT,
-          status VARCHAR(20) DEFAULT 'active',
-          invitation_token VARCHAR(255),
-          invitation_expires_at TIMESTAMPTZ,
-          metadata JSONB DEFAULT '{}',
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW(),
-          last_login_at TIMESTAMPTZ
+      try {
+        // Create users table
+        await getPool().query(`
+          CREATE TABLE IF NOT EXISTS ${usersTableFull} (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            email VARCHAR(255) NOT NULL UNIQUE,
+            name VARCHAR(255),
+            external_id VARCHAR(255),
+            provider VARCHAR(50),
+            picture TEXT,
+            status VARCHAR(20) DEFAULT 'active',
+            invitation_token VARCHAR(255),
+            invitation_expires_at TIMESTAMPTZ,
+            metadata JSONB DEFAULT '{}',
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            last_login_at TIMESTAMPTZ
+          );
+        `);
+
+        // Add new columns to existing tables (migration)
+        // Use parameterized approach to avoid SQL injection
+        const pool = getPool();
+
+        // Check and add status column
+        const statusCheck = await pool.query(
+          `SELECT 1 FROM information_schema.columns
+           WHERE table_schema = $1 AND table_name = $2 AND column_name = 'status'`,
+          [schema, usersTable]
         );
+        if (statusCheck.rows.length === 0) {
+          await pool.query(`ALTER TABLE ${usersTableFull} ADD COLUMN status VARCHAR(20) DEFAULT 'active'`);
+        }
 
-        CREATE INDEX IF NOT EXISTS idx_${usersTable}_email ON ${usersTableFull}(email);
-        CREATE INDEX IF NOT EXISTS idx_${usersTable}_external_id ON ${usersTableFull}(external_id, provider);
-        CREATE INDEX IF NOT EXISTS idx_${usersTable}_invitation_token ON ${usersTableFull}(invitation_token);
-        CREATE INDEX IF NOT EXISTS idx_${usersTable}_status ON ${usersTableFull}(status);
-      `);
+        // Check and add invitation_token column
+        const tokenCheck = await pool.query(
+          `SELECT 1 FROM information_schema.columns
+           WHERE table_schema = $1 AND table_name = $2 AND column_name = 'invitation_token'`,
+          [schema, usersTable]
+        );
+        if (tokenCheck.rows.length === 0) {
+          await pool.query(`ALTER TABLE ${usersTableFull} ADD COLUMN invitation_token VARCHAR(255)`);
+        }
 
-      // Add new columns to existing tables (migration)
-      await getPool().query(`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = '${schema}'
-            AND table_name = '${usersTable}'
-            AND column_name = 'status'
-          ) THEN
-            ALTER TABLE ${usersTableFull} ADD COLUMN status VARCHAR(20) DEFAULT 'active';
-          END IF;
+        // Check and add invitation_expires_at column
+        const expiresCheck = await pool.query(
+          `SELECT 1 FROM information_schema.columns
+           WHERE table_schema = $1 AND table_name = $2 AND column_name = 'invitation_expires_at'`,
+          [schema, usersTable]
+        );
+        if (expiresCheck.rows.length === 0) {
+          await pool.query(`ALTER TABLE ${usersTableFull} ADD COLUMN invitation_expires_at TIMESTAMPTZ`);
+        }
 
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = '${schema}'
-            AND table_name = '${usersTable}'
-            AND column_name = 'invitation_token'
-          ) THEN
-            ALTER TABLE ${usersTableFull} ADD COLUMN invitation_token VARCHAR(255);
-          END IF;
-
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = '${schema}'
-            AND table_name = '${usersTable}'
-            AND column_name = 'invitation_expires_at'
-          ) THEN
-            ALTER TABLE ${usersTableFull} ADD COLUMN invitation_expires_at TIMESTAMPTZ;
-          END IF;
-        END $$;
-      `);
+        // Create indexes after ensuring all columns exist
+        await pool.query(`
+          CREATE INDEX IF NOT EXISTS idx_${usersTable}_email ON ${usersTableFull}(email);
+          CREATE INDEX IF NOT EXISTS idx_${usersTable}_external_id ON ${usersTableFull}(external_id, provider);
+          CREATE INDEX IF NOT EXISTS idx_${usersTable}_invitation_token ON ${usersTableFull}(invitation_token);
+          CREATE INDEX IF NOT EXISTS idx_${usersTable}_status ON ${usersTableFull}(status);
+        `);
+      } catch (error) {
+        console.error('[PostgresUserStore] Failed to initialize:', error);
+        throw new Error(`Failed to initialize users table: ${error instanceof Error ? error.message : String(error)}`);
+      }
     },
 
     async getById(id: string): Promise<User | null> {
