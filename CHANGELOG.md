@@ -41,6 +41,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - System scopes seeded: `system:read`, `system:write`, `system:admin`
   - Usage statistics: Calls by status code, calls by endpoint, total calls, last used timestamp
 
+## [1.6.1] - 2026-01-06
+
+### Fixed
+
+- **Plugin Route Prefixes** - Auto-detect and fix duplicate slug prefixes in plugin routes (#746)
+  - Added runtime auto-fix in plugin-registry.ts to detect duplicate slug in route paths
+  - Auto-normalizes paths to prevent double-prefixing (e.g., `/api/users/users` → `/api/users`)
+  - Logs warning with fix instructions when duplicate detected
+  - Added pre-commit hook to catch duplicate slug patterns before commit
+  - Fixed authkeaper plugin configurations (users, bans, entitlements, auth0-settings)
+  - Prevents 404 errors caused by double-prefixed routes
+
 ## [1.6.0] - 2025-12-25
 
 ### Added
