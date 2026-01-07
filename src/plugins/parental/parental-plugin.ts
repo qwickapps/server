@@ -58,7 +58,7 @@ function isWithinSchedule(schedule: Record<string, { start: string; end: string 
  */
 export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
   const debug = config.debug || false;
-  const apiPrefix = config.api?.prefix || '/parental';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /parental prefix automatically
   const maxPinAttempts = config.maxPinAttempts || 5;
   const pinLockoutMinutes = config.pinLockoutMinutes || 30;
 

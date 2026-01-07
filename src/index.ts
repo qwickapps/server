@@ -76,9 +76,11 @@ export type {
 export {
   createHealthPlugin,
   createLogsPlugin,
+  createMaintenancePlugin,
   createConfigPlugin,
   createDiagnosticsPlugin,
   createFrontendAppPlugin,
+  createCMSPlugin,
   // Postgres plugin
   createPostgresPlugin,
   getPostgres,
@@ -92,6 +94,7 @@ export {
   createAuthPluginFromEnv,
   getAuthStatus,
   setAuthConfigStore,
+  registerAuthConfigRoutes,
   postgresAuthConfigStore,
   isAuthenticated,
   getAuthenticatedUser,
@@ -123,6 +126,17 @@ export {
   unbanUser,
   listActiveBans,
   postgresBanStore,
+  // API Keys plugin (M2M authentication, depends on Users)
+  createApiKeysPlugin,
+  getApiKeysStore,
+  verifyApiKey,
+  createApiKey,
+  listApiKeys,
+  getApiKey,
+  updateApiKey,
+  deleteApiKey,
+  postgresApiKeyStore,
+  bearerTokenAuth,
   // Entitlements plugin
   createEntitlementsPlugin,
   getEntitlementSource,
@@ -270,9 +284,11 @@ export {
 export type {
   HealthPluginConfig,
   LogsPluginConfig,
+  MaintenancePluginConfig,
   ConfigPluginConfig,
   DiagnosticsPluginConfig,
   FrontendAppPluginConfig,
+  CMSPluginConfig,
   // Postgres plugin types
   PostgresPluginConfig,
   PostgresInstance,
@@ -316,6 +332,17 @@ export type {
   RemoveBanInput,
   BanCallbacks,
   PostgresBanStoreConfig,
+  // API Keys plugin types
+  ApiKeysPluginConfig,
+  ApiKeyStore,
+  ApiKey,
+  ApiKeyWithPlaintext,
+  ApiKeyScope,
+  ApiKeyType,
+  CreateApiKeyParams,
+  UpdateApiKeyParams,
+  PostgresApiKeyStoreConfig,
+  ApiKeysApiConfig,
   // Entitlements plugin types
   EntitlementsPluginConfig,
   EntitlementSource,

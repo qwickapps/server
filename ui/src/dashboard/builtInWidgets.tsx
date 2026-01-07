@@ -10,7 +10,15 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import { ServiceHealthWidget, IntegrationStatusWidget, AuthStatusWidget, NotificationsStatsWidget } from './widgets';
+import {
+  ServiceHealthWidget,
+  IntegrationStatusWidget,
+  AuthStatusWidget,
+  NotificationsStatsWidget,
+  CMSStatusWidget,
+  CMSMaintenanceWidget
+} from './widgets';
+import { PreferencesPage } from '../pages/PreferencesPage';
 import type { WidgetComponent } from './WidgetComponentRegistry';
 
 /**
@@ -22,6 +30,9 @@ export const builtInWidgetComponents: Record<string, React.ComponentType> = {
   IntegrationStatusWidget: IntegrationStatusWidget,
   AuthStatusWidget: AuthStatusWidget,
   NotificationsStatsWidget: NotificationsStatsWidget,
+  CMSStatusWidget: CMSStatusWidget,
+  CMSMaintenanceWidget: CMSMaintenanceWidget,
+  PreferencesPage: PreferencesPage,
 };
 
 /**
@@ -37,5 +48,8 @@ export function getBuiltInWidgetComponents(): WidgetComponent[] {
     { name: 'IntegrationStatusWidget', component: IntegrationStatusWidget },
     { name: 'AuthStatusWidget', component: AuthStatusWidget },
     { name: 'NotificationsStatsWidget', component: NotificationsStatsWidget },
+    { name: 'CMSStatusWidget', component: CMSStatusWidget },
+    { name: 'CMSMaintenanceWidget', component: CMSMaintenanceWidget },
+    { name: 'PreferencesPage', component: PreferencesPage },
   ];
 }

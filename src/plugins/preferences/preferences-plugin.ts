@@ -17,10 +17,7 @@ import type {
 } from './types.js';
 import type { AuthenticatedRequest } from '../auth/types.js';
 import { deepMerge } from './stores/postgres-store.js';
-
-// Configuration limits
-const MAX_PREFERENCES_SIZE = 100_000; // 100KB JSON string limit
-const MAX_NESTING_DEPTH = 10;
+import { MAX_PREFERENCES_SIZE, MAX_NESTING_DEPTH } from './types.js';
 
 /**
  * Check if an object exceeds maximum nesting depth
@@ -46,7 +43,7 @@ let pluginDefaults: Record<string, unknown> = {};
 export function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin {
   const debug = config.debug || false;
   // Routes are mounted under /api by the control panel, so don't include /api in prefix
-  const apiPrefix = config.api?.prefix || '/preferences';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /preferences prefix automatically
   const apiEnabled = config.api?.enabled !== false;
 
   function log(message: string, data?: Record<string, unknown>) {
@@ -197,6 +194,14 @@ export function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin
           },
         });
       }
+
+      // Register preferences page in UI
+      registry.addPage({
+        pluginId: 'preferences',
+        id: 'preferences:page',
+        route: '/preferences',
+        component: 'PreferencesPage',
+      });
 
       log('Preferences plugin started');
     },

@@ -34,7 +34,7 @@ let pluginConfig: BansPluginConfig | null = null;
 export function createBansPlugin(config: BansPluginConfig): Plugin {
   const debug = config.debug || false;
   // Routes are mounted under /api by the control panel, so don't include /api in prefix
-  const apiPrefix = config.api?.prefix || '/bans';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /bans prefix automatically
   const apiEnabled = config.api?.enabled !== false;
 
   function log(message: string, data?: Record<string, unknown>) {

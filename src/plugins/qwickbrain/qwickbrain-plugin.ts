@@ -23,7 +23,6 @@ import type { AuthenticatedUser } from '../auth/types.js';
 let connectionStatus: QwickBrainConnectionStatus = {
   connected: false,
   lastCheck: new Date(),
-  tailscaleStatus: 'unknown',
 };
 
 // Health check interval
@@ -91,24 +90,6 @@ async function proxyToQwickBrain(
     };
   } finally {
     clearTimeout(timeoutId);
-  }
-}
-
-/**
- * Check Tailscale connectivity status
- */
-async function checkTailscaleStatus(): Promise<'connected' | 'disconnected' | 'unknown'> {
-  try {
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
-
-    const { stdout } = await execAsync('tailscale status --json', { timeout: 5000 });
-    const status = JSON.parse(stdout);
-
-    return status.BackendState === 'Running' ? 'connected' : 'disconnected';
-  } catch {
-    return 'unknown';
   }
 }
 
@@ -339,7 +320,6 @@ export function createQwickBrainPlugin(config: QwickBrainPluginConfig): Plugin {
       }, 300000); // 5 minutes
 
       // Initial health check
-      const tailscaleStatus = await checkTailscaleStatus();
       const healthResult = await checkQwickBrainHealth(config.qwickbrainUrl, timeout);
 
       connectionStatus = {
@@ -347,14 +327,12 @@ export function createQwickBrainPlugin(config: QwickBrainPluginConfig): Plugin {
         lastCheck: new Date(),
         latencyMs: healthResult.latencyMs,
         error: healthResult.error,
-        tailscaleStatus,
       };
 
       log('Initial connection status', connectionStatus as unknown as Record<string, unknown>);
 
       // Set up periodic health check
       healthCheckInterval = setInterval(async () => {
-        const tsStatus = await checkTailscaleStatus();
         const health = await checkQwickBrainHealth(config.qwickbrainUrl, timeout);
 
         connectionStatus = {
@@ -362,7 +340,6 @@ export function createQwickBrainPlugin(config: QwickBrainPluginConfig): Plugin {
           lastCheck: new Date(),
           latencyMs: health.latencyMs,
           error: health.error,
-          tailscaleStatus: tsStatus,
         };
       }, 30000); // Check every 30 seconds
 
@@ -380,17 +357,6 @@ export function createQwickBrainPlugin(config: QwickBrainPluginConfig): Plugin {
         },
       });
 
-      registry.registerHealthCheck({
-        name: 'qwickbrain-tailscale',
-        type: 'custom',
-        check: async () => {
-          const status = await checkTailscaleStatus();
-          return {
-            healthy: status === 'connected',
-            status,
-          };
-        },
-      });
 
       // Add API routes if enabled
       if (apiEnabled) {
@@ -404,7 +370,6 @@ export function createQwickBrainPlugin(config: QwickBrainPluginConfig): Plugin {
               connected: connectionStatus.connected,
               lastCheck: connectionStatus.lastCheck.toISOString(),
               latencyMs: connectionStatus.latencyMs,
-              tailscaleStatus: connectionStatus.tailscaleStatus,
               error: connectionStatus.error,
             });
           },
@@ -627,7 +592,6 @@ export function createQwickBrainPlugin(config: QwickBrainPluginConfig): Plugin {
       connectionStatus = {
         connected: false,
         lastCheck: new Date(),
-        tailscaleStatus: 'unknown',
       };
 
       log('QwickBrain plugin stopped');

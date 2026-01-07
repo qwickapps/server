@@ -8,3 +8,5 @@ export { ServiceHealthWidget } from './ServiceHealthWidget';
 export { IntegrationStatusWidget } from './IntegrationStatusWidget';
 export { AuthStatusWidget } from './AuthStatusWidget';
 export { NotificationsStatsWidget } from './NotificationsStatsWidget';
+export { CMSStatusWidget } from './CMSStatusWidget';
+export { CMSMaintenanceWidget } from './CMSMaintenanceWidget';

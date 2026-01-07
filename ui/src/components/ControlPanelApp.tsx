@@ -139,7 +139,7 @@ export function ControlPanelApp({
   hideBaseNavItems = [],
   showThemeSwitcher = true,
   showPaletteSwitcher = true,
-  basePath = '',
+  basePath: _basePath = '', // Keep for backwards compatibility but unused (API always at /api)
   children,
 }: ControlPanelAppProps) {
   const [version, setVersion] = useState<string>('');
@@ -147,10 +147,9 @@ export function ControlPanelApp({
   // Combine built-in widget components with custom ones
   const allWidgetComponents = [...getBuiltInWidgetComponents(), ...widgetComponents];
 
-  // Configure API base URL based on basePath - do this synchronously before any renders
-  // If basePath is '/cpanel', API is at '/cpanel/api'
-  // If basePath is '' or '/', API is at '/api'
-  const apiBasePath = basePath && basePath !== '/' ? basePath : '';
+  // Configure API base URL - API routes are always at '/api' regardless of control panel mount path
+  // The control panel might be mounted at /cpanel, but API is always at /api (not /cpanel/api)
+  const apiBasePath = '';
   api.setBaseUrl(apiBasePath);
 
   // Fetch version from API

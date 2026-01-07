@@ -126,3 +126,9 @@ export type {
   RateLimitPluginConfig,
   CheckLimitOptions,
 } from './types.js';
+
+// UI Components
+export { RateLimitStatusWidget } from './RateLimitStatusWidget.js';
+export { RateLimitManagementPage } from './RateLimitManagementPage.js';
+export type { RateLimitStatusWidgetProps } from './RateLimitStatusWidget.js';
+export type { RateLimitManagementPageProps } from './RateLimitManagementPage.js';

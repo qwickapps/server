@@ -425,7 +425,7 @@ export function createAuthPluginFromEnv(options?: AuthEnvPluginOptions): Plugin 
       await basePlugin.onStart?.(pluginConfig, registry);
 
       // Add config status routes
-      registerConfigRoutes(registry);
+      registerAuthConfigRoutes(registry);
     },
   };
 }
@@ -493,8 +493,18 @@ function getMaskedConfig(adapter: AdapterName): Record<string, string> {
 
 /**
  * Register config API routes
+ *
+ * IMPORTANT: These routes should be registered even when auth is disabled or in error state.
+ * This allows administrators to:
+ * - View current auth configuration status
+ * - See error messages for misconfigured auth
+ * - Update auth configuration at runtime
+ * - Test auth adapter connections
+ *
+ * Can be called from plugin onStart() to add auth configuration management endpoints.
+ * These routes allow viewing and updating auth configuration at runtime.
  */
-function registerConfigRoutes(registry: PluginRegistry): void {
+export function registerAuthConfigRoutes(registry: PluginRegistry): void {
   // GET /auth/config/status - Get current auth status
   registry.addRoute({
     method: 'get',
@@ -834,7 +844,7 @@ function createDisabledPlugin(): Plugin {
       logger.info('Auth plugin disabled - AUTH_ADAPTER not set');
 
       // Register status routes even when disabled
-      registerConfigRoutes(registry);
+      registerAuthConfigRoutes(registry);
     },
 
     async onStop(): Promise<void> {
@@ -858,7 +868,7 @@ function createErrorPlugin(error: string): Plugin {
       logger.error(`Auth plugin error: ${error}`);
 
       // Register status routes so admin can see the error
-      registerConfigRoutes(registry);
+      registerAuthConfigRoutes(registry);
     },
 
     async onStop(): Promise<void> {

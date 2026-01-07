@@ -19,6 +19,8 @@ import { RateLimitPage } from './pages/RateLimitPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
 import { APIKeysPage } from './pages/APIKeysPage';
+import { ContentOpsJobsPage } from './pages/ContentOpsJobsPage';
+import { MaintenancePage } from './pages/MaintenancePage';
 import { PluginPage } from './pages/PluginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { api, type MenuContribution } from './api/controlPanelApi';
@@ -46,7 +48,7 @@ const builtInPluginNavItems: Record<string, NavigationItem> = {
 };
 
 // Routes that have dedicated page components
-const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/auth', '/rate-limits', '/notifications', '/integrations', '/api-keys']);
+const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/auth', '/rate-limits', '/notifications', '/integrations', '/api-keys', '/contentops/jobs', '/maintenance']);
 
 // Package version - injected at build time or fallback
 const SERVER_VERSION = '1.0.0';
@@ -63,12 +65,13 @@ declare global {
  *
  * The server injects window.__APP_BASE_PATH__ at runtime based on
  * either the configured mountPath or X-Forwarded-Prefix header.
- * This is a simple, robust approach - no complex detection needed.
+ * This is used for BrowserRouter routing, but NOT for API calls.
  */
 const basePath = window.__APP_BASE_PATH__ ?? '';
 
-// Configure API with the detected base path
-api.setBaseUrl(basePath);
+// API routes are always at '/api' regardless of control panel mount path
+// The control panel might be mounted at /cpanel, but API is always at /api
+api.setBaseUrl('');
 
 // Footer content with QwickApps Server branding
 const footerContent = (
@@ -226,6 +229,12 @@ export function App() {
             )}
             {registeredPlugins.has('api-keys') && (
               <Route path="/api-keys" element={<APIKeysPage />} />
+            )}
+            {registeredPlugins.has('contentops') && (
+              <Route path="/contentops/jobs" element={<ContentOpsJobsPage />} />
+            )}
+            {registeredPlugins.has('maintenance') && (
+              <Route path="/maintenance" element={<MaintenancePage />} />
             )}
 
             {/* Dynamic plugin routes - render generic PluginPage for non-dedicated routes */}

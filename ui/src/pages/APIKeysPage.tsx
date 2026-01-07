@@ -149,7 +149,7 @@ export function APIKeysPage({
   }, [fetchScopes]);
 
   // Phase 2: Fetch key usage
-  const fetchUsage = async (keyId: string, keyName: string) => {
+  const fetchUsage = async (keyId: string, _keyName: string) => {
     setUsageLoading(true);
     setUsageModalOpen(true);
     try {

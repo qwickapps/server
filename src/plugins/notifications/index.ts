@@ -89,3 +89,9 @@ export type {
   ConnectionHealth,
   NotificationsManagerInterface,
 } from './types.js';
+
+// UI Components
+export { NotificationsStatusWidget } from './NotificationsStatusWidget.js';
+export { NotificationsManagementPage } from './NotificationsManagementPage.js';
+export type { NotificationsStatusWidgetProps } from './NotificationsStatusWidget.js';
+export type { NotificationsManagementPageProps } from './NotificationsManagementPage.js';

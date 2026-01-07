@@ -34,7 +34,7 @@ let currentConfig: SubscriptionsPluginConfig | null = null;
 export function createSubscriptionsPlugin(config: SubscriptionsPluginConfig): Plugin {
   const debug = config.debug || false;
   const defaultTierSlug = config.defaultTierSlug || 'free';
-  const apiPrefix = config.api?.prefix || '/subscriptions';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /subscriptions prefix automatically
 
   function log(message: string, data?: Record<string, unknown>) {
     if (debug) {

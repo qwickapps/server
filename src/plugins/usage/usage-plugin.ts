@@ -48,7 +48,7 @@ function getTomorrowMidnight(): Date {
  */
 export function createUsagePlugin(config: UsagePluginConfig): Plugin {
   const debug = config.debug || false;
-  const apiPrefix = config.api?.prefix || '/usage';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /usage prefix automatically
 
   function log(message: string, data?: Record<string, unknown>) {
     if (debug) {

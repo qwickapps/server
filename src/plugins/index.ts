@@ -7,8 +7,30 @@
 export { createHealthPlugin } from './health-plugin.js';
 export type { HealthPluginConfig } from './health-plugin.js';
 
+export { createCMSPlugin } from './cms/index.js';
+export type { CMSPluginConfig } from './cms/index.js';
+
 export { createLogsPlugin } from './logs-plugin.js';
 export type { LogsPluginConfig } from './logs-plugin.js';
+
+export { createMaintenancePlugin } from './maintenance-plugin.js';
+export type { MaintenancePluginConfig } from './maintenance-plugin.js';
+export {
+  MaintenanceManagementPage,
+  MaintenanceStatusWidget,
+  SeedManagementPage,
+  SeedList,
+  SeedExecutorUI,
+  SeedHistory,
+} from './maintenance/index.js';
+export type {
+  MaintenanceManagementPageProps,
+  MaintenanceStatusWidgetProps,
+  SeedManagementPageProps,
+  SeedListProps,
+  SeedExecutorProps,
+  SeedHistoryProps,
+} from './maintenance/index.js';
 
 export { createConfigPlugin } from './config-plugin.js';
 export type { ConfigPluginConfig } from './config-plugin.js';
@@ -31,6 +53,7 @@ export {
   createAuthPluginFromEnv,
   getAuthStatus,
   setAuthConfigStore,
+  registerAuthConfigRoutes,
   postgresAuthConfigStore,
   isAuthenticated,
   getAuthenticatedUser,
@@ -108,6 +131,32 @@ export type {
   BanCallbacks,
   PostgresBanStoreConfig,
 } from './bans/index.js';
+
+// API Keys plugin (M2M authentication, depends on Users)
+export {
+  createApiKeysPlugin,
+  getApiKeysStore,
+  verifyApiKey,
+  createApiKey,
+  listApiKeys,
+  getApiKey,
+  updateApiKey,
+  deleteApiKey,
+  postgresApiKeyStore,
+  bearerTokenAuth,
+} from './api-keys/index.js';
+export type {
+  ApiKeysPluginConfig,
+  ApiKeyStore,
+  ApiKey,
+  ApiKeyWithPlaintext,
+  ApiKeyScope,
+  ApiKeyType,
+  CreateApiKeyParams,
+  UpdateApiKeyParams,
+  PostgresApiKeyStoreConfig,
+  ApiKeysApiConfig,
+} from './api-keys/index.js';
 
 // Entitlements plugin
 export {

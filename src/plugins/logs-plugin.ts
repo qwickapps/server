@@ -81,10 +81,10 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): Plugin {
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const logger = registry.getLogger('logs');
 
-      // Register /logs/sources route
+      // Register /sources route (slug prefix added automatically by framework)
       registry.addRoute({
         method: 'get',
-        path: '/logs/sources',
+        path: '/sources',
         pluginId: 'logs',
         handler: (_req: Request, res: Response) => {
           const sources = getSources();
@@ -97,10 +97,10 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): Plugin {
         },
       });
 
-      // Register /logs route
+      // Register root route (slug prefix added automatically by framework)
       registry.addRoute({
         method: 'get',
-        path: '/logs',
+        path: '/',
         pluginId: 'logs',
         handler: (req: Request, res: Response) => {
           try {
@@ -135,10 +135,10 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): Plugin {
         },
       });
 
-      // Register /logs/stats route
+      // Register /stats route (slug prefix added automatically by framework)
       registry.addRoute({
         method: 'get',
-        path: '/logs/stats',
+        path: '/stats',
         pluginId: 'logs',
         handler: (req: Request, res: Response) => {
           try {

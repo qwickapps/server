@@ -40,7 +40,7 @@ let currentConfig: DevicesPluginConfig | null = null;
 export function createDevicesPlugin(config: DevicesPluginConfig): Plugin {
   const debug = config.debug || false;
   const defaultTokenValidityDays = config.defaultTokenValidityDays || 90;
-  const apiPrefix = config.api?.prefix || '/devices';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /devices prefix automatically
 
   function log(message: string, data?: Record<string, unknown>) {
     if (debug) {

@@ -113,7 +113,7 @@ function validateId(id: string | undefined, paramName: string): { valid: boolean
  * ```
  */
 export function createNotificationsPlugin(config: NotificationsPluginConfig): Plugin {
-  const apiPrefix = config.api?.prefix || '/notifications';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /notifications prefix automatically
   const streamEnabled = config.api?.stream !== false;
   const statsEnabled = config.api?.stats !== false;
 

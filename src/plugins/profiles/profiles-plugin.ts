@@ -72,7 +72,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
   const debug = config.debug || false;
   const maxProfilesPerUser = config.maxProfilesPerUser || 10;
   const defaultFilterLevel = config.defaultFilterLevel || 'moderate';
-  const apiPrefix = config.api?.prefix || '/profiles';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /profiles prefix automatically
 
   function log(message: string, data?: Record<string, unknown>) {
     if (debug) {

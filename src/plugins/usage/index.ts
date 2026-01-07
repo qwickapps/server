@@ -37,3 +37,9 @@ export type {
 
 // Stores
 export { postgresUsageStore } from './stores/index.js';
+
+// UI Components
+export { UsageStatusWidget } from './UsageStatusWidget.js';
+export type { UsageStatusWidgetProps } from './UsageStatusWidget.js';
+export { UsageManagementPage } from './UsageManagementPage.js';
+export type { UsageManagementPageProps } from './UsageManagementPage.js';

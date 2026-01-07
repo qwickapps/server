@@ -40,7 +40,7 @@ let cacheVersion = 1;
 export function createEntitlementsPlugin(config: EntitlementsPluginConfig): Plugin {
   const debug = config.debug || false;
   // Routes are mounted under /api by the control panel, so don't include /api in prefix
-  const apiPrefix = config.api?.prefix || '/entitlements';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /entitlements prefix automatically
   const apiEnabled = config.api?.enabled !== false;
   const enableWriteApi = config.api?.enableWrite !== false;
 

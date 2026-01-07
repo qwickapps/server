@@ -306,6 +306,182 @@ createFrontendAppPlugin({
 })
 ```
 
+### API Authentication (M2M)
+
+Enable machine-to-machine authentication for your API routes using bearer tokens. This is ideal for service-to-service communication.
+
+#### Prerequisites
+
+API authentication requires the rate-limit plugin:
+
+```typescript
+import { createRateLimitPlugin, postgresRateLimitStore, getPostgres } from '@qwickapps/server';
+
+plugins: [
+  // PostgreSQL plugin (required by rate-limit)
+  {
+    plugin: createPostgresPlugin({
+      url: process.env.DATABASE_URL,
+    }),
+  },
+
+  // Rate-limit plugin (required by API keys auth)
+  {
+    plugin: createRateLimitPlugin({
+      store: postgresRateLimitStore({
+        pool: () => getPostgres().getPool(),
+      }),
+      defaults: {
+        maxRequests: 1000,
+        windowMs: 60000, // 1 minute
+      },
+    }),
+  },
+]
+```
+
+#### Enabling Authentication on Routes
+
+Routes can opt-in to M2M authentication by setting `auth: { required: true }`:
+
+```typescript
+import { createControlPanel } from '@qwickapps/server';
+
+const controlPanel = createControlPanel({
+  config: { /* ... */ },
+  plugins: [
+    {
+      plugin: {
+        name: 'my-api',
+        async start({ registry }) {
+          // Authenticated route - requires API key
+          registry.addRoute({
+            method: 'post',
+            path: '/api/jobs/schedule',
+            pluginId: 'my-api',
+            auth: { required: true }, // Enable authentication
+            handler: async (req, res) => {
+              // req.apiKey contains verified key info
+              res.json({ success: true });
+            },
+          });
+
+          // Public route - no authentication required
+          registry.addRoute({
+            method: 'get',
+            path: '/api/status',
+            pluginId: 'my-api',
+            // No auth property = unauthenticated
+            handler: async (req, res) => {
+              res.json({ status: 'ok' });
+            },
+          });
+        },
+      },
+    },
+  ],
+});
+```
+
+#### Generating API Keys
+
+Create M2M API keys for your clients:
+
+```typescript
+import { createApiKey } from '@qwickapps/server';
+
+// Generate a new M2M API key
+const apiKey = await createApiKey({
+  user_id: '00000000-0000-0000-0000-000000000000', // Service user ID
+  name: 'production-worker',
+  key_type: 'm2m', // Machine-to-machine
+  scopes: [], // No scopes required in Phase 1A
+  expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
+});
+
+console.log(`API Key: ${apiKey.plaintext_key}`);
+// Output: qk_live_BdrbOkdpYidqkx0vkFnulmSUR4eYFLbAGndrPOAOxM8
+```
+
+**Important**: The `plaintext_key` is only returned once during creation. Store it securely.
+
+#### Using API Keys
+
+Clients pass the API key in the `Authorization` header:
+
+```bash
+# cURL example
+curl -X POST https://api.example.com/api/jobs/schedule \
+  -H "Authorization: Bearer qk_live_BdrbOkdpYidqkx0vkFnulmSUR4eYFLbAGndrPOAOxM8" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "llm-completion", "model": "gpt-3.5-turbo"}'
+```
+
+```typescript
+// Node.js example
+const response = await fetch('https://api.example.com/api/jobs/schedule', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    type: 'llm-completion',
+    model: 'gpt-3.5-turbo',
+  }),
+});
+```
+
+#### API Key Management
+
+```typescript
+import { listApiKeys, getApiKey, updateApiKey, deleteApiKey } from '@qwickapps/server';
+
+// List all keys for a user
+const keys = await listApiKeys(userId);
+
+// Get specific key
+const key = await getApiKey(userId, keyId);
+
+// Update key (name, scopes, expiration, active status)
+await updateApiKey(userId, keyId, {
+  name: 'updated-name',
+  is_active: false, // Disable key
+});
+
+// Delete (revoke) key
+await deleteApiKey(userId, keyId);
+```
+
+#### Security Best Practices
+
+1. **Store keys securely**: Use environment variables or secrets management
+2. **Rotate keys regularly**: Generate new keys and delete old ones every 90 days
+3. **Use HTTPS**: Always transmit keys over encrypted connections
+4. **Monitor usage**: Track `last_used_at` to identify unused keys
+5. **Set expiration**: Configure `expires_at` for automatic key expiry
+6. **Revoke compromised keys**: Delete keys immediately if leaked
+
+#### Error Handling
+
+Authentication failures return HTTP 401:
+
+```json
+{
+  "success": false,
+  "error": "Invalid, expired, or inactive API key"
+}
+```
+
+Rate limit exceeded returns HTTP 429:
+
+```json
+{
+  "success": false,
+  "error": "Rate limit exceeded"
+}
+```
+
 ## Plugins
 
 ### Built-in Plugins
@@ -1056,3 +1232,4 @@ For commercial licensing options, contact **legal@qwickapps.com**.
 ---
 
 Copyright (c) 2025 QwickApps. All rights reserved.
+# Build trigger Mon Dec 29 09:36:28 EST 2025

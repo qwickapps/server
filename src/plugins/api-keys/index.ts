@@ -47,3 +47,9 @@ export { postgresApiKeyStore } from './stores/index.js';
 
 // Middleware
 export { bearerTokenAuth } from './middleware/index.js';
+
+// UI Components
+export { ApiKeysStatusWidget } from './ApiKeysStatusWidget.js';
+export type { ApiKeysStatusWidgetProps } from './ApiKeysStatusWidget.js';
+export { ApiKeysManagementPage } from './ApiKeysManagementPage.js';
+export type { ApiKeysManagementPageProps } from './ApiKeysManagementPage.js';

@@ -60,7 +60,7 @@ interface RuntimeConfig {
  */
 export function createRateLimitPlugin(config: RateLimitPluginConfig): Plugin {
   const debug = config.debug || false;
-  const apiPrefix = config.api?.prefix || '/rate-limit';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /rate-limit prefix automatically
   const apiEnabled = config.api?.enabled !== false;
   const uiEnabled = config.ui?.enabled !== false;
   const initialCleanupEnabled = config.cleanup?.enabled !== false;
@@ -158,10 +158,10 @@ export function createRateLimitPlugin(config: RateLimitPluginConfig): Plugin {
 
       // Add API routes if enabled
       if (apiEnabled) {
-        // GET /rate-limit/config - Get current config
+        // GET /config - Get current config (framework adds /rate-limit prefix)
         registry.addRoute({
           method: 'get',
-          path: '/rate-limit/config',
+          path: '/config',
           pluginId: 'rate-limit',
           handler: async (_req: Request, res: Response) => {
             try {
@@ -180,10 +180,10 @@ export function createRateLimitPlugin(config: RateLimitPluginConfig): Plugin {
           },
         });
 
-        // PUT /rate-limit/config - Update config at runtime
+        // PUT /config - Update config at runtime (framework adds /rate-limit prefix)
         registry.addRoute({
           method: 'put',
-          path: '/rate-limit/config',
+          path: '/config',
           pluginId: 'rate-limit',
           handler: async (req: Request, res: Response) => {
             try {

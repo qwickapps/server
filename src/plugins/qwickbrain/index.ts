@@ -31,3 +31,9 @@ export type {
   QwickBrainConnectionStatus,
   MCPRateLimitConfig,
 } from './types.js';
+
+// UI Components
+export { QwickbrainStatusWidget } from './QwickbrainStatusWidget.js';
+export { QwickbrainManagementPage } from './QwickbrainManagementPage.js';
+export type { QwickbrainStatusWidgetProps } from './QwickbrainStatusWidget.js';
+export type { QwickbrainManagementPageProps } from './QwickbrainManagementPage.js';

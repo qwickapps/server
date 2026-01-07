@@ -8,8 +8,9 @@
 
 export { ControlPanelApp, type ControlPanelAppProps } from './ControlPanelApp';
 
-// Re-export MenuItem from react-framework for convenience
-export type { MenuItem } from '@qwickapps/react-framework';
+// Re-export generic components from react-framework for convenience
+export type { MenuItem, Column, StatCardProps, DataTableProps } from '@qwickapps/react-framework';
+export { StatCard, DataTable } from '@qwickapps/react-framework';
 
 // Re-export base pages for consumers who want to use them directly
 export { DashboardPage } from '../pages/DashboardPage';
@@ -38,6 +39,18 @@ export {
   type WidgetComponent,
   type WidgetComponentRegistryProviderProps,
 } from '../dashboard';
+
+// Re-export server plugin UI components
+export {
+  PluginManagementPage,
+  PluginStatusWidget,
+  PluginConfigPanel,
+  type PluginManagementPageProps,
+  type PluginStatusWidgetProps,
+  type PluginConfigPanelProps,
+  type ConfigField,
+  type ConfigFieldType,
+} from './plugins';
 
 // Re-export API client and types
 export { api } from '../api/controlPanelApi';

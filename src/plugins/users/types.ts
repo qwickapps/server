@@ -244,7 +244,12 @@ export interface UserSyncConfig {
  * API configuration
  */
 export interface UsersApiConfig {
-  /** API route prefix (default: '/api/users') */
+  /**
+   * API route prefix relative to plugin slug (default: '/')
+   * Final path will be /api/{slug}{prefix}
+   * Example: prefix='/' results in /api/users/
+   *          prefix='/v2' results in /api/users/v2
+   */
   prefix?: string;
   /** Enable CRUD endpoints */
   crud?: boolean;
@@ -274,6 +279,8 @@ export interface UsersPluginConfig {
   api?: UsersApiConfig;
   /** UI configuration */
   ui?: UsersUiConfig;
+  /** Control panel mount path (default: '/cpanel') - used for generating invitation links */
+  controlPanelPath?: string;
   /** Enable debug logging */
   debug?: boolean;
 }

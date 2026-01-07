@@ -201,21 +201,21 @@ describe('API Keys Plugin - Lifecycle', () => {
       // Should register 5 routes (POST, GET, GET/:id, PUT/:id, DELETE/:id)
       expect(mockRegistry.addRoute).toHaveBeenCalledTimes(5);
 
-      // Verify each route
+      // Verify each route (paths are relative to plugin slug, framework adds /api/api-keys prefix)
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'post', path: '/api-keys', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'post', path: '/', pluginId: 'api-keys' })
       );
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'get', path: '/api-keys', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'get', path: '/', pluginId: 'api-keys' })
       );
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'get', path: '/api-keys/:id', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'get', path: '/:id', pluginId: 'api-keys' })
       );
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'put', path: '/api-keys/:id', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'put', path: '/:id', pluginId: 'api-keys' })
       );
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'delete', path: '/api-keys/:id', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'delete', path: '/:id', pluginId: 'api-keys' })
       );
     });
 

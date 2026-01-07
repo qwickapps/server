@@ -9,6 +9,7 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
+import { randomBytes } from 'node:crypto';
 import type { Request, Response } from 'express';
 import type { Plugin, PluginConfig, PluginRegistry } from '../../core/plugin-registry.js';
 import type {
@@ -39,7 +40,7 @@ let currentRegistry: PluginRegistry | null = null;
 export function createUsersPlugin(config: UsersPluginConfig): Plugin {
   const debug = config.debug || false;
   // Routes are mounted under /api by the control panel, so don't include /api in prefix
-  const apiPrefix = config.api?.prefix || '/users';
+  const apiPrefix = config.api?.prefix || '/'; // Framework adds /users prefix automatically
 
   function log(message: string, data?: Record<string, unknown>) {
     if (debug) {
@@ -159,6 +160,110 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
           },
         });
 
+        // Invite user
+        registry.addRoute({
+          method: 'post',
+          path: apiPrefix === '/' ? '/invite' : `${apiPrefix}/invite`,
+          pluginId: 'users',
+          handler: async (req: Request, res: Response) => {
+            try {
+              const { email, name, role } = req.body;
+
+              if (!email) {
+                return res.status(400).json({ error: 'Email is required' });
+              }
+
+              // Check if user already exists
+              const existing = await config.store.getByEmail(email);
+              if (existing) {
+                return res.status(409).json({ error: 'User with this email already exists' });
+              }
+
+              // Generate invitation token (32 bytes = 64 hex chars)
+              const token = randomBytes(32).toString('hex');
+
+              // Set expiration to 7 days from now
+              const expiresAt = new Date();
+              expiresAt.setDate(expiresAt.getDate() + 7);
+
+              // Create user with invited status
+              const user = await config.store.create({
+                email,
+                name,
+                metadata: role ? { role } : undefined,
+              });
+
+              // Update with invitation token
+              const { getPostgres } = await import('../postgres-plugin.js');
+              const pool = getPostgres().getPool();
+              await pool.query(
+                `UPDATE users SET
+                  status = 'invited',
+                  invitation_token = $1,
+                  invitation_expires_at = $2
+                WHERE id = $3`,
+                [token, expiresAt, user.id]
+              );
+
+              // Get base URL from request
+              const protocol = req.get('x-forwarded-proto') || req.protocol;
+              const host = req.get('host');
+              const baseUrl = `${protocol}://${host}`;
+              const cpanelPath = config.controlPanelPath || '/cpanel';
+              const inviteLink = `${baseUrl}${cpanelPath}/accept-invitation/${token}`;
+
+              res.status(201).json({
+                user: { ...user, status: 'invited' as const, invitation_token: token, invitation_expires_at: expiresAt },
+                token,
+                inviteLink,
+                expiresAt: expiresAt.toISOString(),
+              });
+            } catch (error) {
+              console.error('[UsersPlugin] Invite user error:', error);
+              res.status(500).json({ error: 'Failed to invite user' });
+            }
+          },
+        });
+
+        // Accept invitation
+        registry.addRoute({
+          method: 'post',
+          path: apiPrefix === '/' ? '/accept-invitation/:token' : `${apiPrefix}/accept-invitation/:token`,
+          pluginId: 'users',
+          handler: async (req: Request, res: Response) => {
+            try {
+              const { token } = req.params;
+
+              if (!token) {
+                return res.status(400).json({ error: 'Invitation token is required' });
+              }
+
+              const user = await config.store.acceptInvitation(token);
+
+              if (!user) {
+                return res.status(404).json({
+                  error: 'Invalid or expired invitation token',
+                  details: 'The invitation link may have expired or already been used'
+                });
+              }
+
+              res.json({
+                success: true,
+                user: {
+                  id: user.id,
+                  email: user.email,
+                  name: user.name,
+                  status: user.status,
+                },
+                message: 'Invitation accepted successfully. You can now log in.',
+              });
+            } catch (error) {
+              console.error('[UsersPlugin] Accept invitation error:', error);
+              res.status(500).json({ error: 'Failed to accept invitation' });
+            }
+          },
+        });
+
         // Update user
         registry.addRoute({
           method: 'put',
@@ -206,7 +311,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
         // GET /users/:id/info - Get comprehensive user info
         registry.addRoute({
           method: 'get',
-          path: `${apiPrefix}/:id/info`,
+          path: apiPrefix === '/' ? '/:id/info' : `${apiPrefix}/:id/info`,
           pluginId: 'users',
           handler: async (req: Request, res: Response) => {
             try {
@@ -227,7 +332,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
         // POST /users/sync - Find or create user, return comprehensive info
         registry.addRoute({
           method: 'post',
-          path: `${apiPrefix}/sync`,
+          path: apiPrefix === '/' ? '/sync' : `${apiPrefix}/sync`,
           pluginId: 'users',
           handler: async (req: Request, res: Response) => {
             try {
@@ -262,6 +367,35 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
             } catch (error) {
               console.error('[UsersPlugin] User sync error:', error);
               res.status(500).json({ error: 'Failed to sync user' });
+            }
+          },
+        });
+
+        // GET /users/stats - Get user statistics
+        registry.addRoute({
+          method: 'get',
+          path: apiPrefix === '/' ? '/stats' : `${apiPrefix}/stats`,
+          pluginId: 'users',
+          handler: async (_req: Request, res: Response) => {
+            try {
+              const allUsers = await config.store.search({ limit: 10000 });
+              const now = Date.now();
+              const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+              const stats = {
+                totalUsers: allUsers.total,
+                activeUsers: allUsers.users.filter((u) => u.status === 'active').length,
+                invitedUsers: allUsers.users.filter((u) => u.status === 'invited').length,
+                suspendedUsers: allUsers.users.filter((u) => u.status === 'suspended').length,
+                recentSignups: allUsers.users.filter(
+                  (u) => new Date(u.created_at).getTime() > sevenDaysAgo
+                ).length,
+              };
+
+              res.json(stats);
+            } catch (error) {
+              console.error('[UsersPlugin] Get stats error:', error);
+              res.status(500).json({ error: 'Failed to get user stats' });
             }
           },
         });

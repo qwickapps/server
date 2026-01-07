@@ -28,3 +28,9 @@ export type {
 
 // Stores
 export { postgresPreferencesStore, deepMerge } from './stores/index.js';
+
+// UI Components
+export { PreferencesStatusWidget } from './PreferencesStatusWidget.js';
+export type { PreferencesStatusWidgetProps } from './PreferencesStatusWidget.js';
+export { PreferencesManagementPage } from './PreferencesManagementPage.js';
+export type { PreferencesManagementPageProps } from './PreferencesManagementPage.js';

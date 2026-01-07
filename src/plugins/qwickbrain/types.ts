@@ -119,7 +119,6 @@ export interface QwickBrainConnectionStatus {
   lastCheck: Date;
   latencyMs?: number;
   error?: string;
-  tailscaleStatus?: 'connected' | 'disconnected' | 'unknown';
 }
 
 /**

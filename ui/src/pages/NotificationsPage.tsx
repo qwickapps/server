@@ -48,7 +48,7 @@ import {
   type NotificationsStatsResponse,
   type NotificationsClient,
 } from '../api/controlPanelApi';
-import { StatCard } from '../components/StatCard';
+import { StatCard } from '@qwickapps/react-framework';
 import { formatDuration, formatNumber, truncateId } from '../utils/formatters';
 
 export function NotificationsPage() {

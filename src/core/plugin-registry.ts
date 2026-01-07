@@ -467,7 +467,22 @@ export class PluginRegistryImpl implements PluginRegistry {
     // Auto-prefix for regular plugins
     if (pluginType === 'regular') {
       const slug = this.pluginSlugs.get(this.currentPlugin)!;
-      fullPath = `/${slug}${route.path}`;
+
+      // Detect and auto-fix duplicate slug prefix (defensive measure)
+      // Example: Plugin 'users' should use prefix '/' not '/users'
+      // If configured as '/users', we auto-fix to '/' to prevent /api/users/users
+      let normalizedPath = route.path;
+      if (route.path.startsWith(`/${slug}/`) || route.path === `/${slug}`) {
+        normalizedPath = route.path.substring(slug.length + 1) || '/';
+        this.logger.warn(
+          `⚠️  DUPLICATE SLUG PREFIX DETECTED: Plugin '${this.currentPlugin}' configured with prefix='${route.path}'` +
+          `\n   Auto-fixed to prefix='${normalizedPath}' to prevent double-prefixing.` +
+          `\n   Please update plugin configuration to use prefix='${normalizedPath}' instead of prefix='${route.path}'.` +
+          `\n   See: packages/qwickapps-server/src/plugins/*/types.ts for correct prefix documentation.`
+        );
+      }
+
+      fullPath = `/${slug}${normalizedPath}`;
     }
 
     const routeWithMetadata: RouteDefinition = {
@@ -732,7 +747,19 @@ export class PluginRegistryImpl implements PluginRegistry {
         error: error instanceof Error ? error : new Error(errorMessage),
       });
 
-      this.logger.error(`Plugin ${plugin.id} failed to start`, { error: errorMessage });
+      // Log full error with stack trace for debugging
+      if (error instanceof Error) {
+        this.logger.error(`Plugin ${plugin.id} failed to start: ${errorMessage}`, {
+          error: error.message,
+          stack: error.stack,
+          plugin: plugin.id,
+        });
+      } else {
+        this.logger.error(`Plugin ${plugin.id} failed to start: ${errorMessage}`, {
+          error: errorMessage,
+          plugin: plugin.id,
+        });
+      }
       return false;
     }
   }

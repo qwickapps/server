@@ -35,7 +35,7 @@ export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): P
   const {
     include = { logs: { startup: 100, app: 200 }, health: true, config: true, system: true },
     logPaths = { startup: './logs/startup.log', app: './logs/app.log' },
-    endpoint = '/diagnostics/full',
+    endpoint = '/full', // Framework adds /diagnostics prefix automatically
   } = config;
 
   return {
@@ -120,10 +120,10 @@ export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): P
         },
       });
 
-      // Register summary diagnostics endpoint
+      // Register summary diagnostics endpoint (framework adds /diagnostics prefix)
       registry.addRoute({
         method: 'get',
-        path: '/diagnostics/summary',
+        path: '/summary',
         pluginId: 'diagnostics',
         handler: (_req: Request, res: Response) => {
           try {

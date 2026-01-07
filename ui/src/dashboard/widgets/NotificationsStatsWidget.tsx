@@ -18,7 +18,7 @@ import SendIcon from '@mui/icons-material/Send';
 import ErrorIcon from '@mui/icons-material/Error';
 import { api } from '../../api/controlPanelApi';
 import type { NotificationsStatsResponse } from '../../api/controlPanelApi';
-import { StatCard } from '../../components/StatCard';
+import { StatCard } from '@qwickapps/react-framework';
 import { formatNumber, formatDuration } from '../../utils/formatters';
 
 /**

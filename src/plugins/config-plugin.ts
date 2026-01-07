@@ -30,10 +30,10 @@ export function createConfigPlugin(config: ConfigPluginConfig): Plugin {
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const logger = registry.getLogger('config');
 
-      // Register /config route
+      // Register root route (framework adds /config prefix automatically)
       registry.addRoute({
         method: 'get',
-        path: '/config',
+        path: '/',
         pluginId: 'config',
         handler: (_req: Request, res: Response) => {
           const envVars: Record<string, string> = {};
@@ -60,10 +60,10 @@ export function createConfigPlugin(config: ConfigPluginConfig): Plugin {
         },
       });
 
-      // Register /config/validate route
+      // Register /validate route (framework adds /config prefix automatically)
       registry.addRoute({
         method: 'get',
-        path: '/config/validate',
+        path: '/validate',
         pluginId: 'config',
         handler: (_req: Request, res: Response) => {
           const results: ConfigValidationResult[] = [];

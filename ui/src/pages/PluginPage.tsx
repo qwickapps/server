@@ -47,7 +47,9 @@ export function PluginPage({ pluginId, title, route }: PluginPageProps) {
     const fetchPageData = async () => {
       try {
         // Try to fetch plugin-specific page data
-        const response = await fetch(`${api['baseUrl']}/api${route}`);
+        const response = await fetch(`${api.getBaseUrl()}/api${route}`, {
+          credentials: 'same-origin',
+        });
         if (response.ok) {
           const data = await response.json();
           setPageData(data);

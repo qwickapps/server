@@ -53,3 +53,9 @@ export { postgresParentalStore } from './stores/index.js';
 // Adapters
 export { kidsAdapter } from './adapters/index.js';
 export type { KidsAdapterConfig } from './adapters/index.js';
+
+// UI Components
+export { ParentalStatusWidget } from './ParentalStatusWidget.js';
+export type { ParentalStatusWidgetProps } from './ParentalStatusWidget.js';
+export { ParentalManagementPage } from './ParentalManagementPage.js';
+export type { ParentalManagementPageProps } from './ParentalManagementPage.js';

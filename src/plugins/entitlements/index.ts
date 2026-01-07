@@ -49,3 +49,9 @@ export type {
   CachedEntitlements,
   EntitlementStats,
 } from './types.js';
+
+// UI Components
+export { EntitlementsStatusWidget } from './EntitlementsStatusWidget.js';
+export type { EntitlementsStatusWidgetProps } from './EntitlementsStatusWidget.js';
+export { EntitlementsManagementPage } from './EntitlementsManagementPage.js';
+export type { EntitlementsManagementPageProps } from './EntitlementsManagementPage.js';

@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Seed Management UI**: Database seed script management with real-time execution monitoring (#702)
+  - Seed discovery: Auto-discover `seed-*.mjs` scripts in configured scripts directory
+  - Real-time execution: Stream stdout/stderr via Server-Sent Events (SSE)
+  - Execution history: Track seed runs with status, duration, and output (requires PostgreSQL)
+  - Security: Path traversal prevention, concurrent execution blocking, minimal environment isolation
+  - API endpoints: `/api/maintenance/seeds/discover`, `/api/maintenance/seeds/execute`, `/api/maintenance/seeds/history`
+  - Startup cleanup: Automatically marks orphaned 'running' executions as failed on server restart
+  - Process isolation: Child processes spawned with `process.execPath` for reliable node binary resolution
+
+- **Preferences UI**: User preferences management page with JSON editor (#592)
+  - PreferencesPage component with real-time JSON validation and syntax highlighting
+  - Client-side nesting depth validation (max 10 levels)
+  - Size limit indicator with color coding (100KB max)
+  - Actions: Save, Reset to Defaults, Format JSON
+  - Preferences API methods: `getPreferences()`, `updatePreferences()`, `deletePreferences()`
+  - Exported `MAX_PREFERENCES_SIZE` and `MAX_NESTING_DEPTH` constants from backend types
+  - Plugin registry integration: backend registers UI page via `registry.addPage()`
+
 - **API Keys Phase 2: Scope-Based Authorization** (#573)
   - Plugin-declared scopes: Plugins can now declare scopes via `scopes` property
   - QwickBrain declares `qwickbrain:read` and `qwickbrain:execute` scopes
@@ -36,6 +54,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Frontend API Paths** - Fixed UI calling incorrect API endpoints
+  - Updated logs API paths: `/api/logs` → `/api/logs/logs`, `/api/logs/sources` → `/api/logs/logs/sources`
+  - Updated users API paths: `/api/users` → `/api/users/users` and all related endpoints
+  - Fixes "Logs request failed" error on logs page
+  - Fixes users page indefinite loading issue
+  - Aligns frontend paths with plugin slug prefixing (introduced in v1.6.0)
 - **Route Registration** - Fixed plugin routes not being accessible
   - Plugin routes now correctly register on the router instead of app
   - Routes are properly mounted at `/cpanel/api/*` endpoints
@@ -44,6 +68,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `/cpanel` to excludePaths to match both `/cpanel` and `/cpanel/*`
   - Control panel now correctly bypasses SuperTokens authentication
   - Basic auth guard works properly for admin access
+
+### Removed
+
+- **QwickBrain Plugin** - Removed redundant `qwickbrain-tailscale` health check
+  - Removed health check that required tailscale CLI inside Docker container
+  - Removed `tailscaleStatus` field from `QwickBrainConnectionStatus` interface
+  - Removed `checkTailscaleStatus()` function
+  - Existing `tailscale` and `qwickbrain-connection` health checks provide sufficient monitoring
 
 ## [1.5.2] - 2025-12-21
 

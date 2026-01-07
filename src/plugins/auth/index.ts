@@ -21,6 +21,9 @@ export {
   getAuthStatus,
   setAuthConfigStore,
   getAdapterWrapper,
+  // Export for applications using createAuthPlugin directly (e.g., QwickSecrets)
+  // Allows them to add config routes without using createAuthPluginFromEnv wrapper
+  registerAuthConfigRoutes,
 } from './env-config.js';
 export type { AuthEnvPluginOptionsExtended } from './env-config.js';
 
@@ -61,3 +64,9 @@ export { auth0Adapter } from './adapters/auth0-adapter.js';
 export { basicAdapter } from './adapters/basic-adapter.js';
 export { supabaseAdapter } from './adapters/supabase-adapter.js';
 export { supertokensAdapter } from './adapters/supertokens-adapter.js';
+
+// UI Components
+export { AuthStatusWidget } from './AuthStatusWidget.js';
+export type { AuthStatusWidgetProps } from './AuthStatusWidget.js';
+export { AuthManagementPage } from './AuthManagementPage.js';
+export type { AuthManagementPageProps } from './AuthManagementPage.js';

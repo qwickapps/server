@@ -8,6 +8,12 @@
  */
 
 /**
+ * Configuration limits for preferences
+ */
+export const MAX_PREFERENCES_SIZE = 100_000; // 100KB JSON string limit
+export const MAX_NESTING_DEPTH = 10;
+
+/**
  * User preferences record in the database
  */
 export interface UserPreferences {

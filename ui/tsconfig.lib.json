@@ -5,7 +5,9 @@
     "declarationDir": "../dist-ui-lib",
     "emitDeclarationOnly": true,
     "noEmit": false,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "rootDir": "."
   },
-  "include": ["src/components/index.ts", "src/components/**/*.ts", "src/components/**/*.tsx", "src/pages/**/*.tsx", "src/api/**/*.ts", "src/config/**/*.ts"]
+  "include": ["src/components/index.ts", "src/components/**/*.ts", "src/components/**/*.tsx", "src/api/**/*.ts", "src/config/**/*.ts", "src/hooks/**/*.ts"],
+  "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
 }

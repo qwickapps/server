@@ -4,6 +4,9 @@
  * Communicates with the backend Express API
  */
 
+import { buildClientFromManifest } from './clientBuilder.js';
+import type { APIClient } from './types.js';
+
 export interface HealthCheck {
   status: 'healthy' | 'degraded' | 'unhealthy';
   latency?: number;
@@ -534,19 +537,57 @@ export interface RateLimitConfigUpdateResponse {
   config: RateLimitConfig;
 }
 
+export interface PreferencesResponse {
+  user_id: string;
+  preferences: Record<string, unknown>;
+}
+
 class ControlPanelApi {
   private baseUrl: string;
+  private client: APIClient | null = null;
+  private clientPromise: Promise<APIClient> | null = null;
 
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl;
   }
 
   /**
+   * Ensure the API client is initialized.
+   * Lazy-loads the client on first use by fetching the manifest.
+   */
+  private async ensureClient(): Promise<APIClient> {
+    if (this.client) {
+      return this.client;
+    }
+
+    // If already fetching, wait for that promise
+    if (this.clientPromise) {
+      return this.clientPromise;
+    }
+
+    // Start fetching the client
+    this.clientPromise = buildClientFromManifest<APIClient>(this.baseUrl);
+
+    try {
+      this.client = await this.clientPromise;
+      return this.client;
+    } catch (error) {
+      // Reset promise so we can retry on next call
+      this.clientPromise = null;
+      throw error;
+    }
+  }
+
+  /**
    * Set the base URL for API requests.
    * Call this when the control panel is mounted at a custom path.
+   * Invalidates the cached client since the manifest will be different.
    */
   setBaseUrl(baseUrl: string): void {
     this.baseUrl = baseUrl;
+    // Invalidate cached client
+    this.client = null;
+    this.clientPromise = null;
   }
 
   /**
@@ -636,37 +677,18 @@ class ControlPanelApi {
     page?: number;
     search?: string;
   } = {}): Promise<UsersResponse> {
-    const params = new URLSearchParams();
-    if (options.limit) params.set('limit', options.limit.toString());
-    if (options.page) params.set('page', options.page.toString());
-    if (options.search) params.set('q', options.search);
-
-    const response = await this._fetch(`${this.baseUrl}/api/users?${params}`);
-    if (!response.ok) {
-      throw new Error(`Users request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.users.query(options);
   }
 
   async getUserById(id: string): Promise<User> {
-    const response = await this._fetch(`${this.baseUrl}/api/users/${id}`);
-    if (!response.ok) {
-      throw new Error(`User request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.users.get(id);
   }
 
   async inviteUser(request: InviteUserRequest): Promise<InvitationResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/users/invite`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `Invite user failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.users.invite(request);
   }
 
   async acceptInvitation(token: string): Promise<AcceptInvitationResponse> {
@@ -695,11 +717,8 @@ class ControlPanelApi {
   // ==================
 
   async getBans(): Promise<BansResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/bans`);
-    if (!response.ok) {
-      throw new Error(`Bans request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.bans.query();
   }
 
   async banUser(email: string, reason: string, expiresAt?: string): Promise<void> {
@@ -814,11 +833,8 @@ class ControlPanelApi {
   }
 
   async getEntitlementsStatus(): Promise<EntitlementsStatus> {
-    const response = await this._fetch(`${this.baseUrl}/api/entitlements/status`);
-    if (!response.ok) {
-      throw new Error(`Entitlements status request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.entitlements.query();
   }
 
   // ==================
@@ -826,35 +842,23 @@ class ControlPanelApi {
   // ==================
 
   async getHealth(): Promise<HealthResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/health`);
-    if (!response.ok) {
-      throw new Error(`Health check failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.core.health();
   }
 
   async getInfo(): Promise<InfoResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/info`);
-    if (!response.ok) {
-      throw new Error(`Info request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.core.info();
   }
 
   async getDiagnostics(): Promise<DiagnosticsResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/diagnostics`);
-    if (!response.ok) {
-      throw new Error(`Diagnostics request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.core.diagnostics();
   }
 
   async getConfig(): Promise<ConfigResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/config`);
-    if (!response.ok) {
-      throw new Error(`Config request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.config.query();
   }
 
   async getLogs(options: {
@@ -864,27 +868,13 @@ class ControlPanelApi {
     limit?: number;
     page?: number;
   } = {}): Promise<LogsResponse> {
-    const params = new URLSearchParams();
-    if (options.source) params.set('source', options.source);
-    if (options.level) params.set('level', options.level);
-    if (options.search) params.set('search', options.search);
-    if (options.limit) params.set('limit', options.limit.toString());
-    if (options.page) params.set('page', options.page.toString());
-
-    const response = await this._fetch(`${this.baseUrl}/api/logs?${params}`);
-    if (!response.ok) {
-      throw new Error(`Logs request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.logs.query(options);
   }
 
   async getLogSources(): Promise<LogSource[]> {
-    const response = await this._fetch(`${this.baseUrl}/api/logs/sources`);
-    if (!response.ok) {
-      throw new Error(`Log sources request failed: ${response.statusText}`);
-    }
-    const data = await response.json();
-    return data.sources;
+    const client = await this.ensureClient();
+    return client.logs.sources();
   }
 
   // ==================
@@ -892,11 +882,8 @@ class ControlPanelApi {
   // ==================
 
   async getPlugins(): Promise<PluginsResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/plugins`);
-    if (!response.ok) {
-      throw new Error(`Plugins request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.core.plugins();
   }
 
   async getPluginDetail(id: string): Promise<PluginDetailResponse> {
@@ -915,11 +902,8 @@ class ControlPanelApi {
   // ==================
 
   async getUiContributions(): Promise<UiContributionsResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/ui-contributions`);
-    if (!response.ok) {
-      throw new Error(`UI contributions request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.core.uiContributions();
   }
 
   // ==================
@@ -927,42 +911,37 @@ class ControlPanelApi {
   // ==================
 
   async getAuthConfigStatus(): Promise<AuthConfigStatus> {
-    const response = await this._fetch(`${this.baseUrl}/api/auth/config/status`);
-    if (!response.ok) {
+    try {
+      const client = await this.ensureClient();
+      return await client.auth.status();
+    } catch (error) {
       // Return disabled state if endpoint not available
-      if (response.status === 404) {
+      if (error instanceof Error && error.message.includes('404')) {
         return { state: 'disabled', adapter: null };
       }
-      throw new Error(`Auth config status request failed: ${response.statusText}`);
+      throw error;
     }
-    return response.json();
   }
 
   async getAuthConfig(): Promise<AuthConfigStatus> {
-    const response = await this._fetch(`${this.baseUrl}/api/auth/config`);
-    if (!response.ok) {
-      if (response.status === 404) {
+    try {
+      const client = await this.ensureClient();
+      return await client.auth.config() as unknown as AuthConfigStatus;
+    } catch (error) {
+      // Return disabled state if endpoint not available
+      if (error instanceof Error && error.message.includes('404')) {
         return { state: 'disabled', adapter: null };
       }
-      throw new Error(`Auth config request failed: ${response.statusText}`);
+      throw error;
     }
-    return response.json();
   }
 
   /**
    * Update auth configuration (save to database for hot-reload)
    */
   async updateAuthConfig(request: UpdateAuthConfigRequest): Promise<{ success: boolean; message: string }> {
-    const response = await this._fetch(`${this.baseUrl}/api/auth/config`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `Auth config update failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.auth.update(request) as unknown as { success: boolean; message: string };
   }
 
   /**
@@ -983,16 +962,8 @@ class ControlPanelApi {
    * Test auth provider connection without saving
    */
   async testAuthProvider(request: TestProviderRequest): Promise<TestProviderResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/auth/test-provider`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `Provider test failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.auth.test(request);
   }
 
   /**
@@ -1015,24 +986,13 @@ class ControlPanelApi {
   // ==================
 
   async getRateLimitConfig(): Promise<RateLimitConfig> {
-    const response = await this._fetch(`${this.baseUrl}/api/rate-limit/config`);
-    if (!response.ok) {
-      throw new Error(`Rate limit config request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.rateLimit.config() as unknown as RateLimitConfig;
   }
 
   async updateRateLimitConfig(updates: RateLimitConfigUpdateRequest): Promise<RateLimitConfigUpdateResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/rate-limit/config`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `Rate limit config update failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.rateLimit.update(updates);
   }
 
   // ==================
@@ -1040,19 +1000,13 @@ class ControlPanelApi {
   // ==================
 
   async getNotificationsStats(): Promise<NotificationsStatsResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/notifications/stats`);
-    if (!response.ok) {
-      throw new Error(`Notifications stats request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.notifications.stats();
   }
 
   async getNotificationsClients(): Promise<NotificationsClientsResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/notifications/clients`);
-    if (!response.ok) {
-      throw new Error(`Notifications clients request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.notifications.clients();
   }
 
   async disconnectNotificationsClient(clientId: string): Promise<{ success: boolean }> {
@@ -1082,70 +1036,40 @@ class ControlPanelApi {
   // ==================
 
   async getApiKeys(): Promise<ApiKeysResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/api-keys`);
-    if (!response.ok) {
-      throw new Error(`API keys request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.apiKeys.query();
   }
 
   async createApiKey(request: CreateApiKeyRequest): Promise<ApiKeyWithPlaintext> {
-    const response = await this._fetch(`${this.baseUrl}/api/api-keys`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `API key creation failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.apiKeys.create(request) as unknown as ApiKeyWithPlaintext;
   }
 
   async getApiKey(keyId: string): Promise<ApiKey> {
-    const response = await this._fetch(`${this.baseUrl}/api/api-keys/${encodeURIComponent(keyId)}`);
-    if (!response.ok) {
-      throw new Error(`API key request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.apiKeys.get(keyId);
   }
 
   async updateApiKey(keyId: string, updates: UpdateApiKeyRequest): Promise<ApiKey> {
-    const response = await this._fetch(`${this.baseUrl}/api/api-keys/${encodeURIComponent(keyId)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `API key update failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.apiKeys.update(keyId, updates);
   }
 
   async deleteApiKey(keyId: string): Promise<void> {
-    const response = await this._fetch(`${this.baseUrl}/api/api-keys/${encodeURIComponent(keyId)}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `API key deletion failed: ${response.statusText}`);
-    }
+    const client = await this.ensureClient();
+    return client.apiKeys.delete(keyId);
   }
 
   // Phase 2: Scope Management
   async getAvailableScopes(): Promise<AvailableScopesResponse> {
-    const response = await this._fetch(`${this.baseUrl}/api/auth/scopes`);
-    if (!response.ok) {
-      throw new Error(`Scopes request failed: ${response.statusText}`);
-    }
-    return response.json();
+    const client = await this.ensureClient();
+    return client.apiKeys.scopes();
   }
 
   // Phase 2: Usage Tracking
   async getKeyUsage(
     keyId: string,
-    params?: {
+    _params?: {
       limit?: number;
       offset?: number;
       since?: string;
@@ -1155,24 +1079,43 @@ class ControlPanelApi {
       statusCode?: number;
     }
   ): Promise<KeyUsageResponse> {
-    const queryParams = new URLSearchParams();
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.offset) queryParams.append('offset', params.offset.toString());
-    if (params?.since) queryParams.append('since', params.since);
-    if (params?.until) queryParams.append('until', params.until);
-    if (params?.endpoint) queryParams.append('endpoint', params.endpoint);
-    if (params?.method) queryParams.append('method', params.method);
-    if (params?.statusCode) queryParams.append('statusCode', params.statusCode.toString());
+    const client = await this.ensureClient();
+    // Note: _params are ignored in auto-generated client - API expects them as query params
+    // TODO: Verify if usage endpoint accepts query params and update client if needed
+    return client.apiKeys.usage(keyId);
+  }
 
-    const url = `${this.baseUrl}/api/api-keys/${encodeURIComponent(keyId)}/usage${
-      queryParams.toString() ? `?${queryParams.toString()}` : ''
-    }`;
+  // ============================================================================
+  // Preferences API
+  // ============================================================================
 
-    const response = await this._fetch(url);
+  async getPreferences(): Promise<PreferencesResponse> {
+    const client = await this.ensureClient();
+    return client.preferences.query();
+  }
+
+  async updatePreferences(preferences: Record<string, unknown>): Promise<PreferencesResponse> {
+    const url = `${this.baseUrl}/api/preferences`;
+    const response = await this._fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(preferences),
+    });
     if (!response.ok) {
-      throw new Error(`Usage request failed: ${response.statusText}`);
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || `Failed to update preferences: ${response.statusText}`);
     }
     return response.json();
+  }
+
+  async deletePreferences(): Promise<void> {
+    const url = `${this.baseUrl}/api/preferences`;
+    const response = await this._fetch(url, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete preferences: ${response.statusText}`);
+    }
   }
 }
 

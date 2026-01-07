@@ -49,3 +49,9 @@ export type {
 
 // Stores
 export { postgresSubscriptionsStore } from './stores/index.js';
+
+// UI Components
+export { SubscriptionsStatusWidget } from './SubscriptionsStatusWidget.js';
+export type { SubscriptionsStatusWidgetProps } from './SubscriptionsStatusWidget.js';
+export { SubscriptionsManagementPage } from './SubscriptionsManagementPage.js';
+export type { SubscriptionsManagementPageProps } from './SubscriptionsManagementPage.js';

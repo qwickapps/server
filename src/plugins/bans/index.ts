@@ -29,3 +29,9 @@ export type {
 
 // Stores
 export { postgresBanStore } from './stores/index.js';
+
+// UI Components
+export { BansStatusWidget } from './BansStatusWidget.js';
+export type { BansStatusWidgetProps } from './BansStatusWidget.js';
+export { BansManagementPage } from './BansManagementPage.js';
+export type { BansManagementPageProps } from './BansManagementPage.js';
