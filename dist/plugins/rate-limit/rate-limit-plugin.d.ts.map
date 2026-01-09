@@ -1,0 +1,1 @@
+{"version":3,"file":"rate-limit-plugin.d.ts","sourceRoot":"","sources":["../../../src/plugins/rate-limit/rate-limit-plugin.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAGH,OAAO,KAAK,EAAE,MAAM,EAAgC,MAAM,+BAA+B,CAAC;AAC1F,OAAO,KAAK,EAAE,qBAAqB,EAAqB,MAAM,YAAY,CAAC;AAiB3E;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GA8BG;AACH,wBAAgB,qBAAqB,CAAC,MAAM,EAAE,qBAAqB,GAAG,MAAM,CAmV3E"}

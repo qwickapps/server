@@ -1,0 +1,1 @@
+{"version":3,"file":"RateLimitStatusWidget.d.ts","sourceRoot":"","sources":["../../../src/plugins/rate-limit/RateLimitStatusWidget.tsx"],"names":[],"mappings":"AAAA;;GAEG;AAKH,MAAM,WAAW,0BAA0B;IACzC,uDAAuD;IACvD,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAED,wBAAgB,qBAAqB,CAAC,EAAE,SAA6B,EAAE,EAAE,0BAA0B,2CAuClG"}

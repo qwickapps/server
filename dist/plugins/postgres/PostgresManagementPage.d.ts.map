@@ -1,0 +1,1 @@
+{"version":3,"file":"PostgresManagementPage.d.ts","sourceRoot":"","sources":["../../../src/plugins/postgres/PostgresManagementPage.tsx"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAA8B,MAAM,OAAO,CAAC;AAInD,MAAM,WAAW,2BAA2B;IAC1C,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AA8BD,eAAO,MAAM,sBAAsB,EAAE,KAAK,CAAC,EAAE,CAAC,2BAA2B,CA4TxE,CAAC;AAEF,eAAe,sBAAsB,CAAC"}

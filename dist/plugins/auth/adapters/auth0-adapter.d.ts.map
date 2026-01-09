@@ -1,0 +1,1 @@
+{"version":3,"file":"auth0-adapter.d.ts","sourceRoot":"","sources":["../../../../src/plugins/auth/adapters/auth0-adapter.ts"],"names":[],"mappings":"AAAA;;;;;;;GAOG;AAGH,OAAO,KAAK,EAAE,WAAW,EAAqB,kBAAkB,EAAE,MAAM,aAAa,CAAC;AAsCtF;;GAEG;AACH,wBAAgB,YAAY,CAAC,MAAM,EAAE,kBAAkB,GAAG,WAAW,CAkKpE"}

@@ -1,0 +1,80 @@
+/**
+ * Rate Limit Plugin
+ *
+ * Provides rate limiting capabilities for @qwickapps/server.
+ *
+ * ## Features
+ * - Multiple strategies: sliding window, fixed window, token bucket
+ * - PostgreSQL persistence with RLS for multi-tenant isolation
+ * - Redis caching with in-memory fallback
+ * - Express middleware for automatic enforcement
+ * - Programmatic API for custom rate limiting
+ * - Auto-cleanup of expired limits
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * import {
+ *   createGateway,
+ *   createRateLimitPlugin,
+ *   postgresRateLimitStore,
+ *   rateLimitMiddleware,
+ *   isLimited,
+ *   clearLimit,
+ *   getPostgres,
+ * } from '@qwickapps/server';
+ *
+ * // Create the gateway with rate limit plugin
+ * const gateway = createGateway({
+ *   plugins: [
+ *     createRateLimitPlugin({
+ *       store: postgresRateLimitStore({
+ *         pool: () => getPostgres().getPool(),
+ *       }),
+ *       defaults: {
+ *         windowMs: 60000,    // 1 minute
+ *         maxRequests: 100,   // 100 requests per window
+ *         strategy: 'sliding-window',
+ *       },
+ *     }),
+ *   ],
+ * });
+ *
+ * // Use middleware
+ * app.use('/api', rateLimitMiddleware());
+ *
+ * // Per-route configuration
+ * app.post('/api/chat', rateLimitMiddleware({
+ *   windowMs: 60000,
+ *   max: 50,
+ *   keyGenerator: (req) => `chat:${req.user.id}`,
+ * }));
+ *
+ * // Programmatic API
+ * const limited = await isLimited('user:123:api');
+ * if (limited) {
+ *   // Handle rate limit
+ * }
+ *
+ * // Clear limit (e.g., after CAPTCHA)
+ * await clearLimit('user:123:api');
+ * ```
+ *
+ * Copyright (c) 2025 QwickApps.com. All rights reserved.
+ */
+export { createRateLimitPlugin } from './rate-limit-plugin.js';
+export { createRateLimitPluginFromEnv, getRateLimitConfigStatus } from './env-config.js';
+export type { RateLimitEnvPluginOptions } from './env-config.js';
+export { postgresRateLimitStore } from './stores/postgres-store.js';
+export { createRateLimitCache, createNoOpCache } from './stores/cache-store.js';
+export { createSlidingWindowStrategy, createFixedWindowStrategy, createTokenBucketStrategy, getStrategy, } from './strategies/index.js';
+export { rateLimitMiddleware, rateLimitStatusMiddleware } from './middleware.js';
+export { RateLimitService, getRateLimitService, isLimited, checkLimit, incrementLimit, getRemainingRequests, getLimitStatus, clearLimit, } from './rate-limit-service.js';
+export { createCleanupJob } from './cleanup.js';
+export type { CleanupJob, CleanupJobConfig } from './cleanup.js';
+export type { RateLimitStrategy, LimitStatus, Strategy, StrategyOptions, StrategyContext, StoredLimit, IncrementOptions, RateLimitStore, PostgresRateLimitStoreConfig, CachedLimit, RateLimitCache, RateLimitCacheConfig, RateLimitMiddlewareOptions, RateLimitPluginConfig, CheckLimitOptions, } from './types.js';
+export { RateLimitStatusWidget } from './RateLimitStatusWidget.js';
+export { RateLimitManagementPage } from './RateLimitManagementPage.js';
+export type { RateLimitStatusWidgetProps } from './RateLimitStatusWidget.js';
+export type { RateLimitManagementPageProps } from './RateLimitManagementPage.js';
+//# sourceMappingURL=index.d.ts.map

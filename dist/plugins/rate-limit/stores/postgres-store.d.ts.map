@@ -1,0 +1,1 @@
+{"version":3,"file":"postgres-store.d.ts","sourceRoot":"","sources":["../../../../src/plugins/rate-limit/stores/postgres-store.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;GAYG;AAEH,OAAO,KAAK,EACV,cAAc,EACd,4BAA4B,EAG7B,MAAM,aAAa,CAAC;AAkDrB;;;;;;;;;;;;;;;;;GAiBG;AACH,wBAAgB,sBAAsB,CAAC,MAAM,EAAE,4BAA4B,GAAG,cAAc,CA0T3F"}

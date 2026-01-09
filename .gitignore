@@ -1,7 +1,4 @@
 # Build outputs (regenerated on each build)
-dist/
-dist-ui/
-dist-ui-lib/
 
 # Ignore reports
 test-results/
