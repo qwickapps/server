@@ -1,1 +1,0 @@
-{"version":3,"file":"supabase-adapter.d.ts","sourceRoot":"","sources":["../../../../src/plugins/auth/adapters/supabase-adapter.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAGH,OAAO,KAAK,EAAE,WAAW,EAAqB,qBAAqB,EAAE,MAAM,aAAa,CAAC;AAsBzF;;GAEG;AACH,wBAAgB,eAAe,CAAC,MAAM,EAAE,qBAAqB,GAAG,WAAW,CAkH1E"}

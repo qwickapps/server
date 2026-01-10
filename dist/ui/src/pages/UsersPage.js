@@ -1,0 +1,406 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+/**
+ * UsersPage Component
+ *
+ * Generic user management page that works with Users, Bans, and Entitlements plugins.
+ * All features are optional and auto-detected based on available plugins.
+ *
+ * Copyright (c) 2025 QwickApps.com. All rights reserved.
+ */
+import { useState, useEffect, useCallback } from 'react';
+import { Box, Card, CardContent, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Alert, LinearProgress, InputAdornment, Tabs, Tab, TablePagination, Tooltip, IconButton, CircularProgress, Autocomplete, } from '@mui/material';
+import { Text, Button, Dialog, DialogTitle, DialogContent, DialogActions, GridLayout } from '@qwickapps/react-framework';
+import SearchIcon from '@mui/icons-material/Search';
+import PersonIcon from '@mui/icons-material/Person';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import BlockIcon from '@mui/icons-material/Block';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { api, } from '../api/controlPanelApi';
+export function UsersPage({ title = 'User Management', subtitle = 'Manage users, bans, and entitlements', features: featureOverrides, headerActions, onUserSelect, }) {
+    // Feature detection
+    const [features, setFeatures] = useState({
+        users: featureOverrides?.users ?? true,
+        bans: featureOverrides?.bans ?? false,
+        entitlements: featureOverrides?.entitlements ?? false,
+        entitlementsReadonly: featureOverrides?.entitlementsReadonly ?? true,
+    });
+    const [featuresLoaded, setFeaturesLoaded] = useState(!!featureOverrides);
+    // Tab state
+    const [activeTab, setActiveTab] = useState(0);
+    // Users state
+    const [users, setUsers] = useState([]);
+    const [usersTotal, setUsersTotal] = useState(0);
+    const [usersPage, setUsersPage] = useState(0);
+    const [usersPerPage, setUsersPerPage] = useState(25);
+    const [usersSearch, setUsersSearch] = useState('');
+    // User entitlements cache (email -> count)
+    const [userEntitlementCounts, setUserEntitlementCounts] = useState({});
+    // Banned users state
+    const [bans, setBans] = useState([]);
+    const [bansTotal, setBansTotal] = useState(0);
+    // Invitations state
+    const [invitations, setInvitations] = useState([]);
+    const [invitationsTotal, setInvitationsTotal] = useState(0);
+    // Shared state
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+    // Ban dialog state
+    const [banDialogOpen, setBanDialogOpen] = useState(false);
+    const [newBan, setNewBan] = useState({
+        email: '',
+        reason: '',
+        expiresAt: '',
+    });
+    // Invite dialog state
+    const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+    const [newInvite, setNewInvite] = useState({
+        email: '',
+        name: '',
+        role: '',
+        expiresInDays: 7,
+    });
+    const [inviteResult, setInviteResult] = useState(null);
+    // Entitlements lookup state
+    const [entitlementsDialogOpen, setEntitlementsDialogOpen] = useState(false);
+    const [entitlementsSearch, setEntitlementsSearch] = useState('');
+    const [entitlementsLoading, setEntitlementsLoading] = useState(false);
+    const [entitlementsRefreshing, setEntitlementsRefreshing] = useState(false);
+    const [entitlementsData, setEntitlementsData] = useState(null);
+    const [entitlementsError, setEntitlementsError] = useState(null);
+    // Available entitlements (for grant dropdown)
+    const [availableEntitlements, setAvailableEntitlements] = useState([]);
+    const [selectedEntitlement, setSelectedEntitlement] = useState('');
+    const [grantingEntitlement, setGrantingEntitlement] = useState(false);
+    // Detect features on mount
+    useEffect(() => {
+        if (featureOverrides)
+            return;
+        api.detectFeatures().then((detected) => {
+            setFeatures(detected);
+            setFeaturesLoaded(true);
+        }).catch(() => {
+            setFeaturesLoaded(true);
+        });
+    }, [featureOverrides]);
+    // Fetch available entitlements when features are loaded
+    useEffect(() => {
+        if (featuresLoaded && features.entitlements && !features.entitlementsReadonly) {
+            api.getAvailableEntitlements().then(setAvailableEntitlements).catch(() => { });
+        }
+    }, [featuresLoaded, features.entitlements, features.entitlementsReadonly]);
+    // Fetch users
+    const fetchUsers = useCallback(async () => {
+        if (!features.users)
+            return;
+        setLoading(true);
+        try {
+            const data = await api.getUsers({
+                limit: usersPerPage,
+                page: usersPage,
+                search: usersSearch || undefined,
+            });
+            setUsers(data.users || []);
+            setUsersTotal(data.total);
+            setError(null);
+            // Fetch entitlement counts for visible users if entitlements plugin is enabled
+            if (features.entitlements && data.users?.length) {
+                const counts = {};
+                await Promise.all(data.users.map(async (user) => {
+                    try {
+                        const ent = await api.getEntitlements(user.email);
+                        counts[user.email] = ent.entitlements.length;
+                    }
+                    catch {
+                        counts[user.email] = 0;
+                    }
+                }));
+                setUserEntitlementCounts((prev) => ({ ...prev, ...counts }));
+            }
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch users');
+        }
+        finally {
+            setLoading(false);
+        }
+    }, [features.users, features.entitlements, usersPage, usersPerPage, usersSearch]);
+    // Fetch bans
+    const fetchBans = useCallback(async () => {
+        if (!features.bans)
+            return;
+        setLoading(true);
+        try {
+            const data = await api.getBans();
+            setBans(data.bans || []);
+            setBansTotal(data.total);
+            setError(null);
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch bans');
+        }
+        finally {
+            setLoading(false);
+        }
+    }, [features.bans]);
+    // Fetch invitations
+    const fetchInvitations = useCallback(async () => {
+        if (!features.users)
+            return;
+        setLoading(true);
+        try {
+            const data = await api.getInvitations();
+            setInvitations(data.users || []);
+            setInvitationsTotal(data.total);
+            setError(null);
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch invitations');
+        }
+        finally {
+            setLoading(false);
+        }
+    }, [features.users]);
+    // Initial fetch and tab-based fetching
+    useEffect(() => {
+        if (!featuresLoaded)
+            return;
+        if (activeTab === 0 && features.users) {
+            fetchUsers();
+        }
+        else if (activeTab === 1 && features.bans) {
+            fetchBans();
+        }
+        else if (activeTab === 2 && features.users) {
+            fetchInvitations();
+        }
+    }, [activeTab, featuresLoaded, features.users, features.bans, fetchUsers, fetchBans, fetchInvitations]);
+    // Fetch bans count for stats (only on initial load)
+    useEffect(() => {
+        if (featuresLoaded && features.bans) {
+            fetchBans();
+        }
+    }, [featuresLoaded, features.bans, fetchBans]);
+    // Debounced search
+    useEffect(() => {
+        if (!featuresLoaded)
+            return;
+        const timeout = setTimeout(() => {
+            if (activeTab === 0 && features.users) {
+                setUsersPage(0);
+                fetchUsers();
+            }
+        }, 300);
+        return () => clearTimeout(timeout);
+    }, [usersSearch, activeTab, featuresLoaded, features.users, fetchUsers]);
+    // Ban handlers
+    const handleBanUser = async () => {
+        try {
+            await api.banUser(newBan.email, newBan.reason, newBan.expiresAt || undefined);
+            setSuccess('User banned successfully');
+            setBanDialogOpen(false);
+            setNewBan({ email: '', reason: '', expiresAt: '' });
+            fetchBans();
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to ban user');
+        }
+    };
+    const handleUnbanUser = async (email) => {
+        if (!confirm('Unban this user?'))
+            return;
+        try {
+            await api.unbanUser(email);
+            setSuccess('User unbanned successfully');
+            fetchBans();
+        }
+        catch (err) {
+            setError('Failed to unban user');
+        }
+    };
+    // Invite handlers
+    const handleInviteUser = async () => {
+        try {
+            const result = await api.inviteUser({
+                email: newInvite.email,
+                name: newInvite.name || undefined,
+                role: newInvite.role || undefined,
+                expiresInDays: newInvite.expiresInDays,
+            });
+            setInviteResult({ token: result.token, inviteLink: result.inviteLink });
+            setSuccess('User invitation created successfully');
+            fetchUsers();
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to invite user');
+        }
+    };
+    const handleCopyInviteLink = () => {
+        if (inviteResult) {
+            navigator.clipboard.writeText(inviteResult.inviteLink);
+            setSuccess('Invite link copied to clipboard');
+        }
+    };
+    const handleCloseInviteDialog = () => {
+        setInviteDialogOpen(false);
+        setNewInvite({ email: '', name: '', role: '', expiresInDays: 7 });
+        setInviteResult(null);
+    };
+    // Entitlements handlers
+    const handleEntitlementsSearch = async () => {
+        if (!entitlementsSearch.trim()) {
+            setEntitlementsError('Please enter an email address');
+            return;
+        }
+        setEntitlementsLoading(true);
+        setEntitlementsError(null);
+        setEntitlementsData(null);
+        try {
+            const data = await api.getEntitlements(entitlementsSearch);
+            setEntitlementsData(data);
+        }
+        catch (err) {
+            setEntitlementsError(err instanceof Error ? err.message : 'Failed to lookup entitlements');
+        }
+        finally {
+            setEntitlementsLoading(false);
+        }
+    };
+    const handleEntitlementsRefresh = async () => {
+        if (!entitlementsData)
+            return;
+        setEntitlementsRefreshing(true);
+        try {
+            const data = await api.refreshEntitlements(entitlementsSearch);
+            setEntitlementsData(data);
+        }
+        catch (err) {
+            setEntitlementsError('Failed to refresh entitlements');
+        }
+        finally {
+            setEntitlementsRefreshing(false);
+        }
+    };
+    const handleGrantEntitlement = async () => {
+        if (!selectedEntitlement || !entitlementsData)
+            return;
+        setGrantingEntitlement(true);
+        try {
+            await api.grantEntitlement(entitlementsData.identifier, selectedEntitlement);
+            setSuccess(`Entitlement "${selectedEntitlement}" granted`);
+            setSelectedEntitlement('');
+            // Refresh to show new entitlement
+            const data = await api.refreshEntitlements(entitlementsData.identifier);
+            setEntitlementsData(data);
+            // Update count cache
+            setUserEntitlementCounts((prev) => ({
+                ...prev,
+                [entitlementsData.identifier]: data.entitlements.length,
+            }));
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to grant entitlement');
+        }
+        finally {
+            setGrantingEntitlement(false);
+        }
+    };
+    const handleRevokeEntitlement = async (entitlement) => {
+        if (!entitlementsData)
+            return;
+        if (!confirm(`Revoke "${entitlement}" from ${entitlementsData.identifier}?`))
+            return;
+        try {
+            await api.revokeEntitlement(entitlementsData.identifier, entitlement);
+            setSuccess(`Entitlement "${entitlement}" revoked`);
+            // Refresh to show updated entitlements
+            const data = await api.refreshEntitlements(entitlementsData.identifier);
+            setEntitlementsData(data);
+            // Update count cache
+            setUserEntitlementCounts((prev) => ({
+                ...prev,
+                [entitlementsData.identifier]: data.entitlements.length,
+            }));
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to revoke entitlement');
+        }
+    };
+    const openEntitlementsDialog = (email) => {
+        if (email) {
+            setEntitlementsSearch(email);
+            // Auto-search when opened with email
+            setEntitlementsLoading(true);
+            setEntitlementsError(null);
+            setEntitlementsData(null);
+            api.getEntitlements(email)
+                .then(setEntitlementsData)
+                .catch((err) => setEntitlementsError(err instanceof Error ? err.message : 'Failed to lookup entitlements'))
+                .finally(() => setEntitlementsLoading(false));
+        }
+        setEntitlementsDialogOpen(true);
+    };
+    // Utility functions
+    const formatDate = (date) => {
+        if (!date)
+            return 'Never';
+        return new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+    // Get entitlements that can be granted (not already assigned)
+    const grantableEntitlements = availableEntitlements.filter((e) => !entitlementsData?.entitlements.includes(e.name));
+    // Build tabs based on available features
+    const tabs = [];
+    if (features.users)
+        tabs.push({ label: 'Users', count: usersTotal });
+    if (features.bans)
+        tabs.push({ label: 'Banned', count: bansTotal });
+    if (features.users)
+        tabs.push({ label: 'Invitations', count: invitationsTotal });
+    if (!featuresLoaded) {
+        return (_jsx(Box, { sx: { display: 'flex', justifyContent: 'center', py: 8 }, children: _jsx(CircularProgress, {}) }));
+    }
+    return (_jsxs(Box, { children: [_jsxs(Box, { sx: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }, children: [_jsxs(Box, { children: [_jsx(Text, { variant: "h4", content: title, customColor: "var(--theme-text-primary)" }), _jsx(Text, { variant: "body2", content: subtitle, customColor: "var(--theme-text-secondary)" })] }), _jsxs(Box, { sx: { display: 'flex', gap: 1 }, children: [headerActions, features.users && (_jsx(Button, { variant: "primary", icon: "person_add", label: "Invite User", onClick: () => setInviteDialogOpen(true) })), features.entitlements && (_jsx(Button, { variant: "outlined", icon: "person_search", label: "Lookup Entitlements", onClick: () => openEntitlementsDialog() })), features.bans && (_jsx(Button, { variant: "outlined", color: "error", icon: "block", label: "Ban User", onClick: () => setBanDialogOpen(true) }))] })] }), loading && _jsx(LinearProgress, { sx: { mb: 2 } }), error && (_jsx(Alert, { severity: "error", onClose: () => setError(null), sx: { mb: 2 }, children: error })), success && (_jsx(Alert, { severity: "success", onClose: () => setSuccess(null), sx: { mb: 2 }, children: success })), features.users && (_jsxs(GridLayout, { columns: features.bans ? 3 : 2, spacing: "medium", sx: { mb: 3 }, equalHeight: true, children: [_jsx(Card, { sx: { bgcolor: 'var(--theme-surface)' }, children: _jsx(CardContent, { children: _jsxs(Box, { sx: { display: 'flex', alignItems: 'center', gap: 2 }, children: [_jsx(PersonIcon, { sx: { fontSize: 40, color: 'var(--theme-primary)' } }), _jsxs(Box, { children: [_jsx(Text, { variant: "h4", content: usersTotal.toLocaleString(), customColor: "var(--theme-text-primary)" }), _jsx(Text, { variant: "body2", content: "Total Users", customColor: "var(--theme-text-secondary)" })] })] }) }) }), features.entitlements && (_jsx(Card, { sx: { bgcolor: 'var(--theme-surface)' }, children: _jsx(CardContent, { children: _jsxs(Box, { sx: { display: 'flex', alignItems: 'center', gap: 2 }, children: [_jsx(LocalOfferIcon, { sx: { fontSize: 40, color: 'var(--theme-success)' } }), _jsxs(Box, { children: [_jsx(Text, { variant: "body1", fontWeight: "500", content: "Entitlements", customColor: "var(--theme-text-primary)" }), _jsx(Text, { variant: "body2", content: features.entitlementsReadonly ? 'Read-only Mode' : 'Plugin Active', customColor: features.entitlementsReadonly ? 'var(--theme-warning)' : 'var(--theme-success)' })] })] }) }) })), features.bans && (_jsx(Card, { sx: { bgcolor: 'var(--theme-surface)' }, children: _jsx(CardContent, { children: _jsxs(Box, { sx: { display: 'flex', alignItems: 'center', gap: 2 }, children: [_jsx(BlockIcon, { sx: { fontSize: 40, color: bansTotal > 0 ? 'var(--theme-error)' : 'var(--theme-text-secondary)' } }), _jsxs(Box, { children: [_jsx(Text, { variant: "h4", content: bansTotal.toString(), customColor: bansTotal > 0 ? 'var(--theme-error)' : 'var(--theme-text-primary)' }), _jsx(Text, { variant: "body2", content: "Banned Users", customColor: "var(--theme-text-secondary)" })] })] }) }) }))] })), _jsxs(Card, { sx: { bgcolor: 'var(--theme-surface)' }, children: [tabs.length > 1 && (_jsx(Tabs, { value: activeTab, onChange: (_, v) => setActiveTab(v), sx: { borderBottom: 1, borderColor: 'var(--theme-border)', px: 2 }, children: tabs.map((tab, idx) => (_jsx(Tab, { label: `${tab.label}${tab.count !== undefined ? ` (${tab.count})` : ''}` }, idx))) })), _jsxs(CardContent, { sx: { p: 0 }, children: [_jsx(Box, { sx: { p: 2, borderBottom: 1, borderColor: 'var(--theme-border)' }, children: _jsx(TextField, { size: "small", placeholder: "Search by email or name...", value: usersSearch, onChange: (e) => setUsersSearch(e.target.value), InputProps: {
+                                        startAdornment: (_jsx(InputAdornment, { position: "start", children: _jsx(SearchIcon, { sx: { color: 'var(--theme-text-secondary)' } }) })),
+                                    }, sx: { minWidth: 300 } }) }), activeTab === 0 && features.users && (_jsxs(_Fragment, { children: [_jsx(TableContainer, { children: _jsxs(Table, { children: [_jsx(TableHead, { children: _jsxs(TableRow, { children: [_jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "ID" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Name" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Email" }), features.entitlements && (_jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, align: "center", children: "Entitlements" })), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Created" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, align: "right", children: "Actions" })] }) }), _jsxs(TableBody, { children: [users.map((user) => (_jsxs(TableRow, { hover: true, sx: { cursor: onUserSelect ? 'pointer' : 'default' }, onClick: () => onUserSelect?.(user), children: [_jsxs(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', fontFamily: 'monospace', fontSize: '0.75rem' }, children: [user.id.substring(0, 8), "..."] }), _jsx(TableCell, { sx: { color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)' }, children: _jsx(Text, { variant: "body1", content: user.name || '--', fontWeight: "500" }) }), _jsx(TableCell, { sx: { color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)' }, children: user.email }), features.entitlements && (_jsx(TableCell, { sx: { borderColor: 'var(--theme-border)' }, align: "center", children: _jsx(Chip, { size: "small", icon: _jsx(LocalOfferIcon, { sx: { fontSize: 14 } }), label: userEntitlementCounts[user.email] ?? '...', sx: {
+                                                                            bgcolor: 'var(--theme-primary)20',
+                                                                            color: 'var(--theme-primary)',
+                                                                        } }) })), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: formatDate(user.created_at) }), _jsx(TableCell, { sx: { borderColor: 'var(--theme-border)' }, align: "right", children: features.entitlements && (_jsx(Tooltip, { title: "View entitlements", children: _jsx(IconButton, { size: "small", onClick: (e) => { e.stopPropagation(); openEntitlementsDialog(user.email); }, children: _jsx(LocalOfferIcon, { fontSize: "small" }) }) })) })] }, user.id))), users.length === 0 && !loading && (_jsx(TableRow, { children: _jsx(TableCell, { colSpan: features.entitlements ? 6 : 5, align: "center", sx: { py: 4, color: 'var(--theme-text-secondary)' }, children: usersSearch ? 'No users match your search' : 'No users found' }) }))] })] }) }), _jsx(TablePagination, { component: "div", count: usersTotal, page: usersPage, onPageChange: (_, page) => setUsersPage(page), rowsPerPage: usersPerPage, onRowsPerPageChange: (e) => {
+                                            setUsersPerPage(parseInt(e.target.value, 10));
+                                            setUsersPage(0);
+                                        }, rowsPerPageOptions: [10, 25, 50, 100], sx: { borderTop: 1, borderColor: 'var(--theme-border)' } })] })), activeTab === 1 && features.bans && (_jsx(TableContainer, { children: _jsxs(Table, { children: [_jsx(TableHead, { children: _jsxs(TableRow, { children: [_jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Email" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Reason" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Banned At" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Expires" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Banned By" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, align: "right", children: "Actions" })] }) }), _jsxs(TableBody, { children: [bans.map((ban) => (_jsxs(TableRow, { children: [_jsx(TableCell, { sx: { color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)' }, children: _jsx(Text, { variant: "body1", content: ban.email, fontWeight: "500" }) }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)', maxWidth: 200 }, children: _jsx(Text, { variant: "body2", content: ban.reason, noWrap: true }) }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: formatDate(ban.banned_at) }), _jsx(TableCell, { sx: { borderColor: 'var(--theme-border)' }, children: _jsx(Chip, { size: "small", label: ban.expires_at ? formatDate(ban.expires_at) : 'Permanent', sx: {
+                                                                    bgcolor: ban.expires_at ? 'var(--theme-warning)20' : 'var(--theme-error)20',
+                                                                    color: ban.expires_at ? 'var(--theme-warning)' : 'var(--theme-error)',
+                                                                } }) }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: ban.banned_by }), _jsx(TableCell, { sx: { borderColor: 'var(--theme-border)' }, align: "right", children: _jsx(Button, { buttonSize: "small", variant: "text", color: "success", icon: "check_circle", label: "Unban", onClick: () => handleUnbanUser(ban.email) }) })] }, ban.id))), bans.length === 0 && !loading && (_jsx(TableRow, { children: _jsx(TableCell, { colSpan: 6, align: "center", sx: { py: 4, color: 'var(--theme-text-secondary)' }, children: "No users are currently banned" }) }))] })] }) })), activeTab === 2 && features.users && (_jsx(TableContainer, { children: _jsxs(Table, { children: [_jsx(TableHead, { children: _jsxs(TableRow, { children: [_jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Email" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Name" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Created" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Expires" }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: "Status" })] }) }), _jsxs(TableBody, { children: [invitations.map((invitation) => {
+                                                    const isExpired = invitation.invitation_expires_at && new Date(invitation.invitation_expires_at) < new Date();
+                                                    return (_jsxs(TableRow, { children: [_jsx(TableCell, { sx: { color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)' }, children: _jsx(Text, { variant: "body1", content: invitation.email, fontWeight: "500" }) }), _jsx(TableCell, { sx: { color: 'var(--theme-text-primary)', borderColor: 'var(--theme-border)' }, children: invitation.name || '--' }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: formatDate(invitation.created_at) }), _jsx(TableCell, { sx: { color: 'var(--theme-text-secondary)', borderColor: 'var(--theme-border)' }, children: formatDate(invitation.invitation_expires_at) }), _jsx(TableCell, { sx: { borderColor: 'var(--theme-border)' }, children: _jsx(Chip, { size: "small", label: isExpired ? 'Expired' : 'Pending', sx: {
+                                                                        bgcolor: isExpired ? 'var(--theme-error)20' : 'var(--theme-warning)20',
+                                                                        color: isExpired ? 'var(--theme-error)' : 'var(--theme-warning)',
+                                                                    } }) })] }, invitation.id));
+                                                }), invitations.length === 0 && !loading && (_jsx(TableRow, { children: _jsx(TableCell, { colSpan: 5, align: "center", sx: { py: 4, color: 'var(--theme-text-secondary)' }, children: "No pending invitations" }) }))] })] }) }))] })] }), features.users && (_jsxs(Dialog, { open: inviteDialogOpen, onClose: handleCloseInviteDialog, maxWidth: "sm", fullWidth: true, children: [_jsx(DialogTitle, { children: "Invite User" }), _jsx(DialogContent, { children: !inviteResult ? (_jsxs(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }, children: [_jsx(TextField, { label: "Email", fullWidth: true, required: true, value: newInvite.email, onChange: (e) => setNewInvite({ ...newInvite, email: e.target.value }), placeholder: "user@example.com", type: "email" }), _jsx(TextField, { label: "Name (Optional)", fullWidth: true, value: newInvite.name, onChange: (e) => setNewInvite({ ...newInvite, name: e.target.value }), placeholder: "Enter user's full name" }), _jsx(TextField, { label: "Role (Optional)", fullWidth: true, value: newInvite.role, onChange: (e) => setNewInvite({ ...newInvite, role: e.target.value }), placeholder: "e.g., admin, editor, viewer", helperText: "Stored in user metadata for your app to use" }), _jsx(TextField, { label: "Invitation Expiry", type: "number", fullWidth: true, value: newInvite.expiresInDays, onChange: (e) => setNewInvite({ ...newInvite, expiresInDays: parseInt(e.target.value) || 7 }), InputProps: {
+                                        endAdornment: _jsx(InputAdornment, { position: "end", children: "days" }),
+                                    }, helperText: "How many days until the invitation expires" })] })) : (_jsxs(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }, children: [_jsx(Alert, { severity: "success", children: "Invitation created successfully! Share this link with the user:" }), _jsx(TextField, { label: "Invitation Link", fullWidth: true, value: inviteResult.inviteLink, InputProps: {
+                                        readOnly: true,
+                                        endAdornment: (_jsx(InputAdornment, { position: "end", children: _jsx(Tooltip, { title: "Copy to clipboard", children: _jsx(IconButton, { onClick: handleCopyInviteLink, edge: "end", children: _jsx(ContentCopyIcon, {}) }) }) })),
+                                    }, helperText: "Click the icon to copy the link to clipboard" }), _jsx(Alert, { severity: "info", children: "The user will need to visit this link to activate their account." })] })) }), _jsxs(DialogActions, { children: [_jsx(Button, { variant: "text", label: "Close", onClick: handleCloseInviteDialog }), !inviteResult && (_jsx(Button, { variant: "primary", label: "Create Invitation", onClick: handleInviteUser, disabled: !newInvite.email }))] })] })), features.bans && (_jsxs(Dialog, { open: banDialogOpen, onClose: () => setBanDialogOpen(false), maxWidth: "sm", fullWidth: true, children: [_jsx(DialogTitle, { children: "Ban User" }), _jsx(DialogContent, { children: _jsxs(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }, children: [_jsx(TextField, { label: "Email", fullWidth: true, value: newBan.email, onChange: (e) => setNewBan({ ...newBan, email: e.target.value }), placeholder: "Enter user email" }), _jsx(TextField, { label: "Reason", fullWidth: true, multiline: true, rows: 3, value: newBan.reason, onChange: (e) => setNewBan({ ...newBan, reason: e.target.value }), placeholder: "Enter reason for ban" }), _jsx(TextField, { label: "Expiration (Optional)", type: "datetime-local", fullWidth: true, value: newBan.expiresAt, onChange: (e) => setNewBan({ ...newBan, expiresAt: e.target.value }), InputLabelProps: { shrink: true }, helperText: "Leave empty for permanent ban" })] }) }), _jsxs(DialogActions, { children: [_jsx(Button, { variant: "text", label: "Cancel", onClick: () => {
+                                    setBanDialogOpen(false);
+                                    setNewBan({ email: '', reason: '', expiresAt: '' });
+                                } }), _jsx(Button, { variant: "primary", color: "error", label: "Ban User", onClick: handleBanUser, disabled: !newBan.email || !newBan.reason })] })] })), features.entitlements && (_jsxs(Dialog, { open: entitlementsDialogOpen, onClose: () => setEntitlementsDialogOpen(false), maxWidth: "md", fullWidth: true, children: [_jsx(DialogTitle, { children: "User Entitlements" }), _jsx(DialogContent, { children: _jsxs(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }, children: [_jsxs(Box, { sx: { display: 'flex', gap: 1 }, children: [_jsx(TextField, { label: "Email", fullWidth: true, value: entitlementsSearch, onChange: (e) => setEntitlementsSearch(e.target.value), placeholder: "Enter user email", onKeyDown: (e) => e.key === 'Enter' && handleEntitlementsSearch() }), _jsx(Button, { variant: "primary", icon: "search", label: "Lookup", onClick: handleEntitlementsSearch, disabled: entitlementsLoading })] }), entitlementsLoading && (_jsx(Box, { sx: { display: 'flex', justifyContent: 'center', py: 4 }, children: _jsx(CircularProgress, {}) })), entitlementsError && (_jsx(Alert, { severity: "error", children: entitlementsError })), entitlementsData && (_jsxs(Box, { children: [_jsxs(Box, { sx: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }, children: [_jsxs(Box, { children: [_jsx(Text, { variant: "h6", content: entitlementsData.identifier, customColor: "var(--theme-text-primary)" }), _jsx(Text, { variant: "body2", content: `Source: ${entitlementsData.source}`, customColor: "var(--theme-text-secondary)" })] }), _jsx(Button, { variant: "outlined", icon: "refresh", label: entitlementsRefreshing ? 'Refreshing...' : 'Refresh', onClick: handleEntitlementsRefresh, disabled: entitlementsRefreshing, buttonSize: "small" })] }), !features.entitlementsReadonly && grantableEntitlements.length > 0 && (_jsxs(Box, { sx: { display: 'flex', gap: 1, mb: 2, p: 2, bgcolor: 'var(--theme-background)', borderRadius: 1 }, children: [_jsx(Autocomplete, { size: "small", options: grantableEntitlements, getOptionLabel: (option) => option.name, value: grantableEntitlements.find((e) => e.name === selectedEntitlement) || null, onChange: (_, newValue) => setSelectedEntitlement(newValue?.name || ''), renderInput: (params) => (_jsx(TextField, { ...params, label: "Grant Entitlement", placeholder: "Select entitlement" })), sx: { flex: 1 } }), _jsx(Button, { variant: "primary", icon: "add", label: "Grant", onClick: handleGrantEntitlement, disabled: !selectedEntitlement || grantingEntitlement, buttonSize: "small" })] })), _jsx(Text, { variant: "subtitle2", content: "Current Entitlements", customColor: "var(--theme-text-secondary)", style: { marginBottom: '8px' } }), entitlementsData.entitlements.length === 0 ? (_jsx(Text, { variant: "body2", content: "No entitlements found", customColor: "var(--theme-text-secondary)" })) : (_jsx(Box, { sx: { display: 'flex', flexWrap: 'wrap', gap: 1 }, children: entitlementsData.entitlements.map((ent, idx) => (_jsx(Chip, { icon: _jsx(CheckCircleIcon, { sx: { fontSize: 16 } }), label: ent, onDelete: !features.entitlementsReadonly ? () => handleRevokeEntitlement(ent) : undefined, deleteIcon: _jsx(DeleteIcon, { sx: { fontSize: 16 } }), sx: {
+                                                    bgcolor: 'var(--theme-success)20',
+                                                    color: 'var(--theme-success)',
+                                                    '& .MuiChip-deleteIcon': {
+                                                        color: 'var(--theme-error)',
+                                                        '&:hover': {
+                                                            color: 'var(--theme-error)',
+                                                        },
+                                                    },
+                                                } }, idx))) })), _jsxs(Box, { sx: { mt: 2, pt: 2, borderTop: 1, borderColor: 'var(--theme-border)' }, children: [_jsx(Text, { variant: "caption", content: `Data from: ${entitlementsData.source === 'cache' ? 'Cache' : 'Source'}`, customColor: "var(--theme-text-secondary)" }), entitlementsData.cachedAt && (_jsx(Text, { variant: "caption", content: ` | Cached: ${formatDate(entitlementsData.cachedAt)}`, customColor: "var(--theme-text-secondary)" })), features.entitlementsReadonly && (_jsx(Text, { variant: "caption", content: " | Read-only mode (modifications disabled)", customColor: "var(--theme-warning)" }))] })] }))] }) }), _jsx(DialogActions, { children: _jsx(Button, { variant: "text", label: "Close", onClick: () => setEntitlementsDialogOpen(false) }) })] }))] }));
+}
+//# sourceMappingURL=UsersPage.js.map

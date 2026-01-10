@@ -1,1 +1,0 @@
-{"version":3,"file":"RateLimitManagementPage.d.ts","sourceRoot":"","sources":["../../../src/plugins/rate-limit/RateLimitManagementPage.tsx"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAA8B,MAAM,OAAO,CAAC;AAInD,MAAM,WAAW,4BAA4B;IAC3C,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAmBD,eAAO,MAAM,uBAAuB,EAAE,KAAK,CAAC,EAAE,CAAC,4BAA4B,CA4F1E,CAAC;AAEF,eAAe,uBAAuB,CAAC"}

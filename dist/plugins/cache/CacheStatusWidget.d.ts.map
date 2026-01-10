@@ -1,1 +1,0 @@
-{"version":3,"file":"CacheStatusWidget.d.ts","sourceRoot":"","sources":["../../../src/plugins/cache/CacheStatusWidget.tsx"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAA8B,MAAM,OAAO,CAAC;AAMnD,MAAM,WAAW,sBAAsB;IACrC,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAYD,eAAO,MAAM,iBAAiB,EAAE,KAAK,CAAC,EAAE,CAAC,sBAAsB,CA4F9D,CAAC;AAEF,eAAe,iBAAiB,CAAC"}

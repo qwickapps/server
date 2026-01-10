@@ -1,0 +1,1 @@
+{"version":3,"file":"BansStatusWidget.d.ts","sourceRoot":"","sources":["../../../../src/plugins/bans/BansStatusWidget.tsx"],"names":[],"mappings":"AAAA;;GAEG;AAKH,MAAM,WAAW,qBAAqB;IACpC,iDAAiD;IACjD,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAED,wBAAgB,gBAAgB,CAAC,EAAE,SAAuB,EAAE,EAAE,qBAAqB,2CAwClF"}

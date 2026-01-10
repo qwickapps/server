@@ -1,1 +1,0 @@
-{"version":3,"file":"cache-store.d.ts","sourceRoot":"","sources":["../../../../src/plugins/rate-limit/stores/cache-store.ts"],"names":[],"mappings":"AAAA;;;;;;;GAOG;AAEH,OAAO,KAAK,EACV,cAAc,EACd,oBAAoB,EAErB,MAAM,aAAa,CAAC;AAgMrB;;;;;;;;;;;;;;;;;GAiBG;AACH,wBAAgB,oBAAoB,CAAC,MAAM,GAAE,oBAAyB,GAAG,cAAc,CAsBtF;AAED;;GAEG;AACH,wBAAgB,eAAe,IAAI,cAAc,CAUhD"}

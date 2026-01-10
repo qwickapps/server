@@ -1,1 +1,0 @@
-{"version":3,"file":"postgres-store.d.ts","sourceRoot":"","sources":["../../../../src/plugins/bans/stores/postgres-store.ts"],"names":[],"mappings":"AAAA;;;;;;;GAOG;AAEH,OAAO,KAAK,EACV,QAAQ,EAIR,sBAAsB,EACvB,MAAM,aAAa,CAAC;AAOrB;;;;;;;;;;;;;;;;;GAiBG;AACH,wBAAgB,gBAAgB,CAAC,MAAM,EAAE,sBAAsB,GAAG,QAAQ,CA0JzE"}

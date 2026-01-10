@@ -1,1 +1,0 @@
-{"version":3,"file":"HealthStatusWidget.d.ts","sourceRoot":"","sources":["../../../src/plugins/health/HealthStatusWidget.tsx"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAA8B,MAAM,OAAO,CAAC;AAMnD,MAAM,WAAW,uBAAuB;IACtC,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAmBD,eAAO,MAAM,kBAAkB,EAAE,KAAK,CAAC,EAAE,CAAC,uBAAuB,CAiGhE,CAAC;AAEF,eAAe,kBAAkB,CAAC"}

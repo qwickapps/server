@@ -1,1 +1,0 @@
-{"version":3,"file":"PostgresStatusWidget.d.ts","sourceRoot":"","sources":["../../../src/plugins/postgres/PostgresStatusWidget.tsx"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAA8B,MAAM,OAAO,CAAC;AAOnD,MAAM,WAAW,yBAAyB;IACxC,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAaD,eAAO,MAAM,oBAAoB,EAAE,KAAK,CAAC,EAAE,CAAC,yBAAyB,CAmGpE,CAAC;AAEF,eAAe,oBAAoB,CAAC"}

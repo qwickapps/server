@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **TypeScript Configuration**: Removed restrictive `rootDir` setting to enable tsx compatibility
+  - tsx can now run TypeScript files directly without build step
+  - Updated path alias `@qwickapps/server/ui` to resolve to source files instead of built files
+  - No breaking changes for external consumers (package.json exports unchanged)
+  - Enables faster development workflow with direct TypeScript execution
+
 ## [1.6.1] - 2026-01-09
 
 ### Added

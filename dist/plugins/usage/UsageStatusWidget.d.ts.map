@@ -1,1 +1,0 @@
-{"version":3,"file":"UsageStatusWidget.d.ts","sourceRoot":"","sources":["../../../src/plugins/usage/UsageStatusWidget.tsx"],"names":[],"mappings":"AAAA;;GAEG;AAKH,MAAM,WAAW,sBAAsB;IACrC,kDAAkD;IAClD,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAED,wBAAgB,iBAAiB,CAAC,EAAE,SAAwB,EAAE,EAAE,sBAAsB,2CAuCrF"}

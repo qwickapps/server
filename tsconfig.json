@@ -9,7 +9,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -21,7 +20,7 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@qwickapps/server/ui": ["./dist-ui-lib/src/components/index.d.ts"]
+      "@qwickapps/server/ui": ["./ui/src/components"]
     }
   },
   "include": ["src/**/*"],

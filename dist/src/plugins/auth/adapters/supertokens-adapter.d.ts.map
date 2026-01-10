@@ -1,0 +1,1 @@
+{"version":3,"file":"supertokens-adapter.d.ts","sourceRoot":"","sources":["../../../../../src/plugins/auth/adapters/supertokens-adapter.ts"],"names":[],"mappings":"AAAA;;;;;;;;;GASG;AAGH,OAAO,KAAK,EAAE,WAAW,EAAqB,wBAAwB,EAAE,MAAM,aAAa,CAAC;AAc5F;;;;GAIG;AACH,wBAAgB,kBAAkB,CAAC,MAAM,EAAE,wBAAwB,GAAG,WAAW,CAsShF"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"token-bucket.d.ts","sourceRoot":"","sources":["../../../../src/plugins/rate-limit/strategies/token-bucket.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;;;;;;;;GAqBG;AAEH,OAAO,KAAK,EACV,QAAQ,EAKT,MAAM,aAAa,CAAC;AAoBrB;;GAEG;AACH,wBAAgB,yBAAyB,IAAI,QAAQ,CAqGpD"}

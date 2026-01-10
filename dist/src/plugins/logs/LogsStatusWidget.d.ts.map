@@ -1,0 +1,1 @@
+{"version":3,"file":"LogsStatusWidget.d.ts","sourceRoot":"","sources":["../../../../src/plugins/logs/LogsStatusWidget.tsx"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAA8B,MAAM,OAAO,CAAC;AAMnD,MAAM,WAAW,qBAAqB;IACpC,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAcD,eAAO,MAAM,gBAAgB,EAAE,KAAK,CAAC,EAAE,CAAC,qBAAqB,CA2F5D,CAAC;AAEF,eAAe,gBAAgB,CAAC"}
