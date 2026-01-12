@@ -13,6 +13,7 @@ import { LogsPage } from './pages/LogsPage';
 import { SystemPage } from './pages/SystemPage';
 import { PluginsPage } from './pages/PluginsPage';
 import { UsersPage } from './pages/UsersPage';
+import { TenantsManagementPage } from './pages/TenantsManagementPage';
 import { EntitlementsPage } from './pages/EntitlementsPage';
 import { AuthPage } from './pages/AuthPage';
 import { RateLimitPage } from './pages/RateLimitPage';
@@ -44,11 +45,12 @@ const coreNavigationItems: NavigationItem[] = [
 // Built-in optional navigation items - shown if corresponding plugin is registered
 const builtInPluginNavItems: Record<string, NavigationItem> = {
   users: { id: 'users', label: 'Users', route: '/users', icon: 'people' },
+  tenants: { id: 'tenants', label: 'Tenants', route: '/tenants', icon: 'business' },
   'api-keys': { id: 'api-keys', label: 'API Keys', route: '/api-keys', icon: 'key' },
 };
 
 // Routes that have dedicated page components
-const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/entitlements', '/auth', '/rate-limits', '/notifications', '/integrations', '/api-keys', '/contentops/jobs', '/maintenance']);
+const dedicatedRoutes = new Set(['/', '/plugins', '/logs', '/system', '/users', '/tenants', '/entitlements', '/auth', '/rate-limits', '/notifications', '/integrations', '/api-keys', '/contentops/jobs', '/maintenance']);
 
 // Package version - injected at build time or fallback
 const SERVER_VERSION = '1.0.0';
@@ -211,6 +213,9 @@ export function App() {
             {/* Built-in plugin routes */}
             {registeredPlugins.has('users') && (
               <Route path="/users" element={<UsersPage />} />
+            )}
+            {registeredPlugins.has('tenants') && (
+              <Route path="/tenants" element={<TenantsManagementPage />} />
             )}
             {registeredPlugins.has('entitlements') && (
               <Route path="/entitlements" element={<EntitlementsPage />} />
