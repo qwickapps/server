@@ -14,7 +14,6 @@ import { randomBytes } from 'node:crypto';
 import { getEntitlements } from '../entitlements/entitlements-plugin.js';
 import { getPreferences } from '../preferences/preferences-plugin.js';
 import { getActiveBan } from '../bans/bans-plugin.js';
-import { autoCreateUserTenant } from '../tenants/index.js';
 // Store instance for helper access
 let currentStore = null;
 let currentRegistry = null;
@@ -126,17 +125,6 @@ export function createUsersPlugin(config) {
                                 return res.status(409).json({ error: 'User with this email already exists' });
                             }
                             const user = await config.store.create(input);
-                            // Auto-create personal tenant if tenants plugin available
-                            if (registry.hasPlugin('tenants')) {
-                                try {
-                                    await autoCreateUserTenant(user.id);
-                                    log('Auto-created personal tenant for user', { userId: user.id });
-                                }
-                                catch (error) {
-                                    console.error('[UsersPlugin] Failed to auto-create tenant:', error);
-                                    // Don't fail user creation if tenant creation fails
-                                }
-                            }
                             res.status(201).json(user);
                         }
                         catch (error) {
@@ -436,16 +424,6 @@ export async function findOrCreateUser(data) {
         provider: data.provider,
         picture: data.picture,
     });
-    // Auto-create personal tenant if tenants plugin available
-    if (currentRegistry && currentRegistry.hasPlugin('tenants')) {
-        try {
-            await autoCreateUserTenant(user.id);
-        }
-        catch (error) {
-            console.error('[UsersPlugin] Failed to auto-create tenant:', error);
-            // Don't fail user creation if tenant creation fails
-        }
-    }
     return user;
 }
 /**

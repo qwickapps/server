@@ -27,8 +27,6 @@ export { createAuthPlugin, createAuthPluginFromEnv, getAuthStatus, setAuthConfig
 export type { AuthPluginConfig, AuthAdapter, AuthenticatedUser, AuthenticatedRequest, Auth0AdapterConfig, SupabaseAdapterConfig, BasicAdapterConfig, SupertokensAdapterConfig, AuthPluginState, AuthEnvPluginOptions, AuthConfigStatus, AuthConfigStore, PostgresAuthConfigStoreConfig, } from './auth/index.js';
 export { createUsersPlugin, getUserStore, getUserById, getUserByEmail, getUserByIdentifier, linkUserIdentifiers, findOrCreateUser, postgresUserStore, } from './users/index.js';
 export type { UsersPluginConfig, UserStore, User, CreateUserInput, UpdateUserInput, UserSearchParams, UserListResponse, PostgresUserStoreConfig, UserSyncConfig, UsersApiConfig, UsersUiConfig, UserIdentifiers, StoredIdentifiers, } from './users/index.js';
-export { createTenantsPlugin, getTenantStore, postgresTenantStore } from './tenants/index.js';
-export type { TenantsPluginConfig, TenantStore, Tenant, TenantType, CreateTenantInput, UpdateTenantInput, TenantSearchParams, TenantListResponse, TenantMembership, CreateTenantMembershipInput, UpdateTenantMembershipInput, TenantWithMembership, PostgresTenantStoreConfig, } from './tenants/index.js';
 export { createBansPlugin, getBanStore, isUserBanned, isEmailBanned, getActiveBan, banUser, unbanUser, listActiveBans, postgresBanStore, } from './bans/index.js';
 export type { BansPluginConfig, BanStore, Ban, CreateBanInput, RemoveBanInput, BanCallbacks, PostgresBanStoreConfig, } from './bans/index.js';
 export { createApiKeysPlugin, getApiKeysStore, verifyApiKey, createApiKey, listApiKeys, getApiKey, updateApiKey, deleteApiKey, postgresApiKeyStore, bearerTokenAuth, } from './api-keys/index.js';

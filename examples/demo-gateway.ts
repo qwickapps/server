@@ -25,7 +25,6 @@ import {
   createUsersPlugin,
   createBansPlugin,
   createEntitlementsPlugin,
-  createTenantsPlugin,
   type EntitlementSource,
   type EntitlementDefinition,
 } from '../src/index.js';
@@ -335,215 +334,6 @@ function createInMemoryBanStore() {
   };
 }
 
-// In-memory tenant store for demo
-function createInMemoryTenantStore() {
-  const tenants = new Map<string, any>();
-  const memberships = new Map<string, any>();
-  let tenantIdCounter = 1;
-  let membershipIdCounter = 1;
-
-  // Pre-populate demo tenants
-  const demoTenants = [
-    { name: 'Acme Corporation', type: 'organization', owner_id: '1' },
-    { name: 'Engineering Team', type: 'group', owner_id: '1' },
-    { name: 'Finance Department', type: 'department', owner_id: '2' },
-    { name: 'Demo User Workspace', type: 'user', owner_id: '1' },
-  ];
-
-  demoTenants.forEach((t) => {
-    const id = `tenant-${tenantIdCounter++}`;
-    tenants.set(id, {
-      id,
-      name: t.name,
-      type: t.type,
-      owner_id: t.owner_id,
-      metadata: {},
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-
-    // Auto-create membership for owner
-    const membershipId = `membership-${membershipIdCounter++}`;
-    memberships.set(membershipId, {
-      id: membershipId,
-      tenant_id: id,
-      user_id: t.owner_id,
-      role: 'owner',
-      joined_at: new Date().toISOString(),
-    });
-  });
-
-  return {
-    name: 'in-memory',
-
-    async initialize() {
-      console.log('[InMemoryTenantStore] Initialized with demo tenants');
-    },
-
-    async getById(id: string) {
-      return tenants.get(id) || null;
-    },
-
-    async getByIds(ids: string[]) {
-      return ids.map(id => tenants.get(id)).filter(Boolean);
-    },
-
-    async getByName(name: string) {
-      for (const tenant of tenants.values()) {
-        if (tenant.name.toLowerCase() === name.toLowerCase()) {
-          return tenant;
-        }
-      }
-      return null;
-    },
-
-    async create(input: any) {
-      const id = `tenant-${tenantIdCounter++}`;
-      const tenant = {
-        id,
-        name: input.name,
-        type: input.type,
-        owner_id: input.owner_id,
-        metadata: input.metadata || {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      tenants.set(id, tenant);
-
-      // Auto-create membership for owner
-      const membershipId = `membership-${membershipIdCounter++}`;
-      memberships.set(membershipId, {
-        id: membershipId,
-        tenant_id: id,
-        user_id: input.owner_id,
-        role: 'owner',
-        joined_at: new Date().toISOString(),
-      });
-
-      return tenant;
-    },
-
-    async update(id: string, input: any) {
-      const tenant = tenants.get(id);
-      if (!tenant) return null;
-      Object.assign(tenant, input, { updated_at: new Date().toISOString() });
-      return tenant;
-    },
-
-    async delete(id: string) {
-      // Delete all memberships for this tenant
-      for (const [key, membership] of memberships.entries()) {
-        if (membership.tenant_id === id) {
-          memberships.delete(key);
-        }
-      }
-      return tenants.delete(id);
-    },
-
-    async search(params: any = {}) {
-      let result = Array.from(tenants.values());
-
-      if (params.query) {
-        const query = params.query.toLowerCase();
-        result = result.filter(t => t.name.toLowerCase().includes(query));
-      }
-
-      if (params.type) {
-        result = result.filter(t => t.type === params.type);
-      }
-
-      if (params.owner_id) {
-        result = result.filter(t => t.owner_id === params.owner_id);
-      }
-
-      const sortBy = params.sortBy || 'created_at';
-      const sortOrder = params.sortOrder || 'desc';
-
-      result.sort((a, b) => {
-        const aVal = a[sortBy];
-        const bVal = b[sortBy];
-        if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
-      });
-
-      const total = result.length;
-      const page = params.page || 1;
-      const limit = params.limit || 20;
-      const offset = (page - 1) * limit;
-      result = result.slice(offset, offset + limit);
-
-      return {
-        tenants: result,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      };
-    },
-
-    async getTenantsForUser(userId: string) {
-      const userMemberships = Array.from(memberships.values()).filter(
-        m => m.user_id === userId
-      );
-      const tenantIds = userMemberships.map(m => m.tenant_id);
-      return tenantIds.map(id => tenants.get(id)).filter(Boolean);
-    },
-
-    async getMembers(tenantId: string) {
-      return Array.from(memberships.values()).filter(
-        m => m.tenant_id === tenantId
-      );
-    },
-
-    async getMembership(tenantId: string, userId: string) {
-      for (const membership of memberships.values()) {
-        if (membership.tenant_id === tenantId && membership.user_id === userId) {
-          return membership;
-        }
-      }
-      return null;
-    },
-
-    async addMember(input: any) {
-      const id = `membership-${membershipIdCounter++}`;
-      const membership = {
-        id,
-        tenant_id: input.tenant_id,
-        user_id: input.user_id,
-        role: input.role,
-        joined_at: new Date().toISOString(),
-      };
-      memberships.set(id, membership);
-      return membership;
-    },
-
-    async updateMember(tenantId: string, userId: string, input: any) {
-      for (const membership of memberships.values()) {
-        if (membership.tenant_id === tenantId && membership.user_id === userId) {
-          Object.assign(membership, input);
-          return membership;
-        }
-      }
-      return null;
-    },
-
-    async removeMember(tenantId: string, userId: string) {
-      for (const [key, membership] of memberships.entries()) {
-        if (membership.tenant_id === tenantId && membership.user_id === userId) {
-          memberships.delete(key);
-          return true;
-        }
-      }
-      return false;
-    },
-
-    async shutdown() {
-      console.log('[InMemoryTenantStore] Shutdown');
-    },
-  };
-}
-
 async function main() {
   // Port scheme: 3000 gateway (public), 3001 cpanel (internal)
   const gatewayPort = parseInt(process.env.GATEWAY_PORT || process.env.PORT || '3000', 10);
@@ -597,12 +387,6 @@ async function main() {
             cache: { enabled: false },
           }),
         },
-        {
-          plugin: createTenantsPlugin({
-            store: createInMemoryTenantStore() as any,
-            apiPrefix: '/api/tenants',
-          }),
-        },
       ],
     },
 
@@ -647,7 +431,6 @@ async function main() {
 ║    ✓ Users Plugin (in-memory)                                 ║
 ║    ✓ Bans Plugin (in-memory)                                  ║
 ║    ✓ Entitlements Plugin (in-memory, writable)                ║
-║    ✓ Tenants Plugin (in-memory)                               ║
 ║                                                               ║
 ║  Press Ctrl+C to stop                                         ║
 ╚═══════════════════════════════════════════════════════════════╝

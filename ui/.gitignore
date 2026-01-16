@@ -1,5 +1,0 @@
-# Build artifacts - UI source should not have compiled files
-src/**/*.js
-src/**/*.d.ts
-src/**/*.d.ts.map
-src/**/*.js.map

@@ -17,8 +17,6 @@ export { createCachePlugin, getCache, hasCache } from './cache-plugin.js';
 export { createAuthPlugin, createAuthPluginFromEnv, getAuthStatus, setAuthConfigStore, registerAuthConfigRoutes, postgresAuthConfigStore, isAuthenticated, getAuthenticatedUser, getAccessToken, requireAuth, requireRoles, requireAnyRole, auth0Adapter, basicAdapter, supabaseAdapter, supertokensAdapter, isAuthenticatedRequest, } from './auth/index.js';
 // Users plugin
 export { createUsersPlugin, getUserStore, getUserById, getUserByEmail, getUserByIdentifier, linkUserIdentifiers, findOrCreateUser, postgresUserStore, } from './users/index.js';
-// Tenants plugin (multi-tenant data isolation, depends on Users)
-export { createTenantsPlugin, getTenantStore, postgresTenantStore } from './tenants/index.js';
 // Bans plugin (separate from Users, depends on Users)
 export { createBansPlugin, getBanStore, isUserBanned, isEmailBanned, getActiveBan, banUser, unbanUser, listActiveBans, postgresBanStore, } from './bans/index.js';
 // API Keys plugin (M2M authentication, depends on Users)

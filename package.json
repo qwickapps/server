@@ -1,17 +1,17 @@
 {
   "name": "@qwickapps/server",
-  "version": "1.7.0",
+  "version": "1.6.1",
   "description": "Plugin-based application server framework for building websites, APIs, admin dashboards, and full-stack products",
-  "main": "dist/src/index.js",
-  "types": "dist/src/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./plugins": {
-      "types": "./dist/src/plugins/index.d.ts",
-      "import": "./dist/src/plugins/index.js"
+      "types": "./dist/plugins/index.d.ts",
+      "import": "./dist/plugins/index.js"
     },
     "./ui": {
       "types": "./dist-ui-lib/src/components/index.d.ts",

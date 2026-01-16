@@ -91,24 +91,13 @@ Plugins extend the server with custom functionality. Each plugin can register ro
 │  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
 │  │                                                                     │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │   │
-│  │  │Auth Plugin   │  │Users Plugin  │  │Tenants Plugin│               │   │
-│  │  │              │  │              │  │              │               │   │
-│  │  │• Adapters    │  │• User CRUD   │  │• Multi-tenant│               │   │
-│  │  │  - Auth0     │  │• Search API  │  │• Org mgmt    │               │   │
-│  │  │  - Basic     │  │• Ban mgmt    │  │• Roles       │               │   │
-│  │  │  - Supabase  │  │• Temp bans   │  │• Memberships │               │   │
-│  │  │• RBAC        │  │• Callbacks   │  │• Auto-tenant │               │   │
-│  │  │              │  │• Auto-tenant │  │• UI dashboard│               │   │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
-│  │                                                                     │   │
-│  │  ┌──────────────┐                                                   │   │
-│  │  │Entitlements  │                                                   │   │
-│  │  │Plugin        │                                                   │   │
-│  │  │              │                                                   │   │
-│  │  │• Source adapt│                                                   │   │
-│  │  │• Grant/revoke│                                                   │   │
-│  │  │• Lookup API  │                                                   │   │
-│  │  │• Dashboard   │                                                   │   │
+│  │  │Auth Plugin   │  │Users Plugin  │  │Entitlements  │               │   │
+│  │  │              │  │              │  │Plugin        │               │   │
+│  │  │• Adapters    │  │• User CRUD   │  │              │               │   │
+│  │  │  - Auth0     │  │• Search API  │  │• Source adapt│               │   │
+│  │  │  - Basic     │  │• Ban mgmt    │  │• Grant/revoke│               │   │
+│  │  │  - Supabase  │  │• Temp bans   │  │• Lookup API  │               │   │
+│  │  │• RBAC        │  │• Callbacks   │  │• Dashboard   │               │   │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                            │
@@ -435,130 +424,6 @@ myApp.use('/admin', controlPanel.app);
 - Proxy middleware streams responses (no buffering)
 - PostgreSQL plugin uses connection pooling
 - Cache plugin uses Redis pipelining where applicable
-
-## Multi-Tenancy Architecture
-
-The Tenants plugin provides multi-tenant data isolation with a tenant-first design where every user belongs to at least one tenant.
-
-### Data Model
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                          Tenants Table                              │
-│                                                                     │
-│  id (PK)              │ Unique tenant identifier (UUID)             │
-│  name                 │ Tenant display name                         │
-│  type                 │ user | organization | group | department    │
-│  owner_id             │ User who owns this tenant                   │
-│  metadata (JSONB)     │ Flexible data (settings, config, tags)      │
-│  created_at           │ Timestamp                                   │
-│  updated_at           │ Timestamp                                   │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    │ 1:N
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Tenant Memberships Table                         │
-│                                                                     │
-│  id (PK)              │ Unique membership identifier (UUID)         │
-│  tenant_id (FK)       │ References tenants(id) ON DELETE CASCADE    │
-│  user_id              │ User identifier                             │
-│  role                 │ owner | admin | member | viewer             │
-│  joined_at            │ Timestamp                                   │
-│                                                                     │
-│  UNIQUE(tenant_id, user_id) - One membership per user per tenant    │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Plugin Composition Pattern
-
-The Tenants plugin integrates with the Users plugin through the plugin registry, enabling loose coupling:
-
-```text
-┌───────────────────────────────────────────────────────────────────┐
-│                        Plugin Registry                            │
-│                                                                   │
-│  Plugins register themselves and can discover other plugins       │
-│  via hasPlugin() and getPlugin() methods                          │
-└───────────────────────────────────────────────────────────────────┘
-                         │                    │
-                         │                    │
-                         ▼                    ▼
-        ┌─────────────────────────┐  ┌─────────────────────────┐
-        │    Users Plugin         │  │   Tenants Plugin        │
-        │                         │  │                         │
-        │ 1. User created         │  │ 3. Tenant created       │
-        │ 2. Detect tenants plugin│  │ 4. User added as owner  │
-        │    via registry         │  │                         │
-        │ 3. Call autoCreateTenant│  │                         │
-        └─────────────────────────┘  └─────────────────────────┘
-                         │                    ▲
-                         │                    │
-                         └────────────────────┘
-                         Plugin communication
-```
-
-**Key Design Principles:**
-
-1. **Graceful Degradation**: Users plugin works without Tenants plugin
-2. **No Hard Dependencies**: Detection via registry, not imports
-3. **Auto-Tenant Creation**: Personal tenant created automatically on user signup
-4. **Loose Coupling**: Plugins communicate through well-defined interfaces
-
-### Tenant Types
-
-- **user**: Single-user personal tenant (auto-created)
-- **organization**: Multi-user company or team
-- **group**: Project team or working group
-- **department**: Organizational department
-
-### Global Roles
-
-Roles are consistent across all tenants:
-
-- **owner**: Full control, can delete tenant
-- **admin**: Manage members and settings
-- **member**: Standard access
-- **viewer**: Read-only access
-
-### REST API Design
-
-The Tenants plugin provides 10 REST endpoints organized into three logical groups:
-
-**Tenant CRUD** (`/api/tenants`):
-- List/search tenants with filtering and pagination
-- Create, read, update, delete tenants
-
-**User-Tenant Relations** (`/api/tenants/user/:userId`):
-- Get all tenants for a specific user
-- Supports tenant switching in multi-tenant UIs
-
-**Membership Management** (`/api/tenants/:tenantId/members`):
-- List members of a tenant
-- Add/remove members
-- Update member roles
-- UPSERT pattern: ON CONFLICT DO UPDATE for role changes
-
-### Testing Strategy
-
-Comprehensive test coverage across three layers:
-
-1. **Unit Tests (60 tests)**:
-   - Store operations (CRUD, search, memberships)
-   - Plugin lifecycle (initialization, health checks)
-   - Input validation and error handling
-
-2. **Integration Tests (11 tests)**:
-   - Full workflows (user → tenant → membership)
-   - Multi-user organization scenarios
-   - Tenant switching and filtering
-   - Cross-plugin integration (Users + Tenants)
-
-3. **E2E Tests (20 tests)**:
-   - UI interactions via Playwright
-   - Filtering, search, pagination
-   - Member management dialogs
-   - Statistics dashboard
 
 ---
 

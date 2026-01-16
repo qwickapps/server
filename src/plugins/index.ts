@@ -110,24 +110,6 @@ export type {
   StoredIdentifiers,
 } from './users/index.js';
 
-// Tenants plugin (multi-tenant data isolation, depends on Users)
-export { createTenantsPlugin, getTenantStore, postgresTenantStore } from './tenants/index.js';
-export type {
-  TenantsPluginConfig,
-  TenantStore,
-  Tenant,
-  TenantType,
-  CreateTenantInput,
-  UpdateTenantInput,
-  TenantSearchParams,
-  TenantListResponse,
-  TenantMembership,
-  CreateTenantMembershipInput,
-  UpdateTenantMembershipInput,
-  TenantWithMembership,
-  PostgresTenantStoreConfig,
-} from './tenants/index.js';
-
 // Bans plugin (separate from Users, depends on Users)
 export {
   createBansPlugin,
