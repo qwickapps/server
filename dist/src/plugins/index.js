@@ -16,13 +16,15 @@ export { createCachePlugin, getCache, hasCache } from './cache-plugin.js';
 // Auth plugin
 export { createAuthPlugin, createAuthPluginFromEnv, getAuthStatus, setAuthConfigStore, registerAuthConfigRoutes, postgresAuthConfigStore, isAuthenticated, getAuthenticatedUser, getAccessToken, requireAuth, requireRoles, requireAnyRole, auth0Adapter, basicAdapter, supabaseAdapter, supertokensAdapter, isAuthenticatedRequest, } from './auth/index.js';
 // Users plugin
-export { createUsersPlugin, getUserStore, getUserById, getUserByEmail, getUserByIdentifier, linkUserIdentifiers, findOrCreateUser, postgresUserStore, } from './users/index.js';
+export { createUsersPlugin, getUserStore, getUserById, getUserByEmail, getUserByIdentifier, linkUserIdentifiers, findOrCreateUser, postgresUserStore, inMemoryUserStore, } from './users/index.js';
+// Tenants plugin (multi-tenant data isolation, depends on Users)
+export { createTenantsPlugin, getTenantStore, postgresTenantStore, inMemoryTenantStore } from './tenants/index.js';
 // Bans plugin (separate from Users, depends on Users)
-export { createBansPlugin, getBanStore, isUserBanned, isEmailBanned, getActiveBan, banUser, unbanUser, listActiveBans, postgresBanStore, } from './bans/index.js';
+export { createBansPlugin, getBanStore, isUserBanned, isEmailBanned, getActiveBan, banUser, unbanUser, listActiveBans, postgresBanStore, inMemoryBanStore, } from './bans/index.js';
 // API Keys plugin (M2M authentication, depends on Users)
 export { createApiKeysPlugin, getApiKeysStore, verifyApiKey, createApiKey, listApiKeys, getApiKey, updateApiKey, deleteApiKey, postgresApiKeyStore, bearerTokenAuth, } from './api-keys/index.js';
 // Entitlements plugin
-export { createEntitlementsPlugin, getEntitlementSource, isSourceReadonly, getEntitlements, refreshEntitlements, hasEntitlement, hasAnyEntitlement, hasAllEntitlements, grantEntitlement, revokeEntitlement, setEntitlements, getAvailableEntitlements, getEntitlementStats, invalidateEntitlementCache, storeExternalIdMapping, invalidateByExternalId, requireEntitlement, requireAnyEntitlement, requireAllEntitlements, postgresEntitlementSource, } from './entitlements/index.js';
+export { createEntitlementsPlugin, getEntitlementSource, isSourceReadonly, getEntitlements, refreshEntitlements, hasEntitlement, hasAnyEntitlement, hasAllEntitlements, grantEntitlement, revokeEntitlement, setEntitlements, getAvailableEntitlements, getEntitlementStats, invalidateEntitlementCache, storeExternalIdMapping, invalidateByExternalId, requireEntitlement, requireAnyEntitlement, requireAllEntitlements, postgresEntitlementSource, inMemoryEntitlementSource, } from './entitlements/index.js';
 // Preferences plugin (depends on Users)
 export { createPreferencesPlugin, getPreferencesStore, getPreferences, updatePreferences, deletePreferences, getDefaultPreferences, postgresPreferencesStore, deepMerge, } from './preferences/index.js';
 // Rate Limit plugin

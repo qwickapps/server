@@ -52,7 +52,9 @@ import type { Plugin } from '../core/plugin-registry.js';
  */
 export interface PostgresPluginConfig {
     /** Database connection URL (e.g., postgresql://user:pass@host:5432/db) */
-    url: string;
+    url?: string;
+    /** Pre-configured pg.Pool instance (alternative to url) */
+    pool?: pg.Pool;
     /** Maximum number of clients in the pool (default: 20) */
     maxConnections?: number;
     /** Minimum number of clients in the pool (default: 2) */

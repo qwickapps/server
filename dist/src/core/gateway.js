@@ -29,8 +29,30 @@ import { fileURLToPath } from 'url';
 // Get QwickApps Server version from package.json
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const serverPackageJson = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
-const QWICKAPPS_SERVER_VERSION = serverPackageJson.version || '1.0.0';
+// Find package.json by walking up directories
+// Recommended approach for libraries that work in both source and compiled contexts
+function findPackageJson() {
+    let currentDir = __dirname;
+    // Walk up max 5 levels looking for the correct package.json
+    for (let i = 0; i < 5; i++) {
+        try {
+            const packagePath = join(currentDir, 'package.json');
+            if (existsSync(packagePath)) {
+                const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+                // Verify it's the right package
+                if (pkg.name === '@qwickapps/server') {
+                    return pkg.version || '1.0.0';
+                }
+            }
+        }
+        catch {
+            // Continue searching
+        }
+        currentDir = join(currentDir, '..');
+    }
+    return '1.0.0';
+}
+const QWICKAPPS_SERVER_VERSION = findPackageJson();
 /**
  * Generate landing page HTML for the frontend app
  */

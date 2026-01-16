@@ -378,6 +378,7 @@ export function createNotificationsPlugin(config: NotificationsPluginConfig): Pl
           id: 'notifications-stats',
           title: 'Notifications',
           component: 'NotificationsStatsWidget',
+          type: 'status',
           priority: 25, // After ServiceHealthWidget (10) and AuthStatusWidget (20)
           showByDefault: true,
           pluginId: 'notifications',

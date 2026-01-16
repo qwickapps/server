@@ -19,12 +19,15 @@ interface WidgetContribution {
   id: string;
   title: string;
   component: string;
+  type: 'status' | 'maintenance' | 'analytics' | 'monitoring' | 'custom';
   priority?: number;
   showByDefault?: boolean;
   pluginId: string;
 }
 
 interface PluginWidgetRendererProps {
+  /** Filter widgets by type (e.g., 'status' for dashboard, 'maintenance' for maintenance page) */
+  widgetType?: 'status' | 'maintenance' | 'analytics' | 'monitoring' | 'custom';
   /** Only show widgets marked as showByDefault (default: true) */
   defaultOnly?: boolean;
   /** Additional widget IDs to show (beyond showByDefault) */
@@ -35,6 +38,7 @@ interface PluginWidgetRendererProps {
  * Renders widgets from plugins that have registered them via the server API
  */
 export function PluginWidgetRenderer({
+  widgetType,
   defaultOnly = true,
   additionalWidgetIds = [],
 }: PluginWidgetRendererProps) {
@@ -78,6 +82,10 @@ export function PluginWidgetRenderer({
   // Filter widgets to show
   const visibleWidgets = widgets
     .filter(widget => {
+      // Filter by widget type if specified
+      if (widgetType && widget.type !== widgetType) {
+        return false;
+      }
       // Show if marked as default, or if in additionalWidgetIds
       if (defaultOnly) {
         return widget.showByDefault || additionalWidgetIds.includes(widget.id);

@@ -28,7 +28,7 @@ export type {
 } from './types.js';
 
 // Stores
-export { postgresBanStore } from './stores/index.js';
+export { postgresBanStore, inMemoryBanStore } from './stores/index.js';
 
 // UI Components
 export { BansStatusWidget } from './BansStatusWidget.js';

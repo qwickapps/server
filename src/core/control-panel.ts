@@ -41,10 +41,12 @@ import { createCorePlugin } from '../plugins/core/index.js';
 // Get the package root directory for serving UI assets
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// Handle both src/core and dist/core paths - go up to find package root
-const packageRoot = __dirname.includes('/src/')
-  ? join(__dirname, '..', '..')
-  : join(__dirname, '..', '..');
+// Handle both src/core and dist/src/core paths - go up to find package root
+// - src/core/control-panel.ts → go up 2 levels to package root
+// - dist/src/core/control-panel.js → go up 3 levels to package root
+const packageRoot = __dirname.includes('/dist/src/')
+  ? join(__dirname, '..', '..', '..') // dist/src/core → package root (3 levels)
+  : join(__dirname, '..', '..'); // src/core → package root (2 levels)
 const uiDistPath = join(packageRoot, 'dist-ui');
 
 // Read @qwickapps/server package version

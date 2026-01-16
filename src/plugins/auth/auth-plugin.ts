@@ -42,6 +42,7 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const app = registry.getApp();
+      const router = registry.getRouter();
 
       // Store adapters for helper access
       currentAdapter = config.adapter;
@@ -72,8 +73,9 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
         }
       }
 
-      // Add the auth checking middleware
-      app.use(createAuthMiddleware());
+      // Add the auth checking middleware to router (not app)
+      // This ensures it processes requests to /api/* routes
+      router.use(createAuthMiddleware());
 
       // Register auth status route
       registry.addRoute({

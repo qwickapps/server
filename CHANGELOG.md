@@ -5,7 +5,90 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.7.1] - 2026-01-15
+
+### Fixed
+
+- **Gateway**: Fix package.json resolution for version lookup (#845)
+  - Gateway was looking for package.json in dist/ instead of package root
+  - Implemented directory walking to find correct package.json location
+  - Fixes: `ENOENT: no such file or directory, open '/app/node_modules/@qwickapps/server/dist/package.json'`
+  - Resolves control panel container crashes on startup
+- **Control Panel**: Correct dist-ui path resolution for production (#843)
+  - TypeScript compiler emits to dist/src/core/ not dist/core/
+  - Updated path calculation to go up 3 levels instead of 2
+  - Fixes: "React UI not found at /app/node_modules/@qwickapps/server/dist/dist-ui"
+- **API Keys**: Add migration to add user_id column to existing api_keys tables (#845)
+  - Ensures existing databases get the user_id column added by migration
+- **Build**: Exclude testing utilities from production build
+  - pg-mem and other test utilities no longer shipped in dist/
+  - Reduces package size and eliminates unnecessary dependencies
+- **Types**: Correct type mismatches in tenants in-memory store
+  - Fixed TypeScript type errors in tenant store implementation
+- **Types**: Add type guards for Redis URL and pg-mem import
+  - Improved type safety for optional dependencies
+
+## [1.7.0] - 2026-01-11
+
+### Added
+
+- **Tenants Plugin**: Multi-tenant data isolation and organization management (#824, #825, #834, #811, #812)
+  - Core types: `Tenant`, `TenantMembership`, `TenantWithMembership`, `TenantStore`
+  - Tenant types: `user` (single-user), `organization`, `group`, `department`
+  - PostgreSQL store: Auto-creates tables with foreign keys and CASCADE delete
+  - Auto-membership: Owner automatically added as member on tenant creation
+  - Global roles: `owner`, `admin`, `member`, `viewer` (consistent across tenants)
+  - REST API: 10 endpoints for CRUD, search, and membership management
+  - Membership UPSERT: `ON CONFLICT DO UPDATE` for role changes
+  - Helper functions: `getTenantStore()`, `postgresTenantStore()`
+  - Search support: Filter by type, owner, query with pagination and sorting
+  - Health check: Tenant store availability monitoring
+  - UI Components: TenantsManagementPage, TenantCard, TenantFormDialog, MemberListDialog, MemberInviteDialog, MemberRoleDialog
+  - Management features: Create/edit tenants, add/remove members, change roles, search and filter
+  - Statistics dashboard: Total tenants by type with visual indicators
+  - **Plugin Composition**: Auto-tenant creation on user signup (#834)
+    - Users plugin detects tenants plugin via registry
+    - Auto-creates personal tenant for new users
+    - Graceful degradation: Works independently or together
+    - Loose coupling: No forced dependencies between plugins
+  - **Testing**: Comprehensive test coverage (#810, #811, #812)
+    - 60 unit tests: Store operations and plugin lifecycle
+    - 11 integration tests: Full workflows, multi-user scenarios, tenant switching
+    - 20 E2E tests: UI interactions, filtering, search, member management
+  - **Demo Integration**: In-memory store for demo-gateway.ts
+    - Pre-populated with 4 demo tenants
+    - Full TenantStore implementation
+    - Added to control panel at /cpanel/tenants
+
+### Added
+
+- **Tenants Plugin**: Multi-tenant data isolation and organization management (#824, #825, #834, #811, #812)
+  - Core types: `Tenant`, `TenantMembership`, `TenantWithMembership`, `TenantStore`
+  - Tenant types: `user` (single-user), `organization`, `group`, `department`
+  - PostgreSQL store: Auto-creates tables with foreign keys and CASCADE delete
+  - Auto-membership: Owner automatically added as member on tenant creation
+  - Global roles: `owner`, `admin`, `member`, `viewer` (consistent across tenants)
+  - REST API: 10 endpoints for CRUD, search, and membership management
+  - Membership UPSERT: `ON CONFLICT DO UPDATE` for role changes
+  - Helper functions: `getTenantStore()`, `postgresTenantStore()`
+  - Search support: Filter by type, owner, query with pagination and sorting
+  - Health check: Tenant store availability monitoring
+  - UI Components: TenantsManagementPage, TenantCard, TenantFormDialog, MemberListDialog, MemberInviteDialog, MemberRoleDialog
+  - Management features: Create/edit tenants, add/remove members, change roles, search and filter
+  - Statistics dashboard: Total tenants by type with visual indicators
+  - **Plugin Composition**: Auto-tenant creation on user signup (#834)
+    - Users plugin detects tenants plugin via registry
+    - Auto-creates personal tenant for new users
+    - Graceful degradation: Works independently or together
+    - Loose coupling: No forced dependencies between plugins
+  - **Testing**: Comprehensive test coverage (#810, #811, #812)
+    - 60 unit tests: Store operations and plugin lifecycle
+    - 11 integration tests: Full workflows, multi-user scenarios, tenant switching
+    - 20 E2E tests: UI interactions, filtering, search, member management
+  - **Demo Integration**: In-memory store for demo-gateway.ts
+    - Pre-populated with 4 demo tenants
+    - Full TenantStore implementation
+    - Added to control panel at /cpanel/tenants
 
 ### Fixed
 

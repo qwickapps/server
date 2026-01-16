@@ -12,7 +12,7 @@ export { getEntitlementSource, isSourceReadonly, getEntitlements, refreshEntitle
 // Middleware
 requireEntitlement, requireAnyEntitlement, requireAllEntitlements, } from './entitlements-plugin.js';
 // Sources
-export { postgresEntitlementSource } from './sources/index.js';
+export { postgresEntitlementSource, inMemoryEntitlementSource } from './sources/index.js';
 // UI Components
 export { EntitlementsStatusWidget } from './EntitlementsStatusWidget.js';
 export { EntitlementsManagementPage } from './EntitlementsManagementPage.js';

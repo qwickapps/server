@@ -1,18 +1,20 @@
 /**
  * Cache Plugin
  *
- * Provides Redis caching capabilities with connection pooling and health checks.
- * Wraps the 'ioredis' library with a simple, reusable interface.
+ * Provides caching capabilities with Redis or in-memory storage.
+ * Supports Redis via 'ioredis' library or zero-dependency in-memory LRU cache.
  *
  * ## Features
- * - Connection management with automatic reconnection
+ * - Dual-mode: Redis (persistent, distributed) or Memory (fast, local)
+ * - Connection management with automatic reconnection (Redis)
+ * - LRU eviction with TTL expiration (Memory)
  * - Key prefixing for multi-tenant/multi-app scenarios
- * - TTL-based caching with setex/get operations
+ * - TTL-based caching with get/set operations
  * - Automatic health checks
  * - Multiple named instances support
  * - Graceful shutdown
  *
- * ## Usage
+ * ## Usage (Redis)
  *
  * ```typescript
  * import { createGateway, createCachePlugin, getCache } from '@qwickapps/server';
@@ -21,6 +23,7 @@
  *   // ... config
  *   plugins: [
  *     createCachePlugin({
+ *       type: 'redis',
  *       url: process.env.REDIS_URL,
  *       keyPrefix: 'myapp:',
  *     }),
@@ -33,12 +36,24 @@
  * const user = await cache.get<User>('user:123');
  * ```
  *
+ * ## Usage (In-Memory)
+ *
+ * ```typescript
+ * // Zero external dependencies - perfect for demos and testing
+ * createCachePlugin({
+ *   type: 'memory',
+ *   keyPrefix: 'demo:',
+ *   defaultTtl: 3600,
+ *   maxMemoryEntries: 5000,
+ * })
+ * ```
+ *
  * ## Multiple Caches
  *
  * ```typescript
  * // Register multiple caches with different names
  * createCachePlugin({ url: primaryUrl, keyPrefix: 'session:' }, 'sessions');
- * createCachePlugin({ url: cacheUrl, keyPrefix: 'cache:' }, 'content');
+ * createCachePlugin({ type: 'memory', keyPrefix: 'cache:' }, 'content');
  *
  * // Access by name
  * const sessions = getCache('sessions');
@@ -53,31 +68,35 @@ type Redis = import('ioredis').default;
  * Configuration for the cache plugin
  */
 export interface CachePluginConfig {
-    /** Redis connection URL (e.g., redis://localhost:6379) */
-    url: string;
+    /** Cache type: 'redis' or 'memory' (default: 'redis' if url provided, 'memory' otherwise) */
+    type?: 'redis' | 'memory';
+    /** Redis connection URL (required for type='redis', e.g., redis://localhost:6379) */
+    url?: string;
     /** Key prefix for all cache operations (default: '') */
     keyPrefix?: string;
     /** Default TTL in seconds for set operations (default: 3600 = 1 hour) */
     defaultTtl?: number;
-    /** Maximum number of retry attempts (default: 3) */
+    /** Maximum number of entries for memory cache (default: 10000, only used for type='memory') */
+    maxMemoryEntries?: number;
+    /** Maximum number of retry attempts (default: 3, only used for type='redis') */
     maxRetries?: number;
-    /** Retry delay in milliseconds (default: 1000) */
+    /** Retry delay in milliseconds (default: 1000, only used for type='redis') */
     retryDelayMs?: number;
-    /** Connection timeout in milliseconds (default: 5000) */
+    /** Connection timeout in milliseconds (default: 5000, only used for type='redis') */
     connectTimeoutMs?: number;
-    /** Command timeout in milliseconds (default: 5000) */
+    /** Command timeout in milliseconds (default: 5000, only used for type='redis') */
     commandTimeoutMs?: number;
     /** Register a health check for this cache (default: true) */
     healthCheck?: boolean;
-    /** Name for the health check (default: 'redis') */
+    /** Name for the health check (default: 'redis' or 'memory') */
     healthCheckName?: string;
     /** Health check interval in milliseconds (default: 30000) */
     healthCheckInterval?: number;
-    /** Called when connection is ready */
+    /** Called when connection is ready (only used for type='redis') */
     onConnect?: () => void;
-    /** Called on connection errors */
+    /** Called on connection errors (only used for type='redis') */
     onError?: (error: Error) => void;
-    /** Enable lazy connect - don't connect until first command (default: false) */
+    /** Enable lazy connect - don't connect until first command (default: false, only used for type='redis') */
     lazyConnect?: boolean;
 }
 /**

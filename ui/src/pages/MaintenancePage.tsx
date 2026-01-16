@@ -21,7 +21,7 @@ export function MaintenancePage() {
       </Typography>
 
       {/* Render all maintenance widgets from plugins */}
-      <PluginWidgetRenderer defaultOnly={false} />
+      <PluginWidgetRenderer widgetType="maintenance" defaultOnly={true} />
     </Box>
   );
 }

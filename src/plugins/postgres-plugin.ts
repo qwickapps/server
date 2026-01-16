@@ -56,7 +56,10 @@ const { Pool } = pg;
  */
 export interface PostgresPluginConfig {
   /** Database connection URL (e.g., postgresql://user:pass@host:5432/db) */
-  url: string;
+  url?: string;
+
+  /** Pre-configured pg.Pool instance (alternative to url) */
+  pool?: pg.Pool;
 
   /** Maximum number of clients in the pool (default: 20) */
   maxConnections?: number;
@@ -193,14 +196,22 @@ export function createPostgresPlugin(
 
   const createInstance = (): PostgresInstance => {
     if (!pool) {
-      pool = new Pool({
-        connectionString: config.url,
-        max: config.maxConnections ?? 20,
-        min: config.minConnections ?? 2,
-        idleTimeoutMillis: config.idleTimeoutMs ?? 30000,
-        connectionTimeoutMillis: config.connectionTimeoutMs ?? 5000,
-        statement_timeout: config.statementTimeoutMs,
-      });
+      if (config.pool) {
+        // Use pre-configured pool (e.g., pg-mem for testing)
+        pool = config.pool;
+      } else if (config.url) {
+        // Create pool from URL
+        pool = new Pool({
+          connectionString: config.url,
+          max: config.maxConnections ?? 20,
+          min: config.minConnections ?? 2,
+          idleTimeoutMillis: config.idleTimeoutMs ?? 30000,
+          connectionTimeoutMillis: config.connectionTimeoutMs ?? 5000,
+          statement_timeout: config.statementTimeoutMs,
+        });
+      } else {
+        throw new Error('PostgresPluginConfig must have either url or pool');
+      }
 
       // Handle pool errors
       pool.on('error', (err) => {

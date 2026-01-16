@@ -2,40 +2,16 @@
 
 Demonstration applications showcasing different aspects of the qwickapps-server framework.
 
+## Port Scheme
+
+All demos use ports 4000+ to avoid conflicts and run entirely in-memory:
+- **demo-server.ts**: Port 4000 - Basic control panel with essential plugins
+- **demo-gateway.ts**: Port 4100 (gateway), 4101 (cpanel) - Gateway pattern with core plugins
+- **demo-all.ts**: Port 4000 (gateway), 3999 (cpanel) - Comprehensive showcase of core plugins
+
+**All demos use in-memory stores** - no external database installation required!
+
 ## Examples
-
-### 🎯 demo-kitchen-sink.ts
-
-**Comprehensive showcase of ALL plugins**
-
-A complete demonstration featuring all 26 qwickapps-server plugins:
-- Core infrastructure (postgres, cache, health, diagnostics, logs, config)
-- User & auth management (auth, api-keys, users, bans, preferences)
-- Business logic (devices, profiles, subscriptions, entitlements, usage, parental)
-- Advanced features (notifications, rate-limit, qwickbrain, frontend-app)
-
-**Purpose:**
-- Reference implementation showing all features
-- E2E testing ground
-- Plugin integration examples
-
-**Usage:**
-```bash
-# Set up environment
-cp .env.example .env
-# Edit .env with your DATABASE_URL and REDIS_URL
-
-# Run the demo
-pnpm tsx examples/demo-kitchen-sink.ts
-```
-
-**Access:**
-- Control Panel: http://localhost:3200/cpanel (admin / demo123)
-- Landing Page: http://localhost:3200/
-- API: http://localhost:3200/api/v1/demo
-- Health: http://localhost:3200/health
-
----
 
 ### 🔧 demo-server.ts
 
@@ -63,48 +39,63 @@ pnpm tsx examples/demo-gateway.ts
 
 ---
 
-### 🔐 demo-supertokens.ts
+### 🎯 demo-all.ts
 
-**Supertokens authentication**
+**Complete plugin showcase**
 
-Demonstrates Supertokens integration for authentication.
+Comprehensive demonstration of core qwickapps-server plugins with in-memory stores. Perfect for E2E testing, learning the framework capabilities, and seeing plugins working together.
+
+**Plugins Included (11 total):**
+- **CORE (5):** health, diagnostics, logs, config, maintenance
+- **AUTH (4):** users, bans, entitlements, tenants
+- **ADVANCED (2):** notifications, frontend-app
+
+**Features Demonstrated:**
+- User management with demo data
+- Ban management for user restrictions
+- Entitlements for feature gating
+- Multi-tenant data isolation
+- Real-time SSE notifications
+- Health monitoring and diagnostics
 
 **Usage:**
 ```bash
-pnpm tsx examples/demo-supertokens.ts
+npm run demo:all
 ```
+
+**Access:**
+- Gateway: http://localhost:4000
+- Control Panel: http://localhost:4000/cpanel
+- Credentials: admin / demo123
 
 ---
 
-## Environment Variables
+## Environment Variables (Optional)
 
-Create a `.env` file in the examples directory:
+All demos work out-of-the-box with sensible defaults. You can optionally create a `.env` file to customize:
 
 ```env
-# Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/qwickapps_demo
+# Ports (optional - defaults shown)
+PORT=4000                 # demo-server.ts
+GATEWAY_PORT=4100         # demo-gateway.ts
+CPANEL_PORT=4101          # demo-gateway.ts
 
-# Redis
-REDIS_URL=redis://localhost:6379
+# Authentication (optional)
+AUTH_ADAPTER=basic        # Enable auth (basic, auth0, supabase, supertokens)
+ADMIN_PASSWORD=demo123    # Basic auth password
 
-# Gateway
-GATEWAY_PORT=3200
-SERVICE_PORT=3199
-
-# Authentication
-ADMIN_PASSWORD=demo123
-AUTH_ADAPTER=basic
-
-# Optional: QwickBrain
+# QwickBrain (optional)
 QWICKBRAIN_API_URL=http://localhost:3300
 ```
+
+**Note:** No database configuration needed - all demos use in-memory stores!
 
 ## Prerequisites
 
 - Node.js 18+
-- PostgreSQL (for demos using database plugins)
-- Redis (for demos using cache plugin)
 - pnpm
+
+**That's it!** All demos use in-memory stores. No external database setup required!
 
 ## Quick Start
 
@@ -112,19 +103,13 @@ QWICKBRAIN_API_URL=http://localhost:3300
 # Install dependencies (from package root)
 pnpm install
 
-# Start PostgreSQL and Redis (if using Docker)
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15
-docker run -d -p 6379:6379 redis:7
-
-# Run kitchen-sink demo
-cd examples
-cp .env.example .env
-pnpm tsx demo-kitchen-sink.ts
+# Run any demo instantly (each has auto-build)
+npm run demo              # Port 4000 (basic control panel)
+npm run demo:gateway      # Port 4100-4101 (gateway pattern)
+npm run demo:all          # Port 4000-3999 (core plugins showcase)
 ```
 
-## Testing
-
-The kitchen-sink demo is used for E2E testing of all plugins. See `__tests__/kitchen-sink/` for test suites.
+All demos start instantly with no external dependencies!
 
 ## UI Showcase
 

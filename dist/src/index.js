@@ -25,13 +25,17 @@ createCachePlugin, getCache, hasCache,
 // Auth plugin
 createAuthPlugin, createAuthPluginFromEnv, getAuthStatus, setAuthConfigStore, registerAuthConfigRoutes, postgresAuthConfigStore, isAuthenticated, getAuthenticatedUser, getAccessToken, requireAuth, requireRoles, requireAnyRole, auth0Adapter, basicAdapter, supabaseAdapter, supertokensAdapter, isAuthenticatedRequest, 
 // Users plugin
-createUsersPlugin, getUserStore, getUserById, getUserByEmail, getUserByIdentifier, linkUserIdentifiers, findOrCreateUser, postgresUserStore, 
+createUsersPlugin, getUserStore, getUserById, getUserByEmail, getUserByIdentifier, linkUserIdentifiers, findOrCreateUser, postgresUserStore, inMemoryUserStore, 
 // Bans plugin (separate from Users, depends on Users)
-createBansPlugin, getBanStore, isUserBanned, isEmailBanned, getActiveBan, banUser, unbanUser, listActiveBans, postgresBanStore, 
+createBansPlugin, getBanStore, isUserBanned, isEmailBanned, getActiveBan, banUser, unbanUser, listActiveBans, postgresBanStore, inMemoryBanStore, 
 // API Keys plugin (M2M authentication, depends on Users)
 createApiKeysPlugin, getApiKeysStore, verifyApiKey, createApiKey, listApiKeys, getApiKey, updateApiKey, deleteApiKey, postgresApiKeyStore, bearerTokenAuth, 
 // Entitlements plugin
-createEntitlementsPlugin, getEntitlementSource, isSourceReadonly, getEntitlements, refreshEntitlements, hasEntitlement, hasAnyEntitlement, hasAllEntitlements, grantEntitlement, revokeEntitlement, setEntitlements, getAvailableEntitlements, getEntitlementStats, invalidateEntitlementCache, storeExternalIdMapping, invalidateByExternalId, requireEntitlement, requireAnyEntitlement, requireAllEntitlements, postgresEntitlementSource, 
+createEntitlementsPlugin, getEntitlementSource, isSourceReadonly, getEntitlements, refreshEntitlements, hasEntitlement, hasAnyEntitlement, hasAllEntitlements, grantEntitlement, revokeEntitlement, setEntitlements, getAvailableEntitlements, getEntitlementStats, invalidateEntitlementCache, storeExternalIdMapping, invalidateByExternalId, requireEntitlement, requireAnyEntitlement, requireAllEntitlements, postgresEntitlementSource, inMemoryEntitlementSource, 
+// Preferences plugin
+createPreferencesPlugin, getPreferencesStore, getPreferences, updatePreferences, deletePreferences, getDefaultPreferences, postgresPreferencesStore, deepMerge, 
+// Tenants plugin (multi-tenant data isolation, depends on Users)
+createTenantsPlugin, getTenantStore, postgresTenantStore, inMemoryTenantStore, 
 // Rate Limit plugin
 createRateLimitPlugin, createRateLimitPluginFromEnv, getRateLimitConfigStatus, postgresRateLimitStore, createRateLimitCache, createNoOpCache, createSlidingWindowStrategy, createFixedWindowStrategy, createTokenBucketStrategy, getStrategy, rateLimitMiddleware, rateLimitStatusMiddleware, RateLimitService, getRateLimitService, isLimited, checkLimit, incrementLimit, getRemainingRequests, getLimitStatus, clearLimit, createCleanupJob, 
 // Devices plugin
@@ -44,6 +48,8 @@ createSubscriptionsPlugin, getSubscriptionsStore, createTier, getTierBySlug, get
 createUsagePlugin, getUsageStore, getDailyUsage, incrementUsage, checkUsageLimit, getFeatureUsageStatus, getDailyUsageSummary, resetUsage, getRemainingQuota, canUseFeature, postgresUsageStore, 
 // Parental plugin
 createParentalPlugin, getParentalStore, getParentalAdapter, getGuardianSettings, createGuardianSettings, updateGuardianSettings, setPin, verifyPin, incrementFailedPinAttempts, resetFailedPinAttempts, getRestrictions, createRestriction, updateRestriction, deleteRestriction, pauseProfile, resumeProfile, checkProfileAccess, logActivity, getActivityLog, postgresParentalStore, kidsAdapter, 
+// Notifications plugin
+createNotificationsPlugin, NotificationsManager, getNotificationsManager, hasNotificationsManager, broadcastToDevice, broadcastToUser, broadcastToAll, 
 // QwickBrain plugin
 createQwickBrainPlugin, getConnectionStatus, isConnected, } from './plugins/index.js';
 //# sourceMappingURL=index.js.map

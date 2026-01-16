@@ -133,8 +133,8 @@ export function DashboardPage() {
         </CardActionArea>
       </Card>
 
-      {/* Plugin widgets (from server-side widget contributions) */}
-      <PluginWidgetRenderer />
+      {/* Plugin widgets (from server-side widget contributions) - status widgets only */}
+      <PluginWidgetRenderer widgetType="status" />
 
       {/* Legacy widgets from context (for backwards compatibility) */}
       <DashboardWidgetRenderer />

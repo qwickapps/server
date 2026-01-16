@@ -8,5 +8,5 @@
  */
 export { createUsersPlugin, getUserStore, getUserById, getUsersByIds, getUserByEmail, getUserByIdentifier, linkUserIdentifiers, findOrCreateUser, buildUserInfo, } from './users-plugin.js';
 export type { UsersPluginConfig, UserStore, User, CreateUserInput, UpdateUserInput, UserSearchParams, UserListResponse, PostgresUserStoreConfig, UserSyncConfig, UsersApiConfig, UsersUiConfig, UserInfo, UserSyncInput, UserIdentifiers, StoredIdentifiers, UserProfileInput, } from './types.js';
-export { postgresUserStore } from './stores/index.js';
+export { postgresUserStore, inMemoryUserStore } from './stores/index.js';
 //# sourceMappingURL=index.d.ts.map

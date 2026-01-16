@@ -1,18 +1,20 @@
 /**
  * Cache Plugin
  *
- * Provides Redis caching capabilities with connection pooling and health checks.
- * Wraps the 'ioredis' library with a simple, reusable interface.
+ * Provides caching capabilities with Redis or in-memory storage.
+ * Supports Redis via 'ioredis' library or zero-dependency in-memory LRU cache.
  *
  * ## Features
- * - Connection management with automatic reconnection
+ * - Dual-mode: Redis (persistent, distributed) or Memory (fast, local)
+ * - Connection management with automatic reconnection (Redis)
+ * - LRU eviction with TTL expiration (Memory)
  * - Key prefixing for multi-tenant/multi-app scenarios
- * - TTL-based caching with setex/get operations
+ * - TTL-based caching with get/set operations
  * - Automatic health checks
  * - Multiple named instances support
  * - Graceful shutdown
  *
- * ## Usage
+ * ## Usage (Redis)
  *
  * ```typescript
  * import { createGateway, createCachePlugin, getCache } from '@qwickapps/server';
@@ -21,6 +23,7 @@
  *   // ... config
  *   plugins: [
  *     createCachePlugin({
+ *       type: 'redis',
  *       url: process.env.REDIS_URL,
  *       keyPrefix: 'myapp:',
  *     }),
@@ -33,12 +36,24 @@
  * const user = await cache.get<User>('user:123');
  * ```
  *
+ * ## Usage (In-Memory)
+ *
+ * ```typescript
+ * // Zero external dependencies - perfect for demos and testing
+ * createCachePlugin({
+ *   type: 'memory',
+ *   keyPrefix: 'demo:',
+ *   defaultTtl: 3600,
+ *   maxMemoryEntries: 5000,
+ * })
+ * ```
+ *
  * ## Multiple Caches
  *
  * ```typescript
  * // Register multiple caches with different names
  * createCachePlugin({ url: primaryUrl, keyPrefix: 'session:' }, 'sessions');
- * createCachePlugin({ url: cacheUrl, keyPrefix: 'cache:' }, 'content');
+ * createCachePlugin({ type: 'memory', keyPrefix: 'cache:' }, 'content');
  *
  * // Access by name
  * const sessions = getCache('sessions');
@@ -48,6 +63,7 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
+import type { Request, Response } from 'express';
 import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
 
 // Dynamic import for ioredis (optional peer dependency)
@@ -58,8 +74,11 @@ type RedisOptions = import('ioredis').RedisOptions;
  * Configuration for the cache plugin
  */
 export interface CachePluginConfig {
-  /** Redis connection URL (e.g., redis://localhost:6379) */
-  url: string;
+  /** Cache type: 'redis' or 'memory' (default: 'redis' if url provided, 'memory' otherwise) */
+  type?: 'redis' | 'memory';
+
+  /** Redis connection URL (required for type='redis', e.g., redis://localhost:6379) */
+  url?: string;
 
   /** Key prefix for all cache operations (default: '') */
   keyPrefix?: string;
@@ -67,34 +86,37 @@ export interface CachePluginConfig {
   /** Default TTL in seconds for set operations (default: 3600 = 1 hour) */
   defaultTtl?: number;
 
-  /** Maximum number of retry attempts (default: 3) */
+  /** Maximum number of entries for memory cache (default: 10000, only used for type='memory') */
+  maxMemoryEntries?: number;
+
+  /** Maximum number of retry attempts (default: 3, only used for type='redis') */
   maxRetries?: number;
 
-  /** Retry delay in milliseconds (default: 1000) */
+  /** Retry delay in milliseconds (default: 1000, only used for type='redis') */
   retryDelayMs?: number;
 
-  /** Connection timeout in milliseconds (default: 5000) */
+  /** Connection timeout in milliseconds (default: 5000, only used for type='redis') */
   connectTimeoutMs?: number;
 
-  /** Command timeout in milliseconds (default: 5000) */
+  /** Command timeout in milliseconds (default: 5000, only used for type='redis') */
   commandTimeoutMs?: number;
 
   /** Register a health check for this cache (default: true) */
   healthCheck?: boolean;
 
-  /** Name for the health check (default: 'redis') */
+  /** Name for the health check (default: 'redis' or 'memory') */
   healthCheckName?: string;
 
   /** Health check interval in milliseconds (default: 30000) */
   healthCheckInterval?: number;
 
-  /** Called when connection is ready */
+  /** Called when connection is ready (only used for type='redis') */
   onConnect?: () => void;
 
-  /** Called on connection errors */
+  /** Called on connection errors (only used for type='redis') */
   onError?: (error: Error) => void;
 
-  /** Enable lazy connect - don't connect until first command (default: false) */
+  /** Enable lazy connect - don't connect until first command (default: false, only used for type='redis') */
   lazyConnect?: boolean;
 }
 
@@ -219,6 +241,94 @@ export interface CacheInstance {
   close(): Promise<void>;
 }
 
+/**
+ * Simple LRU Cache implementation for in-memory fallback
+ */
+class LRUCache<T> {
+  private cache = new Map<string, { value: T; expiresAt: number }>();
+  private maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+
+    // Check expiration
+    if (entry.expiresAt <= Date.now()) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    // Move to end (most recently used)
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+
+    return entry.value;
+  }
+
+  set(key: string, value: T, ttlMs: number): void {
+    // Remove oldest entries if at capacity
+    while (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      } else {
+        break;
+      }
+    }
+
+    this.cache.set(key, {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    });
+  }
+
+  delete(key: string): boolean {
+    return this.cache.delete(key);
+  }
+
+  has(key: string): boolean {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    if (entry.expiresAt <= Date.now()) {
+      this.cache.delete(key);
+      return false;
+    }
+    return true;
+  }
+
+  keys(pattern: string): string[] {
+    const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+    const result: string[] = [];
+    for (const key of this.cache.keys()) {
+      if (regex.test(key)) {
+        const entry = this.cache.get(key);
+        if (entry && entry.expiresAt > Date.now()) {
+          result.push(key);
+        }
+      }
+    }
+    return result;
+  }
+
+  size(): number {
+    // Clean up expired entries
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.expiresAt <= Date.now()) {
+        this.cache.delete(key);
+      }
+    }
+    return this.cache.size;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
 // Global registry of cache instances by name
 const instances = new Map<string, CacheInstance>();
 
@@ -274,7 +384,11 @@ export function createCachePlugin(
   config: CachePluginConfig,
   instanceName = 'default'
 ): Plugin {
+  // Determine cache type
+  const cacheType = config.type || (config.url ? 'redis' : 'memory');
+
   let client: Redis | null = null;
+  let lru: LRUCache<string> | null = null;
   const prefix = config.keyPrefix ?? '';
   const defaultTtl = config.defaultTtl ?? 3600;
   const pluginId = `cache:${instanceName}`;
@@ -283,7 +397,129 @@ export function createCachePlugin(
   const unprefixKey = (key: string): string =>
     prefix && key.startsWith(prefix) ? key.slice(prefix.length) : key;
 
-  const createInstance = async (): Promise<CacheInstance> => {
+  const createMemoryInstance = (): CacheInstance => {
+    const maxEntries = config.maxMemoryEntries || 10000;
+    lru = new LRUCache<string>(maxEntries);
+
+    return {
+      async get<T = unknown>(key: string): Promise<T | null> {
+        if (!lru) throw new Error('Cache not initialized');
+        const value = lru.get(prefixKey(key));
+        if (value === null) return null;
+        try {
+          return JSON.parse(value) as T;
+        } catch {
+          return value as unknown as T;
+        }
+      },
+
+      async getRaw(key: string): Promise<string | null> {
+        if (!lru) throw new Error('Cache not initialized');
+        return lru.get(prefixKey(key));
+      },
+
+      async set<T = unknown>(key: string, value: T, ttlSeconds?: number): Promise<void> {
+        if (!lru) throw new Error('Cache not initialized');
+        const ttl = (ttlSeconds ?? defaultTtl) * 1000; // Convert to ms
+        const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+        lru.set(prefixKey(key), serialized, ttl);
+      },
+
+      async setRaw(key: string, value: string, ttlSeconds?: number): Promise<void> {
+        if (!lru) throw new Error('Cache not initialized');
+        const ttl = (ttlSeconds ?? defaultTtl) * 1000;
+        lru.set(prefixKey(key), value, ttl);
+      },
+
+      async delete(key: string): Promise<boolean> {
+        if (!lru) throw new Error('Cache not initialized');
+        return lru.delete(prefixKey(key));
+      },
+
+      async deletePattern(pattern: string): Promise<number> {
+        if (!lru) throw new Error('Cache not initialized');
+        const keys = lru.keys(prefixKey(pattern));
+        keys.forEach(k => lru!.delete(k));
+        return keys.length;
+      },
+
+      async exists(key: string): Promise<boolean> {
+        if (!lru) throw new Error('Cache not initialized');
+        return lru.has(prefixKey(key));
+      },
+
+      async expire(key: string, ttlSeconds: number): Promise<boolean> {
+        if (!lru) throw new Error('Cache not initialized');
+        const value = lru.get(prefixKey(key));
+        if (value === null) return false;
+        lru.set(prefixKey(key), value, ttlSeconds * 1000);
+        return true;
+      },
+
+      async ttl(key: string): Promise<number> {
+        if (!lru) throw new Error('Cache not initialized');
+        // Memory cache doesn't track TTL separately
+        return lru.has(prefixKey(key)) ? -1 : -2;
+      },
+
+      async incr(key: string, delta = 1): Promise<number> {
+        if (!lru) throw new Error('Cache not initialized');
+        const current = lru.get(prefixKey(key));
+        const value = current ? parseInt(current, 10) + delta : delta;
+        lru.set(prefixKey(key), value.toString(), defaultTtl * 1000);
+        return value;
+      },
+
+      async keys(pattern: string): Promise<string[]> {
+        if (!lru) throw new Error('Cache not initialized');
+        return lru.keys(prefixKey(pattern)).map(unprefixKey);
+      },
+
+      async scanKeys(pattern: string): Promise<string[]> {
+        // Memory cache can use same implementation as keys()
+        return this.keys(pattern);
+      },
+
+      async flush(): Promise<number> {
+        if (!lru) throw new Error('Cache not initialized');
+        if (!prefix) {
+          throw new Error('Cannot flush without a keyPrefix configured');
+        }
+        const keys = lru.keys(`${prefix}*`);
+        keys.forEach(k => lru!.delete(k));
+        return keys.length;
+      },
+
+      async getStats(): Promise<{ connected: boolean; keyCount: number; usedMemory?: string }> {
+        if (!lru) {
+          return { connected: false, keyCount: 0 };
+        }
+        return {
+          connected: true,
+          keyCount: lru.size(),
+          usedMemory: undefined,
+        };
+      },
+
+      getClient(): Redis {
+        throw new Error('Memory cache does not have a Redis client');
+      },
+
+      async close(): Promise<void> {
+        if (lru) {
+          lru.clear();
+          lru = null;
+        }
+      },
+    };
+  };
+
+  const createRedisInstance = async (): Promise<CacheInstance> => {
+    // Validate Redis URL is provided
+    if (!config.url) {
+      throw new Error('Redis URL is required for Redis cache type');
+    }
+
     // Dynamic import of ioredis
     const { default: Redis } = await import('ioredis');
 
@@ -468,42 +704,50 @@ export function createCachePlugin(
 
   return {
     id: pluginId,
-    name: `Redis Cache (${instanceName})`,
+    name: `${cacheType === 'memory' ? 'Memory' : 'Redis'} Cache (${instanceName})`,
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const logger = registry.getLogger(pluginId);
 
-      // Create and register the instance
-      const instance = await createInstance();
+      // Create and register the instance based on type
+      const instance = cacheType === 'memory'
+        ? createMemoryInstance()
+        : await createRedisInstance();
       instances.set(instanceName, instance);
 
-      // Test connection
-      try {
-        // Ping to verify connection
-        await instance.getClient().ping();
-        logger.debug(`Cache "${instanceName}" connected`);
-      } catch (err) {
-        logger.error(`Cache "${instanceName}" connection failed: ${err instanceof Error ? err.message : String(err)}`);
-        throw err;
+      // Test connection (skip for memory, test for Redis)
+      if (cacheType === 'redis') {
+        try {
+          await instance.getClient().ping();
+          logger.debug(`Cache "${instanceName}" connected`);
+        } catch (err) {
+          logger.error(`Cache "${instanceName}" connection failed: ${err instanceof Error ? err.message : String(err)}`);
+          throw err;
+        }
+      } else {
+        logger.debug(`Cache "${instanceName}" initialized (in-memory)`);
       }
 
       // Register health check if enabled
       if (config.healthCheck !== false) {
         registry.registerHealthCheck({
-          name: config.healthCheckName ?? 'redis',
+          name: config.healthCheckName ?? (cacheType === 'memory' ? 'memory-cache' : 'redis'),
           type: 'custom',
           interval: config.healthCheckInterval ?? 30000,
           timeout: 5000,
           check: async () => {
             const start = Date.now();
             try {
-              await instance.getClient().ping();
+              if (cacheType === 'redis') {
+                await instance.getClient().ping();
+              }
               const stats = await instance.getStats();
               return {
                 healthy: true,
                 latency: Date.now() - start,
                 details: {
+                  type: cacheType,
                   connected: stats.connected,
                   keyCount: stats.keyCount,
                   usedMemory: stats.usedMemory,
@@ -519,6 +763,63 @@ export function createCachePlugin(
               };
             }
           },
+        });
+      }
+
+      // Register maintenance routes (only for default instance to avoid conflicts)
+      if (instanceName === 'default') {
+        // GET /stats - Cache statistics
+        registry.addRoute({
+          method: 'get',
+          path: '/stats',
+          pluginId: 'cache',
+          handler: async (_req: Request, res: Response) => {
+            try {
+              const stats = await instance.getStats();
+              return res.json(stats);
+            } catch (error) {
+              logger.error('Failed to get cache stats', { error });
+              return res.status(500).json({
+                error: 'Failed to get cache stats',
+                message: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        });
+
+        // POST /flush - Clear cache
+        registry.addRoute({
+          method: 'post',
+          path: '/flush',
+          pluginId: 'cache',
+          handler: async (_req: Request, res: Response) => {
+            try {
+              const deletedCount = await instance.flush();
+              logger.info(`Flushed cache: ${deletedCount} keys deleted`);
+              return res.json({
+                success: true,
+                message: `Cache flushed successfully`,
+                deletedCount,
+              });
+            } catch (error) {
+              logger.error('Failed to flush cache', { error });
+              return res.status(500).json({
+                error: 'Failed to flush cache',
+                message: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        });
+
+        // Register maintenance widget
+        registry.addWidget({
+          id: 'cache-maintenance',
+          title: 'Cache Management',
+          component: 'CacheMaintenanceWidget',
+          type: 'maintenance',
+          priority: 60,
+          showByDefault: true,
+          pluginId: 'cache',
         });
       }
     },

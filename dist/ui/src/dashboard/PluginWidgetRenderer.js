@@ -14,7 +14,7 @@ import { useWidgetComponentRegistry } from './WidgetComponentRegistry';
 /**
  * Renders widgets from plugins that have registered them via the server API
  */
-export function PluginWidgetRenderer({ defaultOnly = true, additionalWidgetIds = [], }) {
+export function PluginWidgetRenderer({ widgetType, defaultOnly = true, additionalWidgetIds = [], }) {
     const [widgets, setWidgets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -44,6 +44,10 @@ export function PluginWidgetRenderer({ defaultOnly = true, additionalWidgetIds =
     // Filter widgets to show
     const visibleWidgets = widgets
         .filter(widget => {
+        // Filter by widget type if specified
+        if (widgetType && widget.type !== widgetType) {
+            return false;
+        }
         // Show if marked as default, or if in additionalWidgetIds
         if (defaultOnly) {
             return widget.showByDefault || additionalWidgetIds.includes(widget.id);

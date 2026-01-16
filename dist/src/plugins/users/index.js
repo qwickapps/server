@@ -9,5 +9,5 @@
 // Main plugin
 export { createUsersPlugin, getUserStore, getUserById, getUsersByIds, getUserByEmail, getUserByIdentifier, linkUserIdentifiers, findOrCreateUser, buildUserInfo, } from './users-plugin.js';
 // Stores
-export { postgresUserStore } from './stores/index.js';
+export { postgresUserStore, inMemoryUserStore } from './stores/index.js';
 //# sourceMappingURL=index.js.map

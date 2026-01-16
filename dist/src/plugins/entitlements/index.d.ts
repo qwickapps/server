@@ -7,7 +7,7 @@
  */
 export { createEntitlementsPlugin } from './entitlements-plugin.js';
 export { getEntitlementSource, isSourceReadonly, getEntitlements, refreshEntitlements, hasEntitlement, hasAnyEntitlement, hasAllEntitlements, grantEntitlement, revokeEntitlement, setEntitlements, getAvailableEntitlements, getEntitlementStats, invalidateEntitlementCache, storeExternalIdMapping, invalidateByExternalId, requireEntitlement, requireAnyEntitlement, requireAllEntitlements, } from './entitlements-plugin.js';
-export { postgresEntitlementSource } from './sources/index.js';
+export { postgresEntitlementSource, inMemoryEntitlementSource } from './sources/index.js';
 export type { EntitlementSource, EntitlementResult, EntitlementDefinition, EntitlementsPluginConfig, EntitlementCallbacks, EntitlementsCacheConfig, EntitlementsApiConfig, PostgresEntitlementSourceConfig, UserEntitlement, CachedEntitlements, EntitlementStats, } from './types.js';
 export { EntitlementsStatusWidget } from './EntitlementsStatusWidget.js';
 export type { EntitlementsStatusWidgetProps } from './EntitlementsStatusWidget.js';

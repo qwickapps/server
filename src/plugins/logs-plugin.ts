@@ -7,7 +7,7 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import { existsSync, readFileSync, statSync } from 'fs';
+import { existsSync, readFileSync, statSync, truncateSync, unlinkSync } from 'fs';
 import { resolve } from 'path';
 import type { Request, Response } from 'express';
 import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
@@ -163,6 +163,60 @@ export function createLogsPlugin(config: LogsPluginConfig = {}): Plugin {
             });
           }
         },
+      });
+
+      // Register /clear route (slug prefix added automatically by framework)
+      registry.addRoute({
+        method: 'post',
+        path: '/clear',
+        pluginId: 'logs',
+        handler: (req: Request, res: Response) => {
+          try {
+            const sources = getSources();
+            const sourceName = (req.body.source as string) || sources[0]?.name;
+            const source = sources.find((s) => s.name === sourceName);
+
+            if (!source) {
+              return res.status(404).json({ error: `Source "${sourceName}" not found` });
+            }
+
+            if (source.type !== 'file' || !source.path) {
+              return res.status(400).json({ error: 'Clear only available for file sources' });
+            }
+
+            const resolvedPath = resolve(source.path);
+            if (!existsSync(resolvedPath)) {
+              return res.status(404).json({ error: `Log file not found: ${source.path}` });
+            }
+
+            // Truncate the file (clear contents but keep file)
+            truncateSync(resolvedPath, 0);
+            logger.info(`Cleared log file: ${source.name} (${source.path})`);
+
+            return res.json({
+              success: true,
+              message: `Log file "${source.name}" cleared successfully`,
+              source: source.name,
+            });
+          } catch (error) {
+            logger.error('Failed to clear log file', { error });
+            return res.status(500).json({
+              error: 'Failed to clear log file',
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
+        },
+      });
+
+      // Register maintenance widget
+      registry.addWidget({
+        id: 'logs-maintenance',
+        title: 'Log Management',
+        component: 'LogsMaintenanceWidget',
+        type: 'maintenance',
+        priority: 50,
+        showByDefault: true,
+        pluginId: 'logs',
       });
 
       const sources = getSources();

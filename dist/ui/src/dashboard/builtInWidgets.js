@@ -9,7 +9,7 @@
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
-import { ServiceHealthWidget, IntegrationStatusWidget, AuthStatusWidget, NotificationsStatsWidget, CMSStatusWidget, CMSMaintenanceWidget } from './widgets';
+import { ServiceHealthWidget, IntegrationStatusWidget, AuthStatusWidget, NotificationsStatsWidget, CMSStatusWidget, CMSMaintenanceWidget, SeedManagementWidget, ServiceControlWidget, EnvironmentConfigWidget, DatabaseOpsWidget, LogsMaintenanceWidget, CacheMaintenanceWidget, } from './widgets';
 import { PreferencesPage } from '../pages/PreferencesPage';
 /**
  * Map of built-in widget component names to their React component functions.
@@ -22,6 +22,12 @@ export const builtInWidgetComponents = {
     NotificationsStatsWidget: NotificationsStatsWidget,
     CMSStatusWidget: CMSStatusWidget,
     CMSMaintenanceWidget: CMSMaintenanceWidget,
+    SeedManagementWidget: SeedManagementWidget,
+    ServiceControlWidget: ServiceControlWidget,
+    EnvironmentConfigWidget: EnvironmentConfigWidget,
+    DatabaseOpsWidget: DatabaseOpsWidget,
+    LogsMaintenanceWidget: LogsMaintenanceWidget,
+    CacheMaintenanceWidget: CacheMaintenanceWidget,
     PreferencesPage: PreferencesPage,
 };
 /**
@@ -39,6 +45,12 @@ export function getBuiltInWidgetComponents() {
         { name: 'NotificationsStatsWidget', component: NotificationsStatsWidget },
         { name: 'CMSStatusWidget', component: CMSStatusWidget },
         { name: 'CMSMaintenanceWidget', component: CMSMaintenanceWidget },
+        { name: 'SeedManagementWidget', component: SeedManagementWidget },
+        { name: 'ServiceControlWidget', component: ServiceControlWidget },
+        { name: 'EnvironmentConfigWidget', component: EnvironmentConfigWidget },
+        { name: 'DatabaseOpsWidget', component: DatabaseOpsWidget },
+        { name: 'LogsMaintenanceWidget', component: LogsMaintenanceWidget },
+        { name: 'CacheMaintenanceWidget', component: CacheMaintenanceWidget },
         { name: 'PreferencesPage', component: PreferencesPage },
     ];
 }

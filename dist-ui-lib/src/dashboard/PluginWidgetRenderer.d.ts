@@ -7,6 +7,8 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 interface PluginWidgetRendererProps {
+    /** Filter widgets by type (e.g., 'status' for dashboard, 'maintenance' for maintenance page) */
+    widgetType?: 'status' | 'maintenance' | 'analytics' | 'monitoring' | 'custom';
     /** Only show widgets marked as showByDefault (default: true) */
     defaultOnly?: boolean;
     /** Additional widget IDs to show (beyond showByDefault) */
@@ -15,5 +17,5 @@ interface PluginWidgetRendererProps {
 /**
  * Renders widgets from plugins that have registered them via the server API
  */
-export declare function PluginWidgetRenderer({ defaultOnly, additionalWidgetIds, }: PluginWidgetRendererProps): import("react/jsx-runtime").JSX.Element | null;
+export declare function PluginWidgetRenderer({ widgetType, defaultOnly, additionalWidgetIds, }: PluginWidgetRendererProps): import("react/jsx-runtime").JSX.Element | null;
 export {};

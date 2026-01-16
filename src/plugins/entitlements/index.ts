@@ -33,7 +33,7 @@ export {
 } from './entitlements-plugin.js';
 
 // Sources
-export { postgresEntitlementSource } from './sources/index.js';
+export { postgresEntitlementSource, inMemoryEntitlementSource } from './sources/index.js';
 
 // Types
 export type {

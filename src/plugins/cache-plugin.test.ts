@@ -141,12 +141,12 @@ describe('Cache Plugin', () => {
       expect(hasCache('test')).toBe(true);
     });
 
-    it('should log debug message on successful connection', async () => {
+    it('should log info message on successful connection', async () => {
       const plugin = createCachePlugin(mockConfig, 'test');
       await plugin.onStart({}, mockRegistry);
 
       const logger = mockRegistry.getLogger('cache:test');
-      expect(logger.debug).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('connected')
       );
     });

@@ -28,6 +28,7 @@ export function createAuthPlugin(config) {
         type: 'system',
         async onStart(_pluginConfig, registry) {
             const app = registry.getApp();
+            const router = registry.getRouter();
             // Store adapters for helper access
             currentAdapter = config.adapter;
             fallbackAdapters = config.fallback || [];
@@ -55,8 +56,9 @@ export function createAuthPlugin(config) {
                     app.use(fallbackMiddleware);
                 }
             }
-            // Add the auth checking middleware
-            app.use(createAuthMiddleware());
+            // Add the auth checking middleware to router (not app)
+            // This ensures it processes requests to /api/* routes
+            router.use(createAuthMiddleware());
             // Register auth status route
             registry.addRoute({
                 method: 'get',

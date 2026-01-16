@@ -5,3 +5,4 @@
  */
 
 export { postgresUserStore } from './postgres-store.js';
+export { createInMemoryUserStore as inMemoryUserStore } from './in-memory-store.js';

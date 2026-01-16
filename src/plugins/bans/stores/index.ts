@@ -5,3 +5,4 @@
  */
 
 export { postgresBanStore } from './postgres-store.js';
+export { createInMemoryBanStore as inMemoryBanStore } from './in-memory-store.js';

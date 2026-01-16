@@ -7,3 +7,4 @@
  */
 
 export { postgresEntitlementSource } from './postgres-source.js';
+export { createInMemoryEntitlementSource as inMemoryEntitlementSource } from './in-memory-source.js';

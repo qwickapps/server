@@ -12,12 +12,21 @@ A flexible, pluggable control panel framework for QwickApps services. Provides a
 - **Frontend App Support**: Handle root path with redirect, static files, or landing page
 - **Theming**: Customizable branding and styling
 
-## What's New in v1.5.0
+## What's New in v1.7.0
 
-- **Notifications Plugin UI** - Full management page for SSE notifications with stats widget, connected clients table, and disconnect controls
-- **Users Plugin Enhancements** - Multi-identifier user lookup (`getUserByIdentifier`), batch queries (`getUsersByIds`), and identifier linking
-- **User Search & Ban Management** - Enhanced Control Panel with user search by email/name/ID and ban/unban actions
-- **Audit Logging** - Admin actions now include user context (email, IP) for better traceability
+- **Tenants Plugin** - Complete multi-tenancy system with data isolation and organization management
+  - Support for multiple tenant types: user (single-user), organization, group, department
+  - PostgreSQL store with auto-created tables and foreign key CASCADE delete
+  - Global roles: owner, admin, member, viewer
+  - REST API with 10 endpoints for CRUD, search, and membership management
+  - UI Components: Full tenant management page with create/edit/search/filter capabilities
+  - Member management: Add/remove members, change roles, invite via email
+  - Statistics dashboard showing total tenants by type
+- **Plugin Composition** - Auto-tenant creation on user signup
+  - Users plugin detects tenants plugin and auto-creates personal tenant for new users
+  - Graceful degradation: Works independently or together
+  - Loose coupling: No forced dependencies between plugins
+- **Comprehensive Testing** - 60 unit tests, 11 integration tests, 20 E2E tests for tenants plugin
 
 See [CHANGELOG.md](./CHANGELOG.md) for full release history.
 
@@ -67,6 +76,7 @@ console.log(`Control panel running at http://localhost:3101/cpanel`);
 ## Gateway Pattern
 
 For production deployments, use `createGateway` to run a gateway that:
+
 1. Serves the control panel UI (always responsive, even if the API crashes)
 2. Proxies API requests to an internal service
 3. Handles graceful error responses when the internal service is down
@@ -579,6 +589,7 @@ await pg.withTransaction(async (client) => {
 ```
 
 **Exports:**
+
 - `createPostgresPlugin(config)` - Create and register the plugin
 - `getPostgres(name?)` - Get a PostgreSQL instance (throws if not registered)
 - `hasPostgres(name?)` - Check if an instance is registered
@@ -621,6 +632,7 @@ await cache.flush(); // Clear all keys with prefix
 ```
 
 **Exports:**
+
 - `createCachePlugin(config)` - Create and register the plugin
 - `getCache(name?)` - Get a cache instance (throws if not registered)
 - `hasCache(name?)` - Check if an instance is registered
@@ -736,12 +748,14 @@ createAuthPlugin({
 ```
 
 **Available Adapters:**
+
 - `supertokensAdapter` - Supertokens email/password + social logins (requires `supertokens-node`)
 - `auth0Adapter` - Auth0 OIDC (requires `express-openid-connect`)
 - `supabaseAdapter` - Supabase JWT validation
 - `basicAdapter` - HTTP Basic authentication
 
 **Helper Functions:**
+
 ```typescript
 import { isAuthenticated, getAuthenticatedUser, getAccessToken } from '@qwickapps/server';
 
@@ -756,6 +770,7 @@ if (isAuthenticated(req)) {
 ```
 
 **Middleware Helpers:**
+
 ```typescript
 import { requireAuth, requireRoles, requireAnyRole } from '@qwickapps/server';
 
@@ -808,6 +823,7 @@ createUsersPlugin({
 ```
 
 **REST API Endpoints:**
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/users` | GET | List/search users |
@@ -822,6 +838,7 @@ createUsersPlugin({
 | `/api/users/:id/bans` | GET | Get user's ban history |
 
 **Helper Functions:**
+
 ```typescript
 import { getUserById, getUserByEmail, isUserBanned, findOrCreateUser } from '@qwickapps/server';
 
@@ -870,13 +887,128 @@ await unbanEmail({
 });
 ```
 
-**Email Ban API Endpoints:**
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/users/email-bans` | GET | List active email bans |
-| `/api/users/email-bans/:email` | GET | Check email ban status |
-| `/api/users/email-bans` | POST | Ban an email |
-| `/api/users/email-bans/:email` | DELETE | Unban an email |
+#### Tenants Plugin
+
+Multi-tenant data isolation and organization management with role-based access control.
+
+```typescript
+import { createTenantsPlugin, postgresTenantStore } from '@qwickapps/server';
+import { Pool } from 'pg';
+
+// Create with PostgreSQL storage
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+createTenantsPlugin({
+  store: postgresTenantStore({
+    pool,
+    tenantsTable: 'tenants',
+    membershipsTable: 'tenant_memberships',
+    autoCreateTables: true,
+  }),
+  apiPrefix: '/api/tenants',
+  apiEnabled: true,
+});
+```
+
+**Tenant Types:**
+
+- `user` - Single-user personal tenant (auto-created on user signup)
+- `organization` - Multi-user organization
+- `group` - Team or project group
+- `department` - Company department
+
+**Global Roles:**
+
+- `owner` - Full control, can delete tenant
+- `admin` - Manage members and settings
+- `member` - Standard access
+- `viewer` - Read-only access
+
+**Features:**
+
+- Auto-creates owner membership when tenant is created
+- Foreign key constraints with CASCADE delete for data integrity
+- UPSERT behavior for membership updates (ON CONFLICT DO UPDATE)
+- Search with filtering by type, owner, and query string
+- Pagination and sorting support
+
+**Authentication & Authorization:**
+
+All tenant API routes require authentication. Authorization rules enforce tenant-level access control:
+
+- **List tenants**: Users see only their own tenants
+- **Get tenant**: User must be a member
+- **Create tenant**: Auto-added as owner
+- **Update tenant**: Admin or owner role required
+- **Delete tenant**: Owner role only
+- **Manage members**: Admin or owner role required
+
+**REST API Endpoints:**
+
+| Endpoint | Method | Description | Authorization |
+|----------|--------|-------------|---------------|
+| `/api/tenants` | GET | List/search user's tenants | Authenticated (returns user's tenants) |
+| `/api/tenants` | POST | Create new tenant | Authenticated (becomes owner) |
+| `/api/tenants/:id` | GET | Get tenant by ID | Member of tenant |
+| `/api/tenants/:id` | PUT | Update tenant | Admin or owner |
+| `/api/tenants/:id` | DELETE | Delete tenant (cascades) | Owner only |
+| `/api/tenants/user/:userId` | GET | Get tenants for user | Own tenants only |
+| `/api/tenants/:tenantId/members` | GET | List tenant members | Member of tenant |
+| `/api/tenants/:tenantId/members` | POST | Add member to tenant | Admin or owner |
+| `/api/tenants/:tenantId/members/:userId` | PUT | Update member role | Admin or owner |
+| `/api/tenants/:tenantId/members/:userId` | DELETE | Remove member | Admin or owner |
+
+**Helper Functions:**
+
+```typescript
+import { getTenantStore } from '@qwickapps/server';
+
+const store = getTenantStore();
+
+// Get tenant
+const tenant = await store.getById('tenant-123');
+
+// Get all tenants for a user with membership info
+const tenants = await store.getTenantsForUser('user-123');
+
+// Create organization tenant
+const org = await store.create({
+  name: 'Acme Corp',
+  type: 'organization',
+  owner_id: 'user-123',
+  metadata: { industry: 'technology' },
+});
+
+// Add team member
+await store.addMember({
+  tenant_id: org.id,
+  user_id: 'user-456',
+  role: 'admin',
+});
+
+// Search tenants
+const results = await store.search({
+  query: 'acme',
+  type: 'organization',
+  page: 1,
+  limit: 20,
+  sortBy: 'name',
+  sortOrder: 'asc',
+});
+```
+
+**Plugin Composition:**
+
+The Tenants plugin integrates seamlessly with the Users plugin through the plugin registry:
+
+```typescript
+// Users plugin auto-detects tenants plugin
+createUsersPlugin({ store: userStore });
+createTenantsPlugin({ store: tenantStore });
+
+// When a user is created, a personal tenant is auto-created
+// Works gracefully whether tenants plugin is present or not
+```
 
 #### Preferences Plugin
 
@@ -912,6 +1044,7 @@ createPreferencesPlugin({
 **Note:** The Preferences plugin requires the Users plugin to be loaded first, as it creates a foreign key reference to the users table.
 
 **REST API Endpoints:**
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/preferences` | GET | Get current user's preferences (merged with defaults) |
@@ -919,6 +1052,7 @@ createPreferencesPlugin({
 | `/api/preferences` | DELETE | Reset preferences to defaults |
 
 **Helper Functions:**
+
 ```typescript
 import {
   getPreferences,
@@ -949,6 +1083,7 @@ const merged = deepMerge(baseObject, overrides);
 ```
 
 **Security Features:**
+
 - PostgreSQL Row-Level Security ensures users can only access their own preferences
 - Transaction-safe RLS context for connection pooling compatibility
 - Input validation: 100KB size limit, 10-level nesting depth
@@ -1007,6 +1142,7 @@ app.use(rateLimitMiddleware({
 ```
 
 **Rate Limiting Strategies:**
+
 | Strategy | Description | Best For |
 |----------|-------------|----------|
 | `sliding-window` | Smooth rate limiting with weighted overlap | Most use cases (default) |
@@ -1014,6 +1150,7 @@ app.use(rateLimitMiddleware({
 | `token-bucket` | Allows bursts while maintaining average rate | APIs needing burst capacity |
 
 **REST API Endpoints:**
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/rate-limit/status` | GET | Get rate limit status for current user |
@@ -1021,6 +1158,7 @@ app.use(rateLimitMiddleware({
 | `/api/rate-limit/clear/:key` | DELETE | Clear a rate limit (requires auth) |
 
 **Programmatic API:**
+
 ```typescript
 import {
   isLimited,
@@ -1046,6 +1184,7 @@ await clearLimit('user:123:api');
 ```
 
 **Response Headers:**
+
 ```
 RateLimit-Limit: 100
 RateLimit-Remaining: 55
@@ -1054,6 +1193,7 @@ Retry-After: 30  (only when limited)
 ```
 
 **Security Features:**
+
 - PostgreSQL Row-Level Security isolates rate limits per user
 - Redis caching with in-memory fallback for high availability
 - Fail-open by default (allows requests on errors)
@@ -1095,12 +1235,14 @@ Config status endpoint: `GET /api/rate-limit/config/status`
 **Runtime Configuration UI:**
 
 The Rate Limit plugin includes a Control Panel page for live configuration:
+
 - Navigate to `/rate-limits` in the Control Panel
 - Edit default window size, max requests, and strategy
 - Toggle cleanup job on/off and adjust interval
 - Changes take effect immediately (no restart required)
 
 **Runtime Config API:**
+
 ```bash
 # Get current config
 curl http://localhost:3000/api/rate-limit/config
@@ -1213,6 +1355,7 @@ This software is licensed under the **PolyForm Shield License 1.0.0**.
 ### What This Means
 
 **Permitted Uses:**
+
 - Internal business applications
 - Learning and educational projects
 - Non-competitive commercial applications
@@ -1220,6 +1363,7 @@ This software is licensed under the **PolyForm Shield License 1.0.0**.
 - Building applications that use this control panel framework
 
 **Prohibited Uses:**
+
 - Creating competing control panel frameworks
 - Building competing developer tools or dashboards
 - Reselling or redistributing as a competing product
@@ -1227,9 +1371,10 @@ This software is licensed under the **PolyForm Shield License 1.0.0**.
 
 For full license terms, see [PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/).
 
-For commercial licensing options, contact **legal@qwickapps.com**.
+For commercial licensing options, contact **<legal@qwickapps.com>**.
 
 ---
 
 Copyright (c) 2025 QwickApps. All rights reserved.
+
 # Build trigger Mon Dec 29 09:36:28 EST 2025

@@ -790,6 +790,7 @@ export function registerAuthConfigRoutes(registry: PluginRegistry): void {
     id: 'auth-status',
     title: 'Authentication',
     component: 'AuthStatusWidget',
+    type: 'status',
     priority: 40, // Show before integrations
     showByDefault: true,
     pluginId: 'auth',

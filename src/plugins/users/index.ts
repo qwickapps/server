@@ -41,4 +41,4 @@ export type {
 } from './types.js';
 
 // Stores
-export { postgresUserStore } from './stores/index.js';
+export { postgresUserStore, inMemoryUserStore } from './stores/index.js';

@@ -279,20 +279,59 @@ export function createMaintenancePlugin(config = {}) {
                     },
                 });
             }
+            // Register maintenance widgets
+            if (config.enableSeeds !== false) {
+                registry.addWidget({
+                    id: 'seed-management',
+                    title: 'Seed Management',
+                    component: 'SeedManagementWidget',
+                    type: 'maintenance',
+                    priority: 10,
+                    showByDefault: true, // Show by default on maintenance page
+                    pluginId: 'maintenance',
+                });
+            }
             // TODO: Register service control routes
             if (config.enableServiceControl !== false) {
                 logger.debug('Service control enabled');
                 // Routes will be added in #703
+                registry.addWidget({
+                    id: 'service-control',
+                    title: 'Service Control',
+                    component: 'ServiceControlWidget',
+                    type: 'maintenance',
+                    priority: 20,
+                    showByDefault: false,
+                    pluginId: 'maintenance',
+                });
             }
             // TODO: Register environment variable management routes
             if (config.enableEnvManagement !== false) {
                 logger.debug('Environment variable management enabled');
                 // Routes will be added in #704
+                registry.addWidget({
+                    id: 'environment-config',
+                    title: 'Environment Configuration',
+                    component: 'EnvironmentConfigWidget',
+                    type: 'maintenance',
+                    priority: 30,
+                    showByDefault: false,
+                    pluginId: 'maintenance',
+                });
             }
             // TODO: Register database operation routes
             if (config.enableDatabaseOps !== false) {
                 logger.debug('Database operations enabled');
                 // Routes will be added in #705
+                registry.addWidget({
+                    id: 'database-ops',
+                    title: 'Database Operations',
+                    component: 'DatabaseOpsWidget',
+                    type: 'maintenance',
+                    priority: 40,
+                    showByDefault: false,
+                    pluginId: 'maintenance',
+                });
             }
             // Register UI page
             registry.addPage({

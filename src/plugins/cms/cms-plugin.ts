@@ -50,6 +50,7 @@ export function createCMSPlugin(config: CMSPluginConfig): Plugin {
           id: 'cms-status',
           title: 'Payload CMS',
           component: 'CMSStatusWidget',
+          type: 'status',
           priority: 15, // After ServiceHealthWidget (10)
           showByDefault: true,
           pluginId: 'cms',
@@ -62,8 +63,9 @@ export function createCMSPlugin(config: CMSPluginConfig): Plugin {
           id: 'cms-maintenance',
           title: 'CMS Service Control',
           component: 'CMSMaintenanceWidget',
+          type: 'maintenance',
           priority: 10,
-          showByDefault: false, // Only shown on maintenance page
+          showByDefault: true, // Show by default on maintenance page
           pluginId: 'cms',
         });
       }

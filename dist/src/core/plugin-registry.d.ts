@@ -169,7 +169,7 @@ export interface PageContribution {
     pluginId: string;
 }
 /**
- * Widget contribution for dashboards
+ * Widget contribution for dashboards and pages
  */
 export interface WidgetContribution {
     /** Unique ID for this widget */
@@ -178,9 +178,22 @@ export interface WidgetContribution {
     title: string;
     /** Component name to render (matched by frontend widget registry) */
     component: string;
+    /**
+     * Widget type/category - determines which page(s) can display this widget
+     * - 'status': System health, service status, monitoring metrics (Dashboard)
+     * - 'maintenance': Operational tasks like seeding, service control, config (Maintenance page)
+     * - 'analytics': Charts, graphs, usage metrics (Dashboard or Analytics page)
+     * - 'monitoring': Performance, logs, real-time data (Monitoring page)
+     * - 'custom': Custom widgets for specific use cases
+     */
+    type: 'status' | 'maintenance' | 'analytics' | 'monitoring' | 'custom';
     /** Priority for ordering (lower = first, default: 100) */
     priority?: number;
-    /** Whether this widget is shown by default (default: false) */
+    /**
+     * Whether this widget is shown by default on its page (default: false)
+     * true = widget appears by default in the initial layout
+     * false = widget is available but admin must add it manually
+     */
     showByDefault?: boolean;
     /** Default size */
     defaultSize?: {

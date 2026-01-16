@@ -1,0 +1,1 @@
+{"version":3,"file":"in-memory-store.d.ts","sourceRoot":"","sources":["../../../../../src/plugins/bans/stores/in-memory-store.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,wBAAgB,sBAAsB;;;qBAiBX,MAAM;yBASF,MAAM;qBASV,GAAG;;;;;;;;;;qBAiBH,GAAG;qBAYH,MAAM;6BAUC;QAAE,KAAK,CAAC,EAAE,MAAM,CAAC;QAAC,MAAM,CAAC,EAAE,MAAM,CAAA;KAAE;;;;;;EAwBpE"}

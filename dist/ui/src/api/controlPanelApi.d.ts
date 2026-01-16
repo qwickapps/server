@@ -245,9 +245,18 @@ export interface WidgetContribution {
     title: string;
     /** Component name to render (matched by frontend widget registry) */
     component: string;
+    /**
+     * Widget type/category - determines which page(s) can display this widget
+     * - 'status': System health, service status, monitoring metrics (Dashboard)
+     * - 'maintenance': Operational tasks like seeding, service control, config (Maintenance page)
+     * - 'analytics': Charts, graphs, usage metrics (Dashboard or Analytics page)
+     * - 'monitoring': Performance, logs, real-time data (Monitoring page)
+     * - 'custom': Custom widgets for specific use cases
+     */
+    type: 'status' | 'maintenance' | 'analytics' | 'monitoring' | 'custom';
     /** Priority for ordering (lower = first, default: 100) */
     priority?: number;
-    /** Whether this widget is shown by default */
+    /** Whether this widget is shown by default on its designated page */
     showByDefault?: boolean;
     pluginId: string;
 }

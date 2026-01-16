@@ -1,17 +1,17 @@
 {
   "name": "@qwickapps/server",
-  "version": "1.6.1",
+  "version": "1.7.1",
   "description": "Plugin-based application server framework for building websites, APIs, admin dashboards, and full-stack products",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
     },
     "./plugins": {
-      "types": "./dist/plugins/index.d.ts",
-      "import": "./dist/plugins/index.js"
+      "types": "./dist/src/plugins/index.d.ts",
+      "import": "./dist/src/plugins/index.js"
     },
     "./ui": {
       "types": "./dist-ui-lib/src/components/index.d.ts",
@@ -41,7 +41,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "demo": "npx tsx examples/demo-server.ts",
+    "demo": "npm run build:server && pnpm tsx examples/demo-server.ts",
+    "demo:gateway": "npm run build:server && pnpm tsx examples/demo-gateway.ts",
+    "demo:all": "npm run build:server && pnpm tsx examples/demo-all.ts",
     "type-check": "tsc --noEmit",
     "type-check:ui": "cd ui && tsc --noEmit",
     "validate:clean-install": "./qa/clean-install/validate.sh",
@@ -81,6 +83,7 @@
     "ioredis": "^5.4.0",
     "jsdom": "^25.0.0",
     "pg": "^8.13.0",
+    "pg-mem": "^3.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.30.1",

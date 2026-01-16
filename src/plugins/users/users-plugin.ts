@@ -29,6 +29,7 @@ import type {
 import { getEntitlements } from '../entitlements/entitlements-plugin.js';
 import { getPreferences } from '../preferences/preferences-plugin.js';
 import { getActiveBan } from '../bans/bans-plugin.js';
+import { autoCreateUserTenant } from '../tenants/index.js';
 
 // Store instance for helper access
 let currentStore: UserStore | null = null;
@@ -152,6 +153,18 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
               }
 
               const user = await config.store.create(input);
+
+              // Auto-create personal tenant if tenants plugin available
+              if (registry.hasPlugin('tenants')) {
+                try {
+                  await autoCreateUserTenant(user.id);
+                  log('Auto-created personal tenant for user', { userId: user.id });
+                } catch (error) {
+                  console.error('[UsersPlugin] Failed to auto-create tenant:', error);
+                  // Don't fail user creation if tenant creation fails
+                }
+              }
+
               res.status(201).json(user);
             } catch (error) {
               console.error('[UsersPlugin] Create user error:', error);
@@ -492,6 +505,16 @@ export async function findOrCreateUser(data: {
     provider: data.provider,
     picture: data.picture,
   });
+
+  // Auto-create personal tenant if tenants plugin available
+  if (currentRegistry && currentRegistry.hasPlugin('tenants')) {
+    try {
+      await autoCreateUserTenant(user.id);
+    } catch (error) {
+      console.error('[UsersPlugin] Failed to auto-create tenant:', error);
+      // Don't fail user creation if tenant creation fails
+    }
+  }
 
   return user;
 }

@@ -93,6 +93,7 @@ export {
   linkUserIdentifiers,
   findOrCreateUser,
   postgresUserStore,
+  inMemoryUserStore,
 } from './users/index.js';
 export type {
   UsersPluginConfig,
@@ -110,6 +111,24 @@ export type {
   StoredIdentifiers,
 } from './users/index.js';
 
+// Tenants plugin (multi-tenant data isolation, depends on Users)
+export { createTenantsPlugin, getTenantStore, postgresTenantStore, inMemoryTenantStore } from './tenants/index.js';
+export type {
+  TenantsPluginConfig,
+  TenantStore,
+  Tenant,
+  TenantType,
+  CreateTenantInput,
+  UpdateTenantInput,
+  TenantSearchParams,
+  TenantListResponse,
+  TenantMembership,
+  CreateTenantMembershipInput,
+  UpdateTenantMembershipInput,
+  TenantWithMembership,
+  PostgresTenantStoreConfig,
+} from './tenants/index.js';
+
 // Bans plugin (separate from Users, depends on Users)
 export {
   createBansPlugin,
@@ -121,6 +140,7 @@ export {
   unbanUser,
   listActiveBans,
   postgresBanStore,
+  inMemoryBanStore,
 } from './bans/index.js';
 export type {
   BansPluginConfig,
@@ -180,6 +200,7 @@ export {
   requireAnyEntitlement,
   requireAllEntitlements,
   postgresEntitlementSource,
+  inMemoryEntitlementSource,
 } from './entitlements/index.js';
 export type {
   EntitlementsPluginConfig,

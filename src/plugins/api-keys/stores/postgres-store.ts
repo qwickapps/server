@@ -266,6 +266,36 @@ export function postgresApiKeyStore(config: PostgresApiKeyStoreConfig): ApiKeySt
         CREATE INDEX IF NOT EXISTS idx_${tableName}_key_hash ON ${tableFullName}(key_hash);
       `);
 
+      // Migration: Add user_id column if it doesn't exist (for existing installations)
+      await pool.query(`
+        DO $$
+        DECLARE
+          row_count INTEGER;
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = '${schema}'
+            AND table_name = '${tableName}'
+            AND column_name = 'user_id'
+          ) THEN
+            -- Check if table has data
+            EXECUTE 'SELECT COUNT(*) FROM ${tableFullName}' INTO row_count;
+
+            IF row_count > 0 THEN
+              -- If table has data, cannot add NOT NULL column
+              -- This requires manual migration or data cleanup
+              RAISE EXCEPTION 'Cannot add user_id column: table ${tableFullName} contains % rows. Please migrate data or clear the table first.', row_count;
+            ELSE
+              -- Table is empty, safe to add NOT NULL column
+              ALTER TABLE ${tableFullName}
+              ADD COLUMN user_id UUID NOT NULL REFERENCES "public"."users"(id) ON DELETE CASCADE;
+
+              CREATE INDEX IF NOT EXISTS idx_${tableName}_user_id ON ${tableFullName}(user_id);
+            END IF;
+          END IF;
+        END $$;
+      `);
+
       // Enable RLS if configured
       if (enableRLS) {
         await pool.query(`

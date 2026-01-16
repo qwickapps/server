@@ -16,7 +16,13 @@ import {
   AuthStatusWidget,
   NotificationsStatsWidget,
   CMSStatusWidget,
-  CMSMaintenanceWidget
+  CMSMaintenanceWidget,
+  SeedManagementWidget,
+  ServiceControlWidget,
+  EnvironmentConfigWidget,
+  DatabaseOpsWidget,
+  LogsMaintenanceWidget,
+  CacheMaintenanceWidget,
 } from './widgets';
 import { PreferencesPage } from '../pages/PreferencesPage';
 import type { WidgetComponent } from './WidgetComponentRegistry';
@@ -32,6 +38,12 @@ export const builtInWidgetComponents: Record<string, React.ComponentType> = {
   NotificationsStatsWidget: NotificationsStatsWidget,
   CMSStatusWidget: CMSStatusWidget,
   CMSMaintenanceWidget: CMSMaintenanceWidget,
+  SeedManagementWidget: SeedManagementWidget,
+  ServiceControlWidget: ServiceControlWidget,
+  EnvironmentConfigWidget: EnvironmentConfigWidget,
+  DatabaseOpsWidget: DatabaseOpsWidget,
+  LogsMaintenanceWidget: LogsMaintenanceWidget,
+  CacheMaintenanceWidget: CacheMaintenanceWidget,
   PreferencesPage: PreferencesPage,
 };
 
@@ -50,6 +62,12 @@ export function getBuiltInWidgetComponents(): WidgetComponent[] {
     { name: 'NotificationsStatsWidget', component: NotificationsStatsWidget },
     { name: 'CMSStatusWidget', component: CMSStatusWidget },
     { name: 'CMSMaintenanceWidget', component: CMSMaintenanceWidget },
+    { name: 'SeedManagementWidget', component: SeedManagementWidget },
+    { name: 'ServiceControlWidget', component: ServiceControlWidget },
+    { name: 'EnvironmentConfigWidget', component: EnvironmentConfigWidget },
+    { name: 'DatabaseOpsWidget', component: DatabaseOpsWidget },
+    { name: 'LogsMaintenanceWidget', component: LogsMaintenanceWidget },
+    { name: 'CacheMaintenanceWidget', component: CacheMaintenanceWidget },
     { name: 'PreferencesPage', component: PreferencesPage },
   ];
 }

@@ -39,6 +39,7 @@ export function createHealthPlugin(config: HealthPluginConfig): Plugin {
           id: 'service-health',
           title: 'Service Health',
           component: 'ServiceHealthWidget',
+          type: 'status',
           priority: 10,
           showByDefault: true,
           pluginId: 'health',

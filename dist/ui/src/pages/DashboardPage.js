@@ -75,6 +75,6 @@ export function DashboardPage() {
                 }, children: _jsx(CardActionArea, { onClick: () => navigate('/health'), children: _jsxs(CardContent, { sx: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' }, children: [_jsxs(Box, { sx: { display: 'flex', alignItems: 'center', gap: 2 }, children: [getStatusIcon(health?.status || 'unknown'), _jsxs(Box, { children: [_jsxs(Typography, { variant: "h6", sx: { color: 'var(--theme-text-primary)' }, children: ["Service Status: ", health?.status?.charAt(0).toUpperCase(), health?.status?.slice(1)] }), _jsx(Typography, { variant: "body2", sx: { color: 'var(--theme-text-secondary)' }, children: "Click to view detailed health information" })] })] }), _jsx(Chip, { label: `${healthyCount}/${totalCount} checks passing`, sx: {
                                     bgcolor: getStatusColor(health?.status || 'unknown') + '20',
                                     color: getStatusColor(health?.status || 'unknown'),
-                                } })] }) }) }), _jsx(PluginWidgetRenderer, {}), _jsx(DashboardWidgetRenderer, {})] }));
+                                } })] }) }) }), _jsx(PluginWidgetRenderer, { widgetType: "status" }), _jsx(DashboardWidgetRenderer, {})] }));
 }
 //# sourceMappingURL=DashboardPage.js.map
