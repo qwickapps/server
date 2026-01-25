@@ -63,7 +63,10 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { NotificationsPluginConfig } from './types.js';
 /**
- * Create the Notifications plugin
+ * Create the Notifications plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  *
  * @param config Plugin configuration
  * @returns Plugin instance
@@ -79,5 +82,5 @@ import type { NotificationsPluginConfig } from './types.js';
  * });
  * ```
  */
-export declare function createNotificationsPlugin(config: NotificationsPluginConfig): Plugin;
+export declare function createNotificationsPlugin(config?: Partial<NotificationsPluginConfig>): Plugin;
 //# sourceMappingURL=notifications-plugin.d.ts.map

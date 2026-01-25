@@ -30,8 +30,6 @@ export type {
 // Stores
 export { postgresBanStore, inMemoryBanStore } from './stores/index.js';
 
-// UI Components
-export { BansStatusWidget } from './BansStatusWidget.js';
-export type { BansStatusWidgetProps } from './BansStatusWidget.js';
-export { BansManagementPage } from './BansManagementPage.js';
-export type { BansManagementPageProps } from './BansManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
+

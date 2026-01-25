@@ -11,21 +11,26 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 import { getUserByEmail, getUserById, getUsersByIds } from '../users/users-plugin.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresBanStore } from './stores/index.js';
 // Store instance for helper access
 let currentStore = null;
 let banCleanupInterval = null;
 let pluginConfig = null;
 /**
- * Create the Bans plugin
+ * Create the Bans plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createBansPlugin(config) {
-    const debug = config.debug || false;
-    // Routes are mounted under /api by the control panel, so don't include /api in prefix
-    const apiPrefix = config.api?.prefix || '/'; // Framework adds /bans prefix automatically
-    const apiEnabled = config.api?.enabled !== false;
-    function log(message, data) {
-        if (debug) {
-            console.log(`[BansPlugin] ${message}`, data || '');
+export function createBansPlugin(config = {}) {
+    function log(message, data, isError = false) {
+        const prefix = '[BansPlugin]';
+        if (isError) {
+            console.error(`${prefix} ${message}`, data || '');
+        }
+        else if (config.debug) {
+            console.log(`${prefix} ${message}`, data || '');
         }
     }
     return {
@@ -33,22 +38,60 @@ export function createBansPlugin(config) {
         name: 'Bans',
         version: '1.0.0',
         async onStart(_pluginConfig, registry) {
-            log('Starting bans plugin');
+            const logger = registry.getLogger('bans');
             // Check for users plugin dependency
             if (!registry.hasPlugin('users')) {
-                throw new Error('Bans plugin requires Users plugin to be loaded first');
+                logger.warn('Users plugin not loaded! Bans plugin disabled.');
+                registry.registerHealthCheck({
+                    name: 'bans-store',
+                    type: 'custom',
+                    check: async () => ({
+                        healthy: false,
+                        details: {
+                            error: 'Users plugin not available',
+                            state: 'disabled',
+                        },
+                    }),
+                });
+                return;
             }
+            // Check for postgres in registry
+            if (!hasPostgres()) {
+                logger.warn('No Database! Bans plugin disabled.');
+                registry.registerHealthCheck({
+                    name: 'bans-store',
+                    type: 'custom',
+                    check: async () => ({
+                        healthy: false,
+                        details: {
+                            error: 'PostgreSQL not available',
+                            state: 'disabled',
+                        },
+                    }),
+                });
+                return;
+            }
+            // Smart defaults - get dependencies from registry
+            const store = config.store ?? postgresBanStore({
+                pool: () => getPostgres().getPool(),
+                autoCreateTables: true,
+            });
+            const debug = config.debug ?? false;
+            const apiPrefix = config.api?.prefix ?? '/bans';
+            const apiEnabled = config.api?.enabled ?? true;
+            const supportTemporary = config.supportTemporary ?? true;
+            log('Starting bans plugin');
             // Initialize the store (creates tables if needed)
-            await config.store.initialize();
+            await store.initialize();
             log('Bans plugin migrations complete');
             // Store references for helper access
-            currentStore = config.store;
-            pluginConfig = config;
+            currentStore = store;
+            pluginConfig = { ...config, store, debug, supportTemporary };
             // Start ban cleanup interval if temporary bans are supported
-            if (config.supportTemporary) {
+            if (supportTemporary) {
                 banCleanupInterval = setInterval(async () => {
                     try {
-                        const cleaned = await config.store.cleanupExpiredBans();
+                        const cleaned = await store.cleanupExpiredBans();
                         if (cleaned > 0) {
                             log('Cleaned up expired bans', { count: cleaned });
                         }
@@ -65,7 +108,7 @@ export function createBansPlugin(config) {
                 check: async () => {
                     try {
                         // Simple health check - list with limit 0
-                        await config.store.listActiveBans({ limit: 0 });
+                        await store.listActiveBans({ limit: 0 });
                         return { healthy: true };
                     }
                     catch {
@@ -84,7 +127,7 @@ export function createBansPlugin(config) {
                         try {
                             const limit = Math.min(parseInt(req.query.limit) || 50, 100);
                             const offset = parseInt(req.query.offset) || 0;
-                            const result = await config.store.listActiveBans({ limit, offset });
+                            const result = await store.listActiveBans({ limit, offset });
                             // Batch fetch users for all bans (single query instead of N queries)
                             const userIds = [...new Set(result.bans.map((ban) => ban.user_id))];
                             const users = await getUsersByIds(userIds);
@@ -109,7 +152,7 @@ export function createBansPlugin(config) {
                     pluginId: 'bans',
                     handler: async (req, res) => {
                         try {
-                            const ban = await config.store.getActiveBan(req.params.userId);
+                            const ban = await store.getActiveBan(req.params.userId);
                             res.json({
                                 isBanned: ban !== null,
                                 ban,
@@ -128,7 +171,7 @@ export function createBansPlugin(config) {
                     pluginId: 'bans',
                     handler: async (req, res) => {
                         try {
-                            const bans = await config.store.listBans(req.params.userId);
+                            const bans = await store.listBans(req.params.userId);
                             res.json({ bans });
                         }
                         catch (error) {
@@ -158,7 +201,7 @@ export function createBansPlugin(config) {
                             if (!user) {
                                 return res.status(404).json({ error: 'User not found' });
                             }
-                            const ban = await config.store.createBan(input);
+                            const ban = await store.createBan(input);
                             // Call onBan callback if provided
                             if (config.callbacks?.onBan) {
                                 try {
@@ -196,7 +239,7 @@ export function createBansPlugin(config) {
                                 removed_by: removedBy,
                                 note: req.body?.note,
                             };
-                            const removed = await config.store.removeBan(input);
+                            const removed = await store.removeBan(input);
                             if (!removed) {
                                 return res.status(404).json({ error: 'No active ban found' });
                             }
@@ -257,7 +300,7 @@ export function createBansPlugin(config) {
                                 duration: config.supportTemporary ? req.body.duration : undefined,
                                 metadata: req.body.metadata,
                             };
-                            const ban = await config.store.createBan(input);
+                            const ban = await store.createBan(input);
                             // Call onBan callback if provided
                             if (config.callbacks?.onBan) {
                                 try {
@@ -296,7 +339,7 @@ export function createBansPlugin(config) {
                                 removed_by: removedBy,
                                 note: req.body?.note,
                             };
-                            const removed = await config.store.removeBan(input);
+                            const removed = await store.removeBan(input);
                             if (!removed) {
                                 return res.status(404).json({ error: 'No active ban found' });
                             }
@@ -327,7 +370,10 @@ export function createBansPlugin(config) {
                 clearInterval(banCleanupInterval);
                 banCleanupInterval = null;
             }
-            await config.store.shutdown();
+            if (currentStore) {
+                await currentStore.shutdown();
+            }
+            ;
             currentStore = null;
             pluginConfig = null;
             log('Bans plugin stopped');

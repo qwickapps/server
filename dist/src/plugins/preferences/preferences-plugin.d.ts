@@ -11,9 +11,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { PreferencesPluginConfig, PreferencesStore } from './types.js';
 /**
- * Create the Preferences plugin
+ * Create the Preferences plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin;
+export declare function createPreferencesPlugin(config?: Partial<PreferencesPluginConfig>): Plugin;
 /**
  * Get the current preferences store instance
  */

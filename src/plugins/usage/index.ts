@@ -38,8 +38,6 @@ export type {
 // Stores
 export { postgresUsageStore } from './stores/index.js';
 
-// UI Components
-export { UsageStatusWidget } from './UsageStatusWidget.js';
-export type { UsageStatusWidgetProps } from './UsageStatusWidget.js';
-export { UsageManagementPage } from './UsageManagementPage.js';
-export type { UsageManagementPageProps } from './UsageManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
+

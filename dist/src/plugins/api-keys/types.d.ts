@@ -190,17 +190,23 @@ export interface ApiKeysApiConfig {
 }
 /**
  * API keys plugin configuration
+ *
+ * All properties are optional - plugin will use smart defaults:
+ * - store: Postgres API key store using registry's postgres instance
+ * - api.prefix: '/api-keys'
+ * - api.enabled: true
+ * - debug: false
  */
 export interface ApiKeysPluginConfig {
-    /** API key storage backend */
-    store: ApiKeyStore;
+    /** API key storage backend (default: postgres API key store from registry) */
+    store?: ApiKeyStore;
     /** Plugin scope storage backend (optional, for Phase 2) */
     scopeStore?: import('./stores/plugin-scope-store.js').PluginScopeStore;
     /** Usage log storage backend (optional, for Phase 2) */
     usageStore?: import('./stores/usage-log-store.js').UsageLogStore;
     /** API configuration */
     api?: ApiKeysApiConfig;
-    /** Enable debug logging */
+    /** Enable debug logging (default: false) */
     debug?: boolean;
 }
 /**

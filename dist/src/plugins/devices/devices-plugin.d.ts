@@ -9,9 +9,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { DevicesPluginConfig, DeviceStore, DeviceAdapter, Device, DeviceWithToken, CreateDeviceInput, UpdateDeviceInput, TokenVerificationResult } from './types.js';
 /**
- * Create the Devices plugin
+ * Create the Devices plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createDevicesPlugin(config: DevicesPluginConfig): Plugin;
+export declare function createDevicesPlugin(config?: Partial<DevicesPluginConfig>): Plugin;
 /**
  * Get the current device store instance
  */

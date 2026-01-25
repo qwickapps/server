@@ -10,9 +10,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { ParentalPluginConfig, ParentalStore, ParentalAdapter, GuardianSettings, ProfileRestriction, ActivityLog, AccessCheckResult, CreateGuardianSettingsInput, UpdateGuardianSettingsInput, CreateRestrictionInput, LogActivityInput } from './types.js';
 /**
- * Create the Parental plugin
+ * Create the Parental plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createParentalPlugin(config: ParentalPluginConfig): Plugin;
+export declare function createParentalPlugin(config?: Partial<ParentalPluginConfig>): Plugin;
 /**
  * Get the current parental store instance
  */

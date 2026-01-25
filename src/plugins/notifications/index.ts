@@ -90,8 +90,6 @@ export type {
   NotificationsManagerInterface,
 } from './types.js';
 
-// UI Components
-export { NotificationsStatusWidget } from './NotificationsStatusWidget.js';
-export { NotificationsManagementPage } from './NotificationsManagementPage.js';
-export type { NotificationsStatusWidgetProps } from './NotificationsStatusWidget.js';
-export type { NotificationsManagementPageProps } from './NotificationsManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
+

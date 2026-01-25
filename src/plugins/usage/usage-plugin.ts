@@ -17,6 +17,8 @@ import type {
   UsageStatus,
   UsageSummary,
 } from './types.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresUsageStore } from './stores/index.js';
 
 // Import subscription helpers if available
 let getFeatureLimitFn: ((userId: string, featureCode: string) => Promise<number | null>) | null = null;
@@ -44,15 +46,18 @@ function getTomorrowMidnight(): Date {
 }
 
 /**
- * Create the Usage plugin
+ * Create the Usage plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createUsagePlugin(config: UsagePluginConfig): Plugin {
-  const debug = config.debug || false;
-  const apiPrefix = config.api?.prefix || '/'; // Framework adds /usage prefix automatically
-
-  function log(message: string, data?: Record<string, unknown>) {
-    if (debug) {
-      console.log(`[UsagePlugin] ${message}`, data || '');
+export function createUsagePlugin(config: Partial<UsagePluginConfig> = {}): Plugin {
+  function log(message: string, data?: Record<string, unknown>, isError = false) {
+    const prefix = '[UsagePlugin]';
+    if (isError) {
+      console.error(`${prefix} ${message}`, data || '');
+    } else if (config.debug) {
+      console.log(`${prefix} ${message}`, data || '');
     }
   }
 
@@ -62,15 +67,48 @@ export function createUsagePlugin(config: UsagePluginConfig): Plugin {
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('usage');
+
+      // Check for postgres in registry
+      if (!hasPostgres()) {
+        logger.warn('No Database! Usage plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'usage-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
+      }
+
+      // Smart defaults - get dependencies from registry
+      const store = config.store ?? postgresUsageStore({
+        pool: () => getPostgres().getPool(),
+        autoCreateTables: true,
+      });
+
+      const debug = config.debug ?? false;
+      const apiPrefix = config.api?.prefix ?? '/'; // Framework adds /usage prefix automatically
+      const apiEnabled = config.api?.enabled ?? true;
+      const dailyRetentionDays = config.cleanup?.dailyRetentionDays ?? 90;
+      const monthlyRetentionMonths = config.cleanup?.monthlyRetentionMonths ?? 24;
+      const runOnStartup = config.cleanup?.runOnStartup ?? false;
+      const cleanupIntervalHours = config.cleanup?.cleanupIntervalHours ?? 0;
+
       log('Starting usage plugin');
 
       // Initialize the store (creates tables if needed)
-      await config.store.initialize();
+      await store.initialize();
       log('Usage plugin migrations complete');
 
       // Store references for helper access
-      currentStore = config.store;
-      currentConfig = config;
+      currentStore = store;
+      currentConfig = { ...config, store, debug };
 
       // Try to get the feature limit function from subscriptions plugin
       try {
@@ -96,25 +134,19 @@ export function createUsagePlugin(config: UsagePluginConfig): Plugin {
       });
 
       // Run cleanup on startup if configured
-      if (config.cleanup?.runOnStartup) {
-        const dailyDays = config.cleanup.dailyRetentionDays || 90;
-        const monthlyMonths = config.cleanup.monthlyRetentionMonths || 24;
-
-        const dailyDeleted = await config.store.cleanupOldDaily(dailyDays);
-        const monthlyDeleted = await config.store.cleanupOldMonthly(monthlyMonths);
+      if (runOnStartup) {
+        const dailyDeleted = await store.cleanupOldDaily(dailyRetentionDays);
+        const monthlyDeleted = await store.cleanupOldMonthly(monthlyRetentionMonths);
         log('Startup cleanup complete', { dailyDeleted, monthlyDeleted });
       }
 
       // Set up periodic cleanup if configured
-      if (config.cleanup?.cleanupIntervalHours && config.cleanup.cleanupIntervalHours > 0) {
-        const intervalMs = config.cleanup.cleanupIntervalHours * 60 * 60 * 1000;
+      if (cleanupIntervalHours > 0) {
+        const intervalMs = cleanupIntervalHours * 60 * 60 * 1000;
         cleanupIntervalId = setInterval(async () => {
           try {
-            const dailyDays = config.cleanup?.dailyRetentionDays || 90;
-            const monthlyMonths = config.cleanup?.monthlyRetentionMonths || 24;
-
-            const dailyDeleted = await config.store.cleanupOldDaily(dailyDays);
-            const monthlyDeleted = await config.store.cleanupOldMonthly(monthlyMonths);
+            const dailyDeleted = await store.cleanupOldDaily(dailyRetentionDays);
+            const monthlyDeleted = await store.cleanupOldMonthly(monthlyRetentionMonths);
             log('Periodic cleanup complete', { dailyDeleted, monthlyDeleted });
           } catch (error) {
             console.error('[UsagePlugin] Cleanup error:', error);
@@ -123,7 +155,7 @@ export function createUsagePlugin(config: UsagePluginConfig): Plugin {
       }
 
       // Add API routes if enabled
-      if (config.api?.enabled !== false) {
+      if (apiEnabled) {
         // Get daily usage summary
         registry.addRoute({
           method: 'get',
@@ -211,7 +243,9 @@ export function createUsagePlugin(config: UsagePluginConfig): Plugin {
         cleanupIntervalId = null;
       }
 
-      await config.store.shutdown();
+      if (currentStore) {
+        await currentStore.shutdown();
+      }
       currentStore = null;
       currentConfig = null;
       log('Usage plugin stopped');

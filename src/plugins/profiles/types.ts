@@ -289,10 +289,17 @@ export interface ProfilesApiConfig {
 
 /**
  * Profiles plugin configuration
+ *
+ * All properties are optional - plugin will use smart defaults:
+ * - store: Postgres profile store using registry's postgres instance
+ * - maxProfilesPerUser: 10
+ * - defaultFilterLevel: 'moderate'
+ * - api.prefix: '/profiles'
+ * - debug: false
  */
 export interface ProfilesPluginConfig {
-  /** Profile storage backend */
-  store: ProfileStore;
+  /** Profile storage backend (default: postgres profile store from registry) */
+  store?: ProfileStore;
   /** Maximum profiles per user (default: 10) */
   maxProfilesPerUser?: number;
   /** Default content filter level (default: 'moderate') */

@@ -10,7 +10,6 @@
 export { createProfilesPlugin, getProfileStore, createProfile, getProfileById, updateProfile, deleteProfile, listUserProfiles, getDefaultProfile, setDefaultProfile, getProfilesByAgeGroup, getChildProfiles, getProfileAge, checkTimeRestrictions, getContentFilterLevel, canAccessContent, } from './profiles-plugin.js';
 // Stores
 export { postgresProfileStore } from './stores/index.js';
-// UI Components
-export { ProfilesStatusWidget } from './ProfilesStatusWidget.js';
-export { ProfilesManagementPage } from './ProfilesManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map

@@ -127,8 +127,6 @@ export type {
   CheckLimitOptions,
 } from './types.js';
 
-// UI Components
-export { RateLimitStatusWidget } from './RateLimitStatusWidget.js';
-export { RateLimitManagementPage } from './RateLimitManagementPage.js';
-export type { RateLimitStatusWidgetProps } from './RateLimitStatusWidget.js';
-export type { RateLimitManagementPageProps } from './RateLimitManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
+

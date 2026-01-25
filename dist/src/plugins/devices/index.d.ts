@@ -15,8 +15,4 @@ export { mobileDeviceAdapter } from './adapters/index.js';
 export type { MobileAdapterConfig } from './adapters/index.js';
 export { generateDeviceToken, generatePairingCode, hashToken, verifyToken, isValidTokenFormat, isTokenExpired, getTokenExpiration, DeviceTokens, } from './token-utils.js';
 export type { DeviceTokenPair } from './token-utils.js';
-export { DevicesStatusWidget } from './DevicesStatusWidget.js';
-export type { DevicesStatusWidgetProps } from './DevicesStatusWidget.js';
-export { DevicesManagementPage } from './DevicesManagementPage.js';
-export type { DevicesManagementPageProps } from './DevicesManagementPage.js';
 //# sourceMappingURL=index.d.ts.map

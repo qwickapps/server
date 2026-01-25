@@ -68,8 +68,6 @@ export {
 } from './token-utils.js';
 export type { DeviceTokenPair } from './token-utils.js';
 
-// UI Components
-export { DevicesStatusWidget } from './DevicesStatusWidget.js';
-export type { DevicesStatusWidgetProps } from './DevicesStatusWidget.js';
-export { DevicesManagementPage } from './DevicesManagementPage.js';
-export type { DevicesManagementPageProps } from './DevicesManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
+

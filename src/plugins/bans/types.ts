@@ -107,22 +107,29 @@ export interface BanCallbacks {
 
 /**
  * Bans plugin configuration
+ *
+ * All properties are optional - plugin will use smart defaults:
+ * - store: Postgres ban store using registry's postgres instance
+ * - supportTemporary: true
+ * - api.prefix: '/bans'
+ * - api.enabled: true
+ * - debug: false
  */
 export interface BansPluginConfig {
-  /** Ban storage backend */
-  store: BanStore;
-  /** Support temporary bans (with expiration) */
+  /** Ban storage backend (default: postgres ban store from registry) */
+  store?: BanStore;
+  /** Support temporary bans (with expiration) (default: true) */
   supportTemporary?: boolean;
   /** Callbacks */
   callbacks?: BanCallbacks;
   /** API configuration */
   api?: {
-    /** API route prefix (default: '/api/bans') */
+    /** API route prefix (default: '/bans') */
     prefix?: string;
-    /** Enable API endpoints */
+    /** Enable API endpoints (default: true) */
     enabled?: boolean;
   };
-  /** Enable debug logging */
+  /** Enable debug logging (default: false) */
   debug?: boolean;
 }
 

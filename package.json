@@ -1,21 +1,24 @@
 {
   "name": "@qwickapps/server",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "Plugin-based application server framework for building websites, APIs, admin dashboards, and full-stack products",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js"
+      "import": "./dist/src/index.js",
+      "require": "./dist/src/index.js"
     },
     "./plugins": {
       "types": "./dist/src/plugins/index.d.ts",
-      "import": "./dist/src/plugins/index.js"
+      "import": "./dist/src/plugins/index.js",
+      "require": "./dist/src/plugins/index.js"
     },
     "./ui": {
       "types": "./dist-ui-lib/src/components/index.d.ts",
-      "import": "./dist-ui-lib/index.js"
+      "import": "./dist-ui-lib/index.js",
+      "require": "./dist-ui-lib/index.js"
     }
   },
   "files": [
@@ -65,7 +68,7 @@
     "@mui/material": "^7.2.0",
     "@mui/x-data-grid": "^7.29.12",
     "@playwright/test": "^1.57.0",
-    "@qwickapps/auth-client": "^1.0.0",
+    "@qwickapps/auth-client": "^1.1.0",
     "@qwickapps/react-framework": "^1.5.5",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",

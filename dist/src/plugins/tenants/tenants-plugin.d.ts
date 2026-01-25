@@ -12,9 +12,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { TenantsPluginConfig, TenantStore } from './types.js';
 /**
- * Create the Tenants plugin
+ * Create the Tenants plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createTenantsPlugin(config: TenantsPluginConfig): Plugin;
+export declare function createTenantsPlugin(config?: Partial<TenantsPluginConfig>): Plugin;
 /**
  * Helper function to get the tenant store
  * Used by other plugins to access tenant data

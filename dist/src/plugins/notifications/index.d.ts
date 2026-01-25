@@ -68,8 +68,4 @@
 export { createNotificationsPlugin } from './notifications-plugin.js';
 export { NotificationsManager, getNotificationsManager, hasNotificationsManager, broadcastToDevice, broadcastToUser, broadcastToAll, } from './notifications-manager.js';
 export type { NotificationsPluginConfig, SSEClient, NotifyPayload, SSEEvent, NotificationsStats, ConnectionHealth, NotificationsManagerInterface, } from './types.js';
-export { NotificationsStatusWidget } from './NotificationsStatusWidget.js';
-export { NotificationsManagementPage } from './NotificationsManagementPage.js';
-export type { NotificationsStatusWidgetProps } from './NotificationsStatusWidget.js';
-export type { NotificationsManagementPageProps } from './NotificationsManagementPage.js';
 //# sourceMappingURL=index.d.ts.map

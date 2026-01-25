@@ -13,7 +13,6 @@ export { getEntitlementSource, isSourceReadonly, getEntitlements, refreshEntitle
 requireEntitlement, requireAnyEntitlement, requireAllEntitlements, } from './entitlements-plugin.js';
 // Sources
 export { postgresEntitlementSource, inMemoryEntitlementSource } from './sources/index.js';
-// UI Components
-export { EntitlementsStatusWidget } from './EntitlementsStatusWidget.js';
-export { EntitlementsManagementPage } from './EntitlementsManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map

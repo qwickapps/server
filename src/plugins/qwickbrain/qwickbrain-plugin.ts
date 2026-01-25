@@ -530,6 +530,141 @@ export function createQwickBrainPlugin(config: QwickBrainPluginConfig): Plugin {
           },
         });
 
+        // POST /mcp/query - LLM Query endpoint (auth required, supports streaming)
+        registry.addRoute({
+          method: 'post',
+          path: `${apiPrefix}/query`,
+          pluginId: 'qwickbrain',
+          handler: async (req: Request, res: ExpressResponse) => {
+            // Check authentication
+            const authError = checkAuth(req);
+            if (authError) {
+              res.status(authError.status).json(authError.body);
+              return;
+            }
+
+            const user = getAuthenticatedUser(req);
+
+            // Check rate limits
+            const rateLimitError = checkRateLimits(user?.id);
+            if (rateLimitError) {
+              Object.entries(rateLimitError.headers).forEach(([key, value]) => {
+                res.setHeader(key, value);
+              });
+              res.status(rateLimitError.status).json(rateLimitError.body);
+              return;
+            }
+
+            try {
+              if (!connectionStatus.connected) {
+                res.status(503).json({
+                  error: 'QwickBrain not connected',
+                  details: connectionStatus.error,
+                });
+                return;
+              }
+
+              // Check if streaming is requested
+              const stream = req.query.stream === 'true';
+
+              // Build query string
+              const queryParams = new URLSearchParams();
+              if (stream) {
+                queryParams.set('stream', 'true');
+              }
+              const queryString = queryParams.toString();
+              const path = `/api/v1/query${queryString ? `?${queryString}` : ''}`;
+
+              log('LLM query', { userId: user?.id, streaming: stream, query: req.body.query });
+
+              if (stream) {
+                // Streaming mode: pipe SSE stream from QwickBrain to client
+                const url = `${config.qwickbrainUrl}${path}`;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+                try {
+                  const fetchResponse = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Accept': 'text/event-stream',
+                    },
+                    body: JSON.stringify(req.body),
+                    signal: controller.signal,
+                  });
+
+                  clearTimeout(timeoutId);
+
+                  if (!fetchResponse.ok) {
+                    res.status(fetchResponse.status).json({
+                      error: 'Query failed',
+                      status: fetchResponse.status,
+                    });
+                    return;
+                  }
+
+                  // Set SSE headers
+                  res.setHeader('Content-Type', 'text/event-stream');
+                  res.setHeader('Cache-Control', 'no-cache');
+                  res.setHeader('Connection', 'keep-alive');
+                  res.setHeader('X-Accel-Buffering', 'no');
+
+                  // Pipe the stream
+                  const reader = fetchResponse.body?.getReader();
+                  if (!reader) {
+                    res.status(500).json({ error: 'No response body' });
+                    return;
+                  }
+
+                  const decoder = new TextDecoder();
+
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const text = decoder.decode(value, { stream: true });
+                    res.write(text);
+                  }
+
+                  res.end();
+                } catch (error) {
+                  clearTimeout(timeoutId);
+                  throw error;
+                }
+              } else {
+                // Non-streaming mode: proxy JSON response
+                const response = await proxyToQwickBrain(
+                  config.qwickbrainUrl,
+                  path,
+                  {
+                    method: 'POST',
+                    body: req.body,
+                    timeout,
+                  }
+                );
+
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  res.status(response.status).json({
+                    error: 'Query failed',
+                    details: errorText,
+                  });
+                  return;
+                }
+
+                const result = await response.json();
+                res.json(result);
+              }
+            } catch (error) {
+              log('Error executing query', { error: String(error) });
+              res.status(500).json({
+                error: 'Query execution failed',
+                details: error instanceof Error ? error.message : 'Unknown error',
+              });
+            }
+          },
+        });
+
         // GET /mcp/sse - Server-Sent Events endpoint for streaming (auth required)
         registry.addRoute({
           method: 'get',

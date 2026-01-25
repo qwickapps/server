@@ -200,10 +200,17 @@ export interface EntitlementsApiConfig {
 
 /**
  * Entitlements plugin configuration
+ *
+ * All properties are optional - plugin will use smart defaults:
+ * - source: Postgres entitlement source using registry's postgres instance
+ * - cache: Uses cache from registry if available
+ * - api.prefix: '/entitlements'
+ * - api.enabled: true
+ * - debug: false
  */
 export interface EntitlementsPluginConfig {
-  /** Primary entitlement source */
-  source: EntitlementSource;
+  /** Primary entitlement source (default: postgres source from registry) */
+  source?: EntitlementSource;
 
   /** Additional sources to query (results are merged) */
   additionalSources?: EntitlementSource[];

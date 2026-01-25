@@ -23,22 +23,25 @@ import {
   CreateApiKeySchema,
   UpdateApiKeySchema,
 } from './types.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresApiKeyStore } from './stores/index.js';
 
 // Store instance for helper access
 let currentStore: ApiKeyStore | null = null;
 
 /**
- * Create the API Keys plugin
+ * Create the API Keys plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
-  const debug = config.debug || false;
-  // Framework automatically prefixes routes with plugin slug, so use root path
-  const apiPrefix = config.api?.prefix || '/';
-  const apiEnabled = config.api?.enabled !== false;
-
-  function log(message: string, data?: Record<string, unknown>) {
-    if (debug) {
-      console.log(`[ApiKeysPlugin] ${message}`, data || '');
+export function createApiKeysPlugin(config: Partial<ApiKeysPluginConfig> = {}): Plugin {
+  function log(message: string, data?: Record<string, unknown>, isError = false) {
+    const prefix = '[ApiKeysPlugin]';
+    if (isError) {
+      console.error(`${prefix} ${message}`, data || '');
+    } else if (config.debug) {
+      console.log(`${prefix} ${message}`, data || '');
     }
   }
 
@@ -48,15 +51,56 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
-      log('Starting API keys plugin');
+      const logger = registry.getLogger('api-keys');
 
       // Check for users plugin dependency
       if (!registry.hasPlugin('users')) {
-        throw new Error('API Keys plugin requires Users plugin to be loaded first');
+        logger.warn('Users plugin not loaded! API Keys plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'api-keys-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'Users plugin not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
       }
 
+      // Check for postgres in registry
+      if (!hasPostgres()) {
+        logger.warn('No Database! API Keys plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'api-keys-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
+      }
+
+      // Smart defaults - get dependencies from registry
+      const store = config.store ?? postgresApiKeyStore({
+        pool: () => getPostgres().getPool(),
+        autoCreateTables: true,
+      });
+
+      const debug = config.debug ?? false;
+      const apiPrefix = config.api?.prefix ?? '/api-keys';
+      const apiEnabled = config.api?.enabled ?? true;
+
+      log('Starting API keys plugin');
+
       // Initialize the store (creates tables and RLS policies if needed)
-      await config.store.initialize();
+      await store.initialize();
       log('API keys store initialized');
 
       // Initialize optional Phase 2 stores
@@ -71,7 +115,7 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
       }
 
       // Store reference for helper access
-      currentStore = config.store;
+      currentStore = store;
 
       // Register health check
       registry.registerHealthCheck({
@@ -117,7 +161,7 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
               };
 
               // Create the API key
-              const apiKey = await config.store.create(params);
+              const apiKey = await store.create(params);
 
               // Return the key with plaintext (ONLY time plaintext is accessible)
               res.status(201).json({
@@ -152,7 +196,7 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
                 return res.status(401).json({ error: 'Authentication required' });
               }
 
-              const keys = await config.store.list(userId);
+              const keys = await store.list(userId);
 
               // Remove sensitive fields from response
               const sanitized = keys.map(key => ({
@@ -191,7 +235,7 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
               }
 
               const { id } = req.params;
-              const key = await config.store.get(userId, id);
+              const key = await store.get(userId, id);
 
               if (!key) {
                 return res.status(404).json({ error: 'API key not found' });
@@ -244,7 +288,7 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
               const { id } = req.params;
               const params: UpdateApiKeyParams = validation.data;
 
-              const updated = await config.store.update(userId, id, params);
+              const updated = await store.update(userId, id, params);
 
               if (!updated) {
                 return res.status(404).json({ error: 'API key not found' });
@@ -287,7 +331,7 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
               }
 
               const { id } = req.params;
-              const deleted = await config.store.delete(userId, id);
+              const deleted = await store.delete(userId, id);
 
               if (!deleted) {
                 return res.status(404).json({ error: 'API key not found' });
@@ -357,7 +401,7 @@ export function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin {
                 const { id: keyId } = req.params;
 
                 // Verify key belongs to user
-                const key = await config.store.get(userId, keyId);
+                const key = await store.get(userId, keyId);
                 if (!key) {
                   return res.status(404).json({ error: 'API key not found' });
                 }

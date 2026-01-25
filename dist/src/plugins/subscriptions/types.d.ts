@@ -292,10 +292,16 @@ export interface SubscriptionsApiConfig {
 }
 /**
  * Subscriptions plugin configuration
+ *
+ * All properties are optional - plugin will use smart defaults:
+ * - store: Postgres subscriptions store using registry's postgres instance
+ * - defaultTierSlug: 'free'
+ * - api.prefix: '/subscriptions'
+ * - debug: false
  */
 export interface SubscriptionsPluginConfig {
-    /** Subscriptions storage backend */
-    store: SubscriptionsStore;
+    /** Subscriptions storage backend (default: postgres subscriptions store from registry) */
+    store?: SubscriptionsStore;
     /** Default tier slug for new users (default: 'free') */
     defaultTierSlug?: string;
     /** Whether to auto-create default subscription for new users */

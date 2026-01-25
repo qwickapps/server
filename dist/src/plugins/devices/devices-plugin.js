@@ -7,20 +7,27 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 import { generateDeviceToken, hashToken, isValidTokenFormat, isTokenExpired, getTokenExpiration, } from './token-utils.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresDeviceStore } from './stores/index.js';
+import { computeDeviceAdapter } from './adapters/index.js';
 // Store instances for helper access
 let currentStore = null;
 let currentAdapter = null;
 let currentConfig = null;
 /**
- * Create the Devices plugin
+ * Create the Devices plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createDevicesPlugin(config) {
-    const debug = config.debug || false;
-    const defaultTokenValidityDays = config.defaultTokenValidityDays || 90;
-    const apiPrefix = config.api?.prefix || '/'; // Framework adds /devices prefix automatically
-    function log(message, data) {
-        if (debug) {
-            console.log(`[DevicesPlugin] ${message}`, data || '');
+export function createDevicesPlugin(config = {}) {
+    function log(message, data, isError = false) {
+        const prefix = '[DevicesPlugin]';
+        if (isError) {
+            console.error(`${prefix} ${message}`, data || '');
+        }
+        else if (config.debug) {
+            console.log(`${prefix} ${message}`, data || '');
         }
     }
     return {
@@ -28,26 +35,52 @@ export function createDevicesPlugin(config) {
         name: 'Devices',
         version: '1.0.0',
         async onStart(_pluginConfig, registry) {
-            log('Starting devices plugin', { adapter: config.adapter.name });
+            const logger = registry.getLogger('devices');
+            // Check for postgres in registry
+            if (!hasPostgres()) {
+                logger.warn('No Database! Devices plugin disabled.');
+                registry.registerHealthCheck({
+                    name: 'devices-store',
+                    type: 'custom',
+                    check: async () => ({
+                        healthy: false,
+                        details: {
+                            error: 'PostgreSQL not available',
+                            state: 'disabled',
+                        },
+                    }),
+                });
+                return;
+            }
+            // Smart defaults - get dependencies from registry
+            const store = config.store ?? postgresDeviceStore({
+                pool: () => getPostgres().getPool(),
+                autoCreateTables: true,
+            });
+            const adapter = config.adapter ?? computeDeviceAdapter();
+            const debug = config.debug ?? false;
+            const defaultTokenValidityDays = config.defaultTokenValidityDays ?? 90;
+            const apiPrefix = config.api?.prefix ?? '/devices';
+            log('Starting devices plugin', { adapter: adapter.name });
             // Initialize the store (creates tables if needed)
-            await config.store.initialize();
+            await store.initialize();
             log('Devices plugin migrations complete');
             // Store references for helper access
-            currentStore = config.store;
-            currentAdapter = config.adapter;
-            currentConfig = config;
+            currentStore = store;
+            currentAdapter = adapter;
+            currentConfig = { ...config, store, adapter, debug, defaultTokenValidityDays };
             // Register health check
             registry.registerHealthCheck({
                 name: 'devices-store',
                 type: 'custom',
                 check: async () => {
                     try {
-                        await config.store.search({ limit: 1 });
+                        await store.search({ limit: 1 });
                         return {
                             healthy: true,
                             details: {
-                                adapter: config.adapter.name,
-                                tokenPrefix: config.adapter.tokenPrefix,
+                                adapter: adapter.name,
+                                tokenPrefix: adapter.tokenPrefix,
                             },
                         };
                     }
@@ -76,7 +109,7 @@ export function createDevicesPlugin(config) {
                                 sortBy: req.query.sortBy || 'created_at',
                                 sortOrder: req.query.sortOrder || 'desc',
                             };
-                            const result = await config.store.search(params);
+                            const result = await store.search(params);
                             res.json(result);
                         }
                         catch (error) {
@@ -92,7 +125,7 @@ export function createDevicesPlugin(config) {
                     pluginId: 'devices',
                     handler: async (req, res) => {
                         try {
-                            const device = await config.store.getById(req.params.id);
+                            const device = await store.getById(req.params.id);
                             if (!device) {
                                 return res.status(404).json({ error: 'Device not found' });
                             }
@@ -119,7 +152,7 @@ export function createDevicesPlugin(config) {
                                 metadata: req.body.metadata,
                             };
                             // Validate using adapter
-                            const validation = config.adapter.validateDeviceInput(input);
+                            const validation = adapter.validateDeviceInput(input);
                             if (!validation.valid) {
                                 return res.status(400).json({
                                     error: 'Validation failed',
@@ -148,7 +181,7 @@ export function createDevicesPlugin(config) {
                                 is_active: req.body.is_active,
                                 metadata: req.body.metadata,
                             };
-                            const device = await config.store.update(req.params.id, input);
+                            const device = await store.update(req.params.id, input);
                             if (!device) {
                                 return res.status(404).json({ error: 'Device not found' });
                             }
@@ -167,17 +200,17 @@ export function createDevicesPlugin(config) {
                     pluginId: 'devices',
                     handler: async (req, res) => {
                         try {
-                            const device = await config.store.getById(req.params.id);
+                            const device = await store.getById(req.params.id);
                             if (!device) {
                                 return res.status(404).json({ error: 'Device not found' });
                             }
-                            const deleted = await config.store.delete(req.params.id);
+                            const deleted = await store.delete(req.params.id);
                             if (!deleted) {
                                 return res.status(404).json({ error: 'Device not found' });
                             }
                             // Call adapter hook
-                            if (config.adapter.onDeviceDeleted) {
-                                await config.adapter.onDeviceDeleted(device);
+                            if (adapter.onDeviceDeleted) {
+                                await adapter.onDeviceDeleted(device);
                             }
                             res.status(204).send();
                         }
@@ -194,7 +227,7 @@ export function createDevicesPlugin(config) {
                     pluginId: 'devices',
                     handler: async (req, res) => {
                         try {
-                            const device = await config.store.getById(req.params.id);
+                            const device = await store.getById(req.params.id);
                             if (!device) {
                                 return res.status(404).json({ error: 'Device not found' });
                             }
@@ -252,7 +285,10 @@ export function createDevicesPlugin(config) {
         },
         async onStop() {
             log('Stopping devices plugin');
-            await config.store.shutdown();
+            if (currentStore) {
+                await currentStore.shutdown();
+            }
+            ;
             currentStore = null;
             currentAdapter = null;
             currentConfig = null;

@@ -21,7 +21,9 @@ import type {
   EntitlementStats,
 } from './types.js';
 import type { AuthenticatedRequest } from '../auth/types.js';
-import { getCache, type CacheInstance } from '../cache-plugin.js';
+import { getCache, hasCache, type CacheInstance } from '../cache-plugin.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresEntitlementSource } from './sources/index.js';
 
 // Plugin state
 let primarySource: EntitlementSource | null = null;
@@ -35,26 +37,20 @@ let cacheEnabled = true;
 let cacheVersion = 1;
 
 /**
- * Create the Entitlements plugin
+ * Create the Entitlements plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createEntitlementsPlugin(config: EntitlementsPluginConfig): Plugin {
-  const debug = config.debug || false;
-  // Routes are mounted under /api by the control panel, so don't include /api in prefix
-  const apiPrefix = config.api?.prefix || ''; // Framework adds /entitlements prefix automatically (empty string to avoid double slash)
-  const apiEnabled = config.api?.enabled !== false;
-  const enableWriteApi = config.api?.enableWrite !== false;
-
-  function log(message: string, data?: Record<string, unknown>) {
-    if (debug) {
-      console.log(`[EntitlementsPlugin] ${message}`, data || '');
+export function createEntitlementsPlugin(config: Partial<EntitlementsPluginConfig> = {}): Plugin {
+  function log(message: string, data?: Record<string, unknown>, isError = false) {
+    const prefix = '[EntitlementsPlugin]';
+    if (isError) {
+      console.error(`${prefix} ${message}`, data || '');
+    } else if (config.debug) {
+      console.log(`${prefix} ${message}`, data || '');
     }
   }
-
-  // Cache key helpers
-  const keys = {
-    entitlements: (email: string) => `${cacheKeyPrefix}user:${email.toLowerCase()}`,
-    mapping: (source: string, id: string) => `${cacheKeyPrefix}mapping:${source}:${id}`,
-  };
 
   return {
     id: 'entitlements',
@@ -62,39 +58,81 @@ export function createEntitlementsPlugin(config: EntitlementsPluginConfig): Plug
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('entitlements');
+
+      // Check for postgres in registry (needed for default source)
+      if (!hasPostgres()) {
+        logger.warn('No Database! Entitlements plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'entitlements-source',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
+      }
+
+      // Smart defaults - get dependencies from registry
+      const source = config.source ?? postgresEntitlementSource({
+        pool: () => getPostgres().getPool(),
+        autoCreateTables: true,
+      });
+
+      const debug = config.debug ?? false;
+      const apiPrefix = config.api?.prefix ?? '/entitlements';
+      const apiEnabled = config.api?.enabled ?? true;
+      const enableWriteApi = config.api?.enableWrite ?? true;
+
       log('Starting entitlements plugin');
 
       // Initialize primary source
-      await config.source.initialize();
-      primarySource = config.source;
-      log('Primary source initialized', { source: config.source.name });
+      await source.initialize();
+      primarySource = source;
+      log('Primary source initialized', { source: source.name });
 
       // Initialize additional sources
       additionalSources = config.additionalSources || [];
-      for (const source of additionalSources) {
-        await source.initialize();
-        log('Additional source initialized', { source: source.name });
+      for (const additionalSource of additionalSources) {
+        await additionalSource.initialize();
+        log('Additional source initialized', { source: additionalSource.name });
       }
 
       // Store config
-      pluginConfig = config;
+      pluginConfig = { ...config, source, debug };
 
-      // Setup caching if enabled
+      // Setup caching if enabled and available
       cacheEnabled = config.cache?.enabled !== false;
       if (cacheEnabled) {
-        try {
-          const instanceName = config.cache?.instanceName || 'default';
-          cacheInstance = getCache(instanceName);
-          cacheKeyPrefix = config.cache?.keyPrefix || 'entitlements:';
-          cacheTtl = config.cache?.ttl || 300;
-          cacheMappingTtl = config.cache?.mappingTtl || cacheTtl * 2;
-          log('Cache configured', { instanceName, prefix: cacheKeyPrefix, ttl: cacheTtl });
-        } catch {
-          log('Cache not available, running without caching');
+        if (hasCache()) {
+          try {
+            const instanceName = config.cache?.instanceName || 'default';
+            cacheInstance = getCache(instanceName);
+            cacheKeyPrefix = config.cache?.keyPrefix || 'entitlements:';
+            cacheTtl = config.cache?.ttl || 300;
+            cacheMappingTtl = config.cache?.mappingTtl || cacheTtl * 2;
+            log('Cache configured', { instanceName, prefix: cacheKeyPrefix, ttl: cacheTtl });
+          } catch {
+            log('Cache instance not available, running without caching');
+            cacheEnabled = false;
+            cacheInstance = null;
+          }
+        } else {
+          log('Cache plugin not available, running without caching');
           cacheEnabled = false;
           cacheInstance = null;
         }
       }
+
+      // Cache key helpers
+      const keys = {
+        entitlements: (email: string) => `${cacheKeyPrefix}user:${email.toLowerCase()}`,
+        mapping: (sourceId: string, id: string) => `${cacheKeyPrefix}mapping:${sourceId}:${id}`,
+      };
 
       // Register health check
       registry.registerHealthCheck({
@@ -104,8 +142,8 @@ export function createEntitlementsPlugin(config: EntitlementsPluginConfig): Plug
           try {
             // Use source's isHealthy() method if available (avoids API calls)
             // Otherwise just check that source is initialized
-            if (config.source.isHealthy) {
-              const healthy = await config.source.isHealthy();
+            if (source.isHealthy) {
+              const healthy = await source.isHealthy();
               return { healthy };
             }
             // Source is healthy if initialized (we got here means it started)
@@ -145,9 +183,9 @@ export function createEntitlementsPlugin(config: EntitlementsPluginConfig): Plug
             try {
               const sources = [
                 {
-                  name: config.source.name,
-                  description: config.source.description,
-                  readonly: config.source.readonly ?? false,
+                  name: source.name,
+                  description: source.description,
+                  readonly: source.readonly ?? false,
                   primary: true,
                 },
                 ...additionalSources.map((s) => ({
@@ -159,8 +197,8 @@ export function createEntitlementsPlugin(config: EntitlementsPluginConfig): Plug
               ];
 
               res.json({
-                readonly: config.source.readonly ?? false,
-                writeEnabled: enableWriteApi && !config.source.readonly,
+                readonly: source.readonly ?? false,
+                writeEnabled: enableWriteApi && !source.readonly,
                 cacheEnabled,
                 cacheTtl,
                 sources,
@@ -311,7 +349,7 @@ export function createEntitlementsPlugin(config: EntitlementsPluginConfig): Plug
         });
 
         // Write endpoints (grant/revoke) - only if enabled and source is writable
-        if (enableWriteApi && !config.source.readonly) {
+        if (enableWriteApi && !source.readonly) {
           // Grant entitlement
           registry.addRoute({
             method: 'post',

@@ -13,9 +13,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { BansPluginConfig, BanStore, Ban, CreateBanInput, RemoveBanInput } from './types.js';
 /**
- * Create the Bans plugin
+ * Create the Bans plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createBansPlugin(config: BansPluginConfig): Plugin;
+export declare function createBansPlugin(config?: Partial<BansPluginConfig>): Plugin;
 /**
  * Get the current ban store instance
  */

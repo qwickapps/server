@@ -21,7 +21,6 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 export { createQwickBrainPlugin, getConnectionStatus, isConnected } from './qwickbrain-plugin.js';
-// UI Components
-export { QwickbrainStatusWidget } from './QwickbrainStatusWidget.js';
-export { QwickbrainManagementPage } from './QwickbrainManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map

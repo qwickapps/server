@@ -11,9 +11,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { ApiKeysPluginConfig, ApiKeyStore, CreateApiKeyParams, UpdateApiKeyParams, ApiKey } from './types.js';
 /**
- * Create the API Keys plugin
+ * Create the API Keys plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createApiKeysPlugin(config: ApiKeysPluginConfig): Plugin;
+export declare function createApiKeysPlugin(config?: Partial<ApiKeysPluginConfig>): Plugin;
 /**
  * Get the current API keys store instance
  */

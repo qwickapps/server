@@ -15,8 +15,4 @@ export { auth0Adapter } from './adapters/auth0-adapter.js';
 export { basicAdapter } from './adapters/basic-adapter.js';
 export { supabaseAdapter } from './adapters/supabase-adapter.js';
 export { supertokensAdapter } from './adapters/supertokens-adapter.js';
-export { AuthStatusWidget } from './AuthStatusWidget.js';
-export type { AuthStatusWidgetProps } from './AuthStatusWidget.js';
-export { AuthManagementPage } from './AuthManagementPage.js';
-export type { AuthManagementPageProps } from './AuthManagementPage.js';
 //# sourceMappingURL=index.d.ts.map

@@ -69,7 +69,6 @@
 export { createNotificationsPlugin } from './notifications-plugin.js';
 // Manager and helpers
 export { NotificationsManager, getNotificationsManager, hasNotificationsManager, broadcastToDevice, broadcastToUser, broadcastToAll, } from './notifications-manager.js';
-// UI Components
-export { NotificationsStatusWidget } from './NotificationsStatusWidget.js';
-export { NotificationsManagementPage } from './NotificationsManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map

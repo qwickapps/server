@@ -24,6 +24,9 @@ import type {
   CreateRestrictionInput,
   LogActivityInput,
 } from './types.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresParentalStore } from './stores/index.js';
+import { kidsAdapter } from './adapters/index.js';
 
 // Store instances for helper access
 let currentStore: ParentalStore | null = null;
@@ -54,17 +57,18 @@ function isWithinSchedule(schedule: Record<string, { start: string; end: string 
 }
 
 /**
- * Create the Parental plugin
+ * Create the Parental plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
-  const debug = config.debug || false;
-  const apiPrefix = config.api?.prefix || '/'; // Framework adds /parental prefix automatically
-  const maxPinAttempts = config.maxPinAttempts || 5;
-  const pinLockoutMinutes = config.pinLockoutMinutes || 30;
-
-  function log(message: string, data?: Record<string, unknown>) {
-    if (debug) {
-      console.log(`[ParentalPlugin] ${message}`, data || '');
+export function createParentalPlugin(config: Partial<ParentalPluginConfig> = {}): Plugin {
+  function log(message: string, data?: Record<string, unknown>, isError = false) {
+    const prefix = '[ParentalPlugin]';
+    if (isError) {
+      console.error(`${prefix} ${message}`, data || '');
+    } else if (config.debug) {
+      console.log(`${prefix} ${message}`, data || '');
     }
   }
 
@@ -74,16 +78,48 @@ export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('parental');
+
+      // Check for postgres in registry
+      if (!hasPostgres()) {
+        logger.warn('No Database! Parental plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'parental-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
+      }
+
+      // Smart defaults - get dependencies from registry
+      const store = config.store ?? postgresParentalStore({
+        pool: () => getPostgres().getPool(),
+        autoCreateTables: true,
+      });
+
+      const adapter = config.adapter ?? kidsAdapter();
+      const debug = config.debug ?? false;
+      const apiPrefix = config.api?.prefix ?? '/'; // Framework adds /parental prefix automatically
+      const apiEnabled = config.api?.enabled ?? true;
+      const maxPinAttempts = config.maxPinAttempts ?? 5;
+      const pinLockoutMinutes = config.pinLockoutMinutes ?? 30;
+
       log('Starting parental plugin');
 
       // Initialize the store (creates tables if needed)
-      await config.store.initialize();
+      await store.initialize();
       log('Parental store initialized');
 
       // Store references for helper access
-      currentStore = config.store;
-      currentAdapter = config.adapter;
-      currentConfig = config;
+      currentStore = store;
+      currentAdapter = adapter;
+      currentConfig = { ...config, store, adapter, debug, maxPinAttempts, pinLockoutMinutes };
 
       // Register health check
       registry.registerHealthCheck({
@@ -99,7 +135,7 @@ export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
       });
 
       // Add API routes if enabled
-      if (config.api?.enabled !== false) {
+      if (apiEnabled) {
         // ═══════════════════════════════════════════════════════════════════════
         // Guardian Settings Routes
         // ═══════════════════════════════════════════════════════════════════════
@@ -140,7 +176,7 @@ export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
               // Hash PIN if provided
               const processedInput = {
                 ...input,
-                adapter_type: config.adapter.name,
+                adapter_type: adapter.name,
                 pin: input.pin ? hashPin(input.pin) : undefined,
               };
 
@@ -290,8 +326,8 @@ export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
               const input = req.body as CreateRestrictionInput;
 
               // Validate with adapter
-              if (config.adapter.validateRestriction) {
-                const validation = config.adapter.validateRestriction(input);
+              if (adapter.validateRestriction) {
+                const validation = adapter.validateRestriction(input);
                 if (!validation.valid) {
                   return res.status(400).json({ error: 'Invalid restriction', errors: validation.errors });
                 }
@@ -416,7 +452,7 @@ export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
               const input = req.body as LogActivityInput;
               const activity = await logActivity({
                 ...input,
-                adapter_type: config.adapter.name,
+                adapter_type: adapter.name,
               });
               res.status(201).json(activity);
             } catch (error) {
@@ -441,10 +477,10 @@ export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
 
               // Format details with adapter if available
               const formattedActivities = activities.map((activity) => {
-                if (config.adapter.formatActivityDetails) {
+                if (adapter.formatActivityDetails) {
                   return {
                     ...activity,
-                    formatted_details: config.adapter.formatActivityDetails(activity),
+                    formatted_details: adapter.formatActivityDetails(activity),
                   };
                 }
                 return activity;
@@ -466,9 +502,9 @@ export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
           handler: async (_req: Request, res: Response) => {
             try {
               res.json({
-                name: config.adapter.name,
-                activity_types: config.adapter.getActivityTypes(),
-                default_daily_limit: config.adapter.getDefaultDailyLimit(),
+                name: adapter.name,
+                activity_types: adapter.getActivityTypes(),
+                default_daily_limit: adapter.getDefaultDailyLimit(),
               });
             } catch (error) {
               console.error('[ParentalPlugin] Get adapter info error:', error);
@@ -483,7 +519,9 @@ export function createParentalPlugin(config: ParentalPluginConfig): Plugin {
 
     async onStop(): Promise<void> {
       log('Stopping parental plugin');
-      await config.store.shutdown();
+      if (currentStore) {
+        await currentStore.shutdown();
+      }
       currentStore = null;
       currentAdapter = null;
       currentConfig = null;

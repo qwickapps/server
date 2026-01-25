@@ -11,9 +11,12 @@
 import type { Plugin, PluginRegistry } from '../../core/plugin-registry.js';
 import type { UsersPluginConfig, UserStore, User, UserInfo, UserIdentifiers, StoredIdentifiers } from './types.js';
 /**
- * Create the Users plugin
+ * Create the Users plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createUsersPlugin(config: UsersPluginConfig): Plugin;
+export declare function createUsersPlugin(config?: Partial<UsersPluginConfig>): Plugin;
 /**
  * Get the current user store instance
  */

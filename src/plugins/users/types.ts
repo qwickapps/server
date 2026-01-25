@@ -269,10 +269,15 @@ export interface UsersUiConfig {
 
 /**
  * Users plugin configuration
+ *
+ * All properties are optional - plugin will use smart defaults:
+ * - store: Postgres user store using registry's postgres instance
+ * - api.prefix: '/users'
+ * - debug: false
  */
 export interface UsersPluginConfig {
-  /** User storage backend */
-  store: UserStore;
+  /** User storage backend (default: postgres user store from registry) */
+  store?: UserStore;
   /** Sync configuration (optional) */
   sync?: UserSyncConfig;
   /** API configuration */

@@ -76,7 +76,6 @@ export { rateLimitMiddleware, rateLimitStatusMiddleware } from './middleware.js'
 export { RateLimitService, getRateLimitService, isLimited, checkLimit, incrementLimit, getRemainingRequests, getLimitStatus, clearLimit, } from './rate-limit-service.js';
 // Cleanup
 export { createCleanupJob } from './cleanup.js';
-// UI Components
-export { RateLimitStatusWidget } from './RateLimitStatusWidget.js';
-export { RateLimitManagementPage } from './RateLimitManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map

@@ -9,9 +9,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { ProfilesPluginConfig, ProfileStore, Profile, CreateProfileInput, UpdateProfileInput, AgeGroup, ContentFilterLevel, TimeRestrictionResult } from './types.js';
 /**
- * Create the Profiles plugin
+ * Create the Profiles plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createProfilesPlugin(config: ProfilesPluginConfig): Plugin;
+export declare function createProfilesPlugin(config?: Partial<ProfilesPluginConfig>): Plugin;
 /**
  * Get the current profile store instance
  */

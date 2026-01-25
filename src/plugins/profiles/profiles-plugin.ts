@@ -20,6 +20,8 @@ import type {
   ContentFilterLevel,
   TimeRestrictionResult,
 } from './types.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresProfileStore } from './stores/index.js';
 
 // Store instance for helper access
 let currentStore: ProfileStore | null = null;
@@ -66,17 +68,18 @@ function isWithinAllowedHours(start?: string, end?: string): boolean {
 }
 
 /**
- * Create the Profiles plugin
+ * Create the Profiles plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
-  const debug = config.debug || false;
-  const maxProfilesPerUser = config.maxProfilesPerUser || 10;
-  const defaultFilterLevel = config.defaultFilterLevel || 'moderate';
-  const apiPrefix = config.api?.prefix || '/'; // Framework adds /profiles prefix automatically
-
-  function log(message: string, data?: Record<string, unknown>) {
-    if (debug) {
-      console.log(`[ProfilesPlugin] ${message}`, data || '');
+export function createProfilesPlugin(config: Partial<ProfilesPluginConfig> = {}): Plugin {
+  function log(message: string, data?: Record<string, unknown>, isError = false) {
+    const prefix = '[ProfilesPlugin]';
+    if (isError) {
+      console.error(`${prefix} ${message}`, data || '');
+    } else if (config.debug) {
+      console.log(`${prefix} ${message}`, data || '');
     }
   }
 
@@ -86,15 +89,45 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('profiles');
+
+      // Check for postgres in registry
+      if (!hasPostgres()) {
+        logger.warn('No Database! Profiles plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'profiles-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
+      }
+
+      // Smart defaults - get dependencies from registry
+      const store = config.store ?? postgresProfileStore({
+        pool: () => getPostgres().getPool(),
+        autoCreateTables: true,
+      });
+
+      const debug = config.debug ?? false;
+      const maxProfilesPerUser = config.maxProfilesPerUser ?? 10;
+      const defaultFilterLevel = config.defaultFilterLevel ?? 'moderate';
+      const apiPrefix = config.api?.prefix ?? '/profiles';
+
       log('Starting profiles plugin');
 
       // Initialize the store (creates tables if needed)
-      await config.store.initialize();
+      await store.initialize();
       log('Profiles plugin migrations complete');
 
       // Store references for helper access
-      currentStore = config.store;
-      currentConfig = config;
+      currentStore = store;
+      currentConfig = { ...config, store, debug, maxProfilesPerUser, defaultFilterLevel };
 
       // Register health check
       registry.registerHealthCheck({
@@ -102,7 +135,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
         type: 'custom',
         check: async () => {
           try {
-            await config.store.search({ limit: 1 });
+            await store.search({ limit: 1 });
             return {
               healthy: true,
               details: {
@@ -137,7 +170,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
                 sortOrder: (req.query.sortOrder as ProfileSearchParams['sortOrder']) || 'desc',
               };
 
-              const result = await config.store.search(params);
+              const result = await store.search(params);
               res.json(result);
             } catch (error) {
               console.error('[ProfilesPlugin] Search error:', error);
@@ -153,7 +186,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
           pluginId: 'profiles',
           handler: async (req: Request, res: Response) => {
             try {
-              const profile = await config.store.getById(req.params.id);
+              const profile = await store.getById(req.params.id);
               if (!profile) {
                 return res.status(404).json({ error: 'Profile not found' });
               }
@@ -196,14 +229,14 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
               }
 
               // Check profile limit
-              const currentCount = await config.store.getProfileCount(input.user_id);
+              const currentCount = await store.getProfileCount(input.user_id);
               if (currentCount >= maxProfilesPerUser) {
                 return res.status(400).json({
                   error: `Maximum profiles (${maxProfilesPerUser}) reached for this user`,
                 });
               }
 
-              const profile = await config.store.create(input);
+              const profile = await store.create(input);
               res.status(201).json(profile);
             } catch (error) {
               console.error('[ProfilesPlugin] Create profile error:', error);
@@ -235,7 +268,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
                 metadata: req.body.metadata,
               };
 
-              const profile = await config.store.update(req.params.id, input);
+              const profile = await store.update(req.params.id, input);
               if (!profile) {
                 return res.status(404).json({ error: 'Profile not found' });
               }
@@ -254,7 +287,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
           pluginId: 'profiles',
           handler: async (req: Request, res: Response) => {
             try {
-              const deleted = await config.store.delete(req.params.id);
+              const deleted = await store.delete(req.params.id);
               if (!deleted) {
                 return res.status(404).json({ error: 'Profile not found' });
               }
@@ -273,7 +306,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
           pluginId: 'profiles',
           handler: async (req: Request, res: Response) => {
             try {
-              const profiles = await config.store.listByUser(req.params.userId);
+              const profiles = await store.listByUser(req.params.userId);
               res.json({ profiles });
             } catch (error) {
               console.error('[ProfilesPlugin] List user profiles error:', error);
@@ -289,7 +322,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
           pluginId: 'profiles',
           handler: async (req: Request, res: Response) => {
             try {
-              const profile = await config.store.getDefaultProfile(req.params.userId);
+              const profile = await store.getDefaultProfile(req.params.userId);
               if (!profile) {
                 return res.status(404).json({ error: 'No default profile found' });
               }
@@ -308,17 +341,17 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
           pluginId: 'profiles',
           handler: async (req: Request, res: Response) => {
             try {
-              const profile = await config.store.getById(req.params.id);
+              const profile = await store.getById(req.params.id);
               if (!profile) {
                 return res.status(404).json({ error: 'Profile not found' });
               }
 
-              const success = await config.store.setDefaultProfile(req.params.id, profile.user_id);
+              const success = await store.setDefaultProfile(req.params.id, profile.user_id);
               if (!success) {
                 return res.status(500).json({ error: 'Failed to set default profile' });
               }
 
-              const updated = await config.store.getById(req.params.id);
+              const updated = await store.getById(req.params.id);
               res.json(updated);
             } catch (error) {
               console.error('[ProfilesPlugin] Set default profile error:', error);
@@ -334,7 +367,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
           pluginId: 'profiles',
           handler: async (req: Request, res: Response) => {
             try {
-              const profile = await config.store.getById(req.params.id);
+              const profile = await store.getById(req.params.id);
               if (!profile) {
                 return res.status(404).json({ error: 'Profile not found' });
               }
@@ -354,7 +387,7 @@ export function createProfilesPlugin(config: ProfilesPluginConfig): Plugin {
 
     async onStop(): Promise<void> {
       log('Stopping profiles plugin');
-      await config.store.shutdown();
+      if (currentStore) { await currentStore.shutdown(); };
       currentStore = null;
       currentConfig = null;
       log('Profiles plugin stopped');

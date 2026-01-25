@@ -9,9 +9,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { UsagePluginConfig, UsageStore, UsageIncrementResult, UsageStatus, UsageSummary } from './types.js';
 /**
- * Create the Usage plugin
+ * Create the Usage plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createUsagePlugin(config: UsagePluginConfig): Plugin;
+export declare function createUsagePlugin(config?: Partial<UsagePluginConfig>): Plugin;
 /**
  * Get the current usage store instance
  */

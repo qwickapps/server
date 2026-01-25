@@ -10,7 +10,6 @@
 export { createSubscriptionsPlugin, getSubscriptionsStore, createTier, getTierBySlug, getTierById, listTiers, getTierEntitlements, setTierEntitlements, getUserSubscription, createUserSubscription, updateUserSubscription, cancelSubscription, getUserTierSlug, getFeatureLimit, hasFeature, checkFeatureLimit, ensureUserSubscription, } from './subscriptions-plugin.js';
 // Stores
 export { postgresSubscriptionsStore } from './stores/index.js';
-// UI Components
-export { SubscriptionsStatusWidget } from './SubscriptionsStatusWidget.js';
-export { SubscriptionsManagementPage } from './SubscriptionsManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map

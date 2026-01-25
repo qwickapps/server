@@ -15,7 +15,6 @@ export { computeDeviceAdapter } from './adapters/index.js';
 export { mobileDeviceAdapter } from './adapters/index.js';
 // Token utilities
 export { generateDeviceToken, generatePairingCode, hashToken, verifyToken, isValidTokenFormat, isTokenExpired, getTokenExpiration, DeviceTokens, } from './token-utils.js';
-// UI Components
-export { DevicesStatusWidget } from './DevicesStatusWidget.js';
-export { DevicesManagementPage } from './DevicesManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map

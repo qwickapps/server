@@ -23,58 +23,26 @@ import type {
 } from './types.js';
 import { getUserById } from '../users/users-plugin.js';
 import { getAuthenticatedUser, isAuthenticated } from '../auth/index.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresTenantStore } from './stores/index.js';
 
 // Store instance and registry for helper access
 let currentStore: TenantStore | null = null;
 let currentRegistry: PluginRegistry | null = null;
 
 /**
- * Create the Tenants plugin
+ * Create the Tenants plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
-  const debug = config.debug || false;
-  const apiPrefix = config.apiPrefix || ''; // Empty string to avoid double slashes in template literals
-  const apiEnabled = config.apiEnabled !== false;
-
-  function log(message: string, data?: Record<string, unknown>) {
-    if (debug) {
-      console.log(`[TenantsPlugin] ${message}`, data || '');
-    }
-  }
-
-  /**
-   * Helper to check if user has access to a tenant
-   */
-  async function canAccessTenant(userId: string, tenantId: string): Promise<boolean> {
-    try {
-      const membership = await config.store.getTenantForUser(tenantId, userId);
-      return membership !== null;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Helper to check if user has admin/owner role in a tenant
-   */
-  async function canManageTenant(userId: string, tenantId: string): Promise<boolean> {
-    try {
-      const membership = await config.store.getTenantForUser(tenantId, userId);
-      return membership !== null && ['owner', 'admin'].includes(membership.user_role);
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Helper to check if user is owner of a tenant
-   */
-  async function isOwnerOfTenant(userId: string, tenantId: string): Promise<boolean> {
-    try {
-      const membership = await config.store.getTenantForUser(tenantId, userId);
-      return membership !== null && membership.user_role === 'owner';
-    } catch {
-      return false;
+export function createTenantsPlugin(config: Partial<TenantsPluginConfig> = {}): Plugin {
+  function log(message: string, data?: Record<string, unknown>, isError = false) {
+    const prefix = '[TenantsPlugin]';
+    if (isError) {
+      console.error(`${prefix} ${message}`, data || '');
+    } else if (config.debug) {
+      console.log(`${prefix} ${message}`, data || '');
     }
   }
 
@@ -84,14 +52,43 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('tenants');
+
+      // Check for postgres in registry
+      if (!hasPostgres()) {
+        logger.warn('No Database! Tenants plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'tenants-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
+      }
+
+      // Smart defaults - get dependencies from registry
+      const store = config.store ?? postgresTenantStore({
+        pool: () => getPostgres().getPool(),
+        autoCreateTables: true,
+      });
+
+      const debug = config.debug ?? false;
+      const apiPrefix = config.apiPrefix ?? '/tenants';
+      const apiEnabled = config.apiEnabled ?? true;
+
       log('Starting tenants plugin');
 
       // Initialize the store (creates tables if needed)
-      await config.store.initialize();
+      await store.initialize();
       log('Tenants plugin migrations complete');
 
       // Store references for helper access
-      currentStore = config.store;
+      currentStore = store;
       currentRegistry = registry;
 
       // Register health check
@@ -101,13 +98,49 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
         check: async () => {
           try {
             // Simple health check - try to search with limit 1
-            await config.store.search({ limit: 1 });
+            await store.search({ limit: 1 });
             return { healthy: true };
           } catch {
             return { healthy: false };
           }
         },
       });
+
+      /**
+       * Helper to check if user has access to a tenant
+       */
+      async function canAccessTenant(userId: string, tenantId: string): Promise<boolean> {
+        try {
+          const membership = await store.getTenantForUser(tenantId, userId);
+          return membership !== null;
+        } catch {
+          return false;
+        }
+      }
+
+      /**
+       * Helper to check if user has admin/owner role in a tenant
+       */
+      async function canManageTenant(userId: string, tenantId: string): Promise<boolean> {
+        try {
+          const membership = await store.getTenantForUser(tenantId, userId);
+          return membership !== null && ['owner', 'admin'].includes(membership.user_role);
+        } catch {
+          return false;
+        }
+      }
+
+      /**
+       * Helper to check if user is owner of a tenant
+       */
+      async function isOwnerOfTenant(userId: string, tenantId: string): Promise<boolean> {
+        try {
+          const membership = await store.getTenantForUser(tenantId, userId);
+          return membership !== null && membership.user_role === 'owner';
+        } catch {
+          return false;
+        }
+      }
 
       if (!apiEnabled) return;
 
@@ -140,7 +173,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
 
             // Users can only search their own tenants
             // Get all tenants user belongs to
-            const userTenants = await config.store.getTenantsForUser(user.id);
+            const userTenants = await store.getTenantsForUser(user.id);
             res.json({
               tenants: userTenants,
               total: userTenants.length,
@@ -186,7 +219,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               });
             }
 
-            const tenant = await config.store.getById(req.params.id);
+            const tenant = await store.getById(req.params.id);
             if (!tenant) {
               return res.status(404).json({ error: 'Tenant not found' });
             }
@@ -252,10 +285,10 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               });
             }
 
-            const tenant = await config.store.create(input);
+            const tenant = await store.create(input);
 
             // Automatically add creator as owner
-            await config.store.addMember({
+            await store.addMember({
               tenant_id: tenant.id,
               user_id: user.id,
               role: 'owner',
@@ -306,7 +339,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               metadata: req.body.metadata,
             };
 
-            const tenant = await config.store.update(req.params.id, input);
+            const tenant = await store.update(req.params.id, input);
             if (!tenant) {
               return res.status(404).json({ error: 'Tenant not found' });
             }
@@ -351,7 +384,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               });
             }
 
-            const deleted = await config.store.delete(req.params.id);
+            const deleted = await store.delete(req.params.id);
             if (!deleted) {
               return res.status(404).json({ error: 'Tenant not found' });
             }
@@ -400,7 +433,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               });
             }
 
-            const tenants = await config.store.getTenantsForUser(req.params.userId);
+            const tenants = await store.getTenantsForUser(req.params.userId);
             res.json({ tenants, total: tenants.length });
           } catch (error) {
             console.error('[TenantsPlugin] Get user tenants error:', error);
@@ -444,7 +477,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               });
             }
 
-            const members = await config.store.getMembers(req.params.tenantId);
+            const members = await store.getMembers(req.params.tenantId);
             res.json({ members, total: members.length });
           } catch (error) {
             console.error('[TenantsPlugin] Get members error:', error);
@@ -506,7 +539,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               });
             }
 
-            const membership = await config.store.addMember(input);
+            const membership = await store.addMember(input);
             log('Member added to tenant', {
               tenantId: input.tenant_id,
               userId: input.user_id,
@@ -568,7 +601,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               });
             }
 
-            const membership = await config.store.updateMember(req.params.tenantId, req.params.userId, input);
+            const membership = await store.updateMember(req.params.tenantId, req.params.userId, input);
             if (!membership) {
               return res.status(404).json({ error: 'Membership not found' });
             }
@@ -618,7 +651,7 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
               });
             }
 
-            const deleted = await config.store.removeMember(req.params.tenantId, req.params.userId);
+            const deleted = await store.removeMember(req.params.tenantId, req.params.userId);
             if (!deleted) {
               return res.status(404).json({ error: 'Membership not found' });
             }
@@ -641,7 +674,9 @@ export function createTenantsPlugin(config: TenantsPluginConfig): Plugin {
 
     async onStop(): Promise<void> {
       log('Stopping tenants plugin');
-      await config.store.shutdown();
+      if (currentStore) {
+        await currentStore.shutdown();
+      }
       currentStore = null;
       currentRegistry = null;
     },

@@ -10,7 +10,6 @@
 export { createPreferencesPlugin, getPreferencesStore, getPreferences, updatePreferences, deletePreferences, getDefaultPreferences, } from './preferences-plugin.js';
 // Stores
 export { postgresPreferencesStore, deepMerge } from './stores/index.js';
-// UI Components
-export { PreferencesStatusWidget } from './PreferencesStatusWidget.js';
-export { PreferencesManagementPage } from './PreferencesManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map

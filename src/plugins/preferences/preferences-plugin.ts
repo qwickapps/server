@@ -16,8 +16,9 @@ import type {
   PreferencesStore,
 } from './types.js';
 import type { AuthenticatedRequest } from '../auth/types.js';
-import { deepMerge } from './stores/postgres-store.js';
+import { deepMerge, postgresPreferencesStore } from './stores/postgres-store.js';
 import { MAX_PREFERENCES_SIZE, MAX_NESTING_DEPTH } from './types.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
 
 /**
  * Check if an object exceeds maximum nesting depth
@@ -38,17 +39,18 @@ let currentStore: PreferencesStore | null = null;
 let pluginDefaults: Record<string, unknown> = {};
 
 /**
- * Create the Preferences plugin
+ * Create the Preferences plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin {
-  const debug = config.debug || false;
-  // Routes are mounted under /api by the control panel, so don't include /api in prefix
-  const apiPrefix = config.api?.prefix || '/'; // Framework adds /preferences prefix automatically
-  const apiEnabled = config.api?.enabled !== false;
-
-  function log(message: string, data?: Record<string, unknown>) {
-    if (debug) {
-      console.log(`[PreferencesPlugin] ${message}`, data || '');
+export function createPreferencesPlugin(config: Partial<PreferencesPluginConfig> = {}): Plugin {
+  function log(message: string, data?: Record<string, unknown>, isError = false) {
+    const prefix = '[PreferencesPlugin]';
+    if (isError) {
+      console.error(`${prefix} ${message}`, data || '');
+    } else if (config.debug) {
+      console.log(`${prefix} ${message}`, data || '');
     }
   }
 
@@ -58,20 +60,62 @@ export function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
-      log('Starting preferences plugin');
+      const logger = registry.getLogger('preferences');
 
       // Check for users plugin dependency
       if (!registry.hasPlugin('users')) {
-        throw new Error('Preferences plugin requires Users plugin to be loaded first');
+        logger.warn('Users plugin not loaded! Preferences plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'preferences-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'Users plugin not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
       }
 
+      // Check for postgres in registry
+      if (!hasPostgres()) {
+        logger.warn('No Database! Preferences plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'preferences-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
+      }
+
+      // Smart defaults - get dependencies from registry
+      const store = config.store ?? postgresPreferencesStore({
+        pool: () => getPostgres().getPool(),
+        autoCreateTables: true,
+      });
+
+      const debug = config.debug ?? false;
+      const apiPrefix = config.api?.prefix ?? '/'; // Framework adds /preferences prefix automatically
+      const apiEnabled = config.api?.enabled ?? true;
+      const defaults = config.defaults ?? {};
+
+      log('Starting preferences plugin');
+
       // Initialize the store (creates tables and RLS policies if needed)
-      await config.store.initialize();
+      await store.initialize();
       log('Preferences plugin migrations complete');
 
       // Store references for helper access
-      currentStore = config.store;
-      pluginDefaults = config.defaults || {};
+      currentStore = store;
+      pluginDefaults = defaults;
 
       // Register health check
       registry.registerHealthCheck({
@@ -105,7 +149,7 @@ export function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin
                 return res.status(401).json({ error: 'Authentication required' });
               }
 
-              const stored = await config.store.get(userId);
+              const stored = await store.get(userId);
 
               // Merge with defaults (defaults as base, stored values override)
               const preferences = stored
@@ -153,7 +197,7 @@ export function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin
                 return res.status(400).json({ error: 'Preferences object too deeply nested (max 10 levels)' });
               }
 
-              const updated = await config.store.update(userId, newPreferences);
+              const updated = await store.update(userId, newPreferences);
 
               // Merge with defaults for response
               const preferences = deepMerge(pluginDefaults, updated);
@@ -183,7 +227,7 @@ export function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin
                 return res.status(401).json({ error: 'Authentication required' });
               }
 
-              await config.store.delete(userId);
+              await store.delete(userId);
 
               // Return 204 No Content (idempotent - success even if no row existed)
               res.status(204).send();
@@ -208,7 +252,9 @@ export function createPreferencesPlugin(config: PreferencesPluginConfig): Plugin
 
     async onStop(): Promise<void> {
       log('Stopping preferences plugin');
-      await config.store.shutdown();
+      if (currentStore) {
+        await currentStore.shutdown();
+      }
       currentStore = null;
       pluginDefaults = {};
       log('Preferences plugin stopped');

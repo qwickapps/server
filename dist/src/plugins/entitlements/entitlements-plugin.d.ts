@@ -13,9 +13,12 @@ import type { RequestHandler } from 'express';
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { EntitlementsPluginConfig, EntitlementSource, EntitlementResult, EntitlementDefinition, EntitlementStats } from './types.js';
 /**
- * Create the Entitlements plugin
+ * Create the Entitlements plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createEntitlementsPlugin(config: EntitlementsPluginConfig): Plugin;
+export declare function createEntitlementsPlugin(config?: Partial<EntitlementsPluginConfig>): Plugin;
 /**
  * Get the primary entitlement source
  */

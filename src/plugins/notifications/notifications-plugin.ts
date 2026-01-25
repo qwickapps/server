@@ -96,7 +96,10 @@ function validateId(id: string | undefined, paramName: string): { valid: boolean
 }
 
 /**
- * Create the Notifications plugin
+ * Create the Notifications plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  *
  * @param config Plugin configuration
  * @returns Plugin instance
@@ -112,11 +115,7 @@ function validateId(id: string | undefined, paramName: string): { valid: boolean
  * });
  * ```
  */
-export function createNotificationsPlugin(config: NotificationsPluginConfig): Plugin {
-  const apiPrefix = config.api?.prefix || '/'; // Framework adds /notifications prefix automatically
-  const streamEnabled = config.api?.stream !== false;
-  const statsEnabled = config.api?.stats !== false;
-
+export function createNotificationsPlugin(config: Partial<NotificationsPluginConfig> = {}): Plugin {
   let manager: NotificationsManager | null = null;
 
   return {
@@ -129,10 +128,19 @@ export function createNotificationsPlugin(config: NotificationsPluginConfig): Pl
 
       // Check for postgres plugin dependency
       if (!hasPostgres()) {
-        throw new Error(
-          'Notifications plugin requires postgres plugin. ' +
-          'Please add createPostgresPlugin() before createNotificationsPlugin().'
-        );
+        logger.warn('No Database! Notifications plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'notifications',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
       }
 
       // Get database connection string from postgres plugin
@@ -150,22 +158,43 @@ export function createNotificationsPlugin(config: NotificationsPluginConfig): Pl
       }
 
       if (!connectionString) {
-        throw new Error(
-          'Could not determine PostgreSQL connection string. ' +
-          'Ensure DATABASE_URL is set or postgres plugin was configured with a URL.'
-        );
+        logger.warn('Could not determine PostgreSQL connection string. Notifications plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'notifications',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'Connection string not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
       }
 
+      // Smart defaults
+      const channels = config.channels ?? [];
+      const apiPrefix = config.api?.prefix ?? '/'; // Framework adds /notifications prefix automatically
+      const streamEnabled = config.api?.stream ?? true;
+      const statsEnabled = config.api?.stats ?? true;
+
       logger.debug('Initializing notifications manager', {
-        channels: config.channels,
+        channels: channels,
         heartbeatInterval: config.heartbeat?.interval,
       });
+
+      // Create full config with defaults for required fields
+      const fullConfig: NotificationsPluginConfig = {
+        ...config,
+        channels, // Required field with default
+      };
 
       // Create and initialize manager
       manager = new NotificationsManager(
         connectionString,
-        config.channels,
-        config,
+        channels,
+        fullConfig,
         logger
       );
 
@@ -182,7 +211,7 @@ export function createNotificationsPlugin(config: NotificationsPluginConfig): Pl
             healthy: health?.isHealthy ?? false,
             details: {
               connected: health?.isConnected,
-              channels: config.channels,
+              channels: channels,
               activeClients: manager?.getStats().currentConnections ?? 0,
               lastEventAt: health?.lastEventAt?.toISOString(),
               isReconnecting: health?.isReconnecting,
@@ -273,7 +302,7 @@ export function createNotificationsPlugin(config: NotificationsPluginConfig): Pl
             const stats = manager.getStats();
             res.json({
               ...stats,
-              channels: config.channels,
+              channels: channels,
               lastEventAt: stats.connectionHealth.lastEventAt?.toISOString(),
               lastReconnectionAt: stats.lastReconnectionAt?.toISOString(),
             });

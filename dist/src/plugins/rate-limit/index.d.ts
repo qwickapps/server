@@ -73,8 +73,4 @@ export { RateLimitService, getRateLimitService, isLimited, checkLimit, increment
 export { createCleanupJob } from './cleanup.js';
 export type { CleanupJob, CleanupJobConfig } from './cleanup.js';
 export type { RateLimitStrategy, LimitStatus, Strategy, StrategyOptions, StrategyContext, StoredLimit, IncrementOptions, RateLimitStore, PostgresRateLimitStoreConfig, CachedLimit, RateLimitCache, RateLimitCacheConfig, RateLimitMiddlewareOptions, RateLimitPluginConfig, CheckLimitOptions, } from './types.js';
-export { RateLimitStatusWidget } from './RateLimitStatusWidget.js';
-export { RateLimitManagementPage } from './RateLimitManagementPage.js';
-export type { RateLimitStatusWidgetProps } from './RateLimitStatusWidget.js';
-export type { RateLimitManagementPageProps } from './RateLimitManagementPage.js';
 //# sourceMappingURL=index.d.ts.map

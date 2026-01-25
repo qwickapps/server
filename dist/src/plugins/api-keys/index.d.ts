@@ -11,8 +11,4 @@ export type { ApiKeysPluginConfig, ApiKeyStore, ApiKey, ApiKeyWithPlaintext, Api
 export { ApiKeyScopeSchema, ApiKeyTypeSchema, CreateApiKeySchema, UpdateApiKeySchema, ApiKeySchema, } from './types.js';
 export { postgresApiKeyStore } from './stores/index.js';
 export { bearerTokenAuth } from './middleware/index.js';
-export { ApiKeysStatusWidget } from './ApiKeysStatusWidget.js';
-export type { ApiKeysStatusWidgetProps } from './ApiKeysStatusWidget.js';
-export { ApiKeysManagementPage } from './ApiKeysManagementPage.js';
-export type { ApiKeysManagementPageProps } from './ApiKeysManagementPage.js';
 //# sourceMappingURL=index.d.ts.map

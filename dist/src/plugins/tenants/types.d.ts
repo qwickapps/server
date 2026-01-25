@@ -203,10 +203,16 @@ export interface PostgresTenantStoreConfig {
 }
 /**
  * Tenants plugin configuration
+ *
+ * All properties are optional - plugin will use smart defaults:
+ * - store: Postgres tenant store using registry's postgres instance
+ * - apiPrefix: '/tenants'
+ * - apiEnabled: true
+ * - debug: false
  */
 export interface TenantsPluginConfig {
-    /** Tenant store implementation */
-    store: TenantStore;
+    /** Tenant store implementation (default: postgres tenant store from registry) */
+    store?: TenantStore;
     /** API route prefix (default: '/tenants') */
     apiPrefix?: string;
     /** Enable API endpoints (default: true) */

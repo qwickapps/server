@@ -9,9 +9,12 @@
 import type { Plugin } from '../../core/plugin-registry.js';
 import type { SubscriptionsPluginConfig, SubscriptionsStore, SubscriptionTier, SubscriptionEntitlement, UserSubscription, UserSubscriptionWithTier, CreateTierInput, CreateUserSubscriptionInput, UpdateUserSubscriptionInput, FeatureLimitResult } from './types.js';
 /**
- * Create the Subscriptions plugin
+ * Create the Subscriptions plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export declare function createSubscriptionsPlugin(config: SubscriptionsPluginConfig): Plugin;
+export declare function createSubscriptionsPlugin(config?: Partial<SubscriptionsPluginConfig>): Plugin;
 /**
  * Get the current subscriptions store instance
  */

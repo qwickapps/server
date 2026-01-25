@@ -48,8 +48,5 @@ export { postgresApiKeyStore } from './stores/index.js';
 // Middleware
 export { bearerTokenAuth } from './middleware/index.js';
 
-// UI Components
-export { ApiKeysStatusWidget } from './ApiKeysStatusWidget.js';
-export type { ApiKeysStatusWidgetProps } from './ApiKeysStatusWidget.js';
-export { ApiKeysManagementPage } from './ApiKeysManagementPage.js';
-export type { ApiKeysManagementPageProps } from './ApiKeysManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins

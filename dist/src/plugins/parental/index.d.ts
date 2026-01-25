@@ -11,8 +11,4 @@ export type { GuardianSettings, ProfileRestriction, ActivityLog, AccessCheckResu
 export { postgresParentalStore } from './stores/index.js';
 export { kidsAdapter } from './adapters/index.js';
 export type { KidsAdapterConfig } from './adapters/index.js';
-export { ParentalStatusWidget } from './ParentalStatusWidget.js';
-export type { ParentalStatusWidgetProps } from './ParentalStatusWidget.js';
-export { ParentalManagementPage } from './ParentalManagementPage.js';
-export type { ParentalManagementPageProps } from './ParentalManagementPage.js';
 //# sourceMappingURL=index.d.ts.map

@@ -6,19 +6,25 @@
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresSubscriptionsStore } from './stores/index.js';
 // Store instance for helper access
 let currentStore = null;
 let currentConfig = null;
 /**
- * Create the Subscriptions plugin
+ * Create the Subscriptions plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createSubscriptionsPlugin(config) {
-    const debug = config.debug || false;
-    const defaultTierSlug = config.defaultTierSlug || 'free';
-    const apiPrefix = config.api?.prefix || '/'; // Framework adds /subscriptions prefix automatically
-    function log(message, data) {
-        if (debug) {
-            console.log(`[SubscriptionsPlugin] ${message}`, data || '');
+export function createSubscriptionsPlugin(config = {}) {
+    function log(message, data, isError = false) {
+        const prefix = '[SubscriptionsPlugin]';
+        if (isError) {
+            console.error(`${prefix} ${message}`, data || '');
+        }
+        else if (config.debug) {
+            console.log(`${prefix} ${message}`, data || '');
         }
     }
     return {
@@ -26,20 +32,45 @@ export function createSubscriptionsPlugin(config) {
         name: 'Subscriptions',
         version: '1.0.0',
         async onStart(_pluginConfig, registry) {
+            const logger = registry.getLogger('subscriptions');
+            // Check for postgres in registry
+            if (!hasPostgres()) {
+                logger.warn('No Database! Subscriptions plugin disabled.');
+                registry.registerHealthCheck({
+                    name: 'subscriptions-store',
+                    type: 'custom',
+                    check: async () => ({
+                        healthy: false,
+                        details: {
+                            error: 'PostgreSQL not available',
+                            state: 'disabled',
+                        },
+                    }),
+                });
+                return;
+            }
+            // Smart defaults - get dependencies from registry
+            const store = config.store ?? postgresSubscriptionsStore({
+                pool: () => getPostgres().getPool(),
+                autoCreateTables: true,
+            });
+            const debug = config.debug ?? false;
+            const defaultTierSlug = config.defaultTierSlug ?? 'free';
+            const apiPrefix = config.api?.prefix ?? '/subscriptions';
             log('Starting subscriptions plugin');
             // Initialize the store (creates tables if needed)
-            await config.store.initialize();
+            await store.initialize();
             log('Subscriptions plugin migrations complete');
             // Store references for helper access
-            currentStore = config.store;
-            currentConfig = config;
+            currentStore = store;
+            currentConfig = { ...config, store, debug, defaultTierSlug };
             // Register health check
             registry.registerHealthCheck({
                 name: 'subscriptions-store',
                 type: 'custom',
                 check: async () => {
                     try {
-                        const tiers = await config.store.listTiers(true);
+                        const tiers = await store.listTiers(true);
                         return {
                             healthy: true,
                             details: {
@@ -63,12 +94,12 @@ export function createSubscriptionsPlugin(config) {
                     handler: async (req, res) => {
                         try {
                             const activeOnly = req.query.active !== 'false';
-                            const tiers = await config.store.listTiers(activeOnly);
+                            const tiers = await store.listTiers(activeOnly);
                             // Include entitlements if requested
                             if (req.query.include === 'entitlements') {
                                 const tiersWithEntitlements = await Promise.all(tiers.map(async (tier) => ({
                                     ...tier,
-                                    entitlements: await config.store.getEntitlementsByTier(tier.id),
+                                    entitlements: await store.getEntitlementsByTier(tier.id),
                                 })));
                                 return res.json({ tiers: tiersWithEntitlements });
                             }
@@ -89,14 +120,14 @@ export function createSubscriptionsPlugin(config) {
                         try {
                             const { idOrSlug } = req.params;
                             // Try by ID first, then by slug
-                            let tier = await config.store.getTierById(idOrSlug);
+                            let tier = await store.getTierById(idOrSlug);
                             if (!tier) {
-                                tier = await config.store.getTierBySlug(idOrSlug);
+                                tier = await store.getTierBySlug(idOrSlug);
                             }
                             if (!tier) {
                                 return res.status(404).json({ error: 'Tier not found' });
                             }
-                            const entitlements = await config.store.getEntitlementsByTier(tier.id);
+                            const entitlements = await store.getEntitlementsByTier(tier.id);
                             res.json({ ...tier, entitlements });
                         }
                         catch (error) {
@@ -117,11 +148,11 @@ export function createSubscriptionsPlugin(config) {
                                 return res.status(400).json({ error: 'slug and name are required' });
                             }
                             // Check for duplicate slug
-                            const existing = await config.store.getTierBySlug(input.slug);
+                            const existing = await store.getTierBySlug(input.slug);
                             if (existing) {
                                 return res.status(409).json({ error: 'Tier with this slug already exists' });
                             }
-                            const tier = await config.store.createTier(input);
+                            const tier = await store.createTier(input);
                             res.status(201).json(tier);
                         }
                         catch (error) {
@@ -138,7 +169,7 @@ export function createSubscriptionsPlugin(config) {
                     handler: async (req, res) => {
                         try {
                             const input = req.body;
-                            const tier = await config.store.updateTier(req.params.id, input);
+                            const tier = await store.updateTier(req.params.id, input);
                             if (!tier) {
                                 return res.status(404).json({ error: 'Tier not found' });
                             }
@@ -161,8 +192,8 @@ export function createSubscriptionsPlugin(config) {
                             if (!Array.isArray(entitlements)) {
                                 return res.status(400).json({ error: 'entitlements array is required' });
                             }
-                            await config.store.setTierEntitlements(req.params.id, entitlements);
-                            const updatedEntitlements = await config.store.getEntitlementsByTier(req.params.id);
+                            await store.setTierEntitlements(req.params.id, entitlements);
+                            const updatedEntitlements = await store.getEntitlementsByTier(req.params.id);
                             res.json({ entitlements: updatedEntitlements });
                         }
                         catch (error) {
@@ -181,12 +212,12 @@ export function createSubscriptionsPlugin(config) {
                     pluginId: 'subscriptions',
                     handler: async (req, res) => {
                         try {
-                            const subscription = await config.store.getActiveSubscription(req.params.userId);
+                            const subscription = await store.getActiveSubscription(req.params.userId);
                             if (!subscription) {
                                 return res.status(404).json({ error: 'No active subscription found' });
                             }
                             // Get entitlements for the tier
-                            const entitlements = await config.store.getEntitlementsByTier(subscription.tier_id);
+                            const entitlements = await store.getEntitlementsByTier(subscription.tier_id);
                             res.json({
                                 subscription,
                                 entitlements,
@@ -211,13 +242,13 @@ export function createSubscriptionsPlugin(config) {
                             };
                             if (!input.tier_id) {
                                 // Use default tier if not specified
-                                const defaultTier = await config.store.getTierBySlug(defaultTierSlug);
+                                const defaultTier = await store.getTierBySlug(defaultTierSlug);
                                 if (!defaultTier) {
                                     return res.status(400).json({ error: 'tier_id is required (no default tier found)' });
                                 }
                                 input.tier_id = defaultTier.id;
                             }
-                            const subscription = await config.store.createUserSubscription(input);
+                            const subscription = await store.createUserSubscription(input);
                             res.status(201).json(subscription);
                         }
                         catch (error) {
@@ -250,11 +281,11 @@ export function createSubscriptionsPlugin(config) {
                     pluginId: 'subscriptions',
                     handler: async (req, res) => {
                         try {
-                            const success = await config.store.cancelSubscription(req.params.id);
+                            const success = await store.cancelSubscription(req.params.id);
                             if (!success) {
                                 return res.status(404).json({ error: 'Subscription not found' });
                             }
-                            const subscription = await config.store.getUserSubscriptionById(req.params.id);
+                            const subscription = await store.getUserSubscriptionById(req.params.id);
                             res.json(subscription);
                         }
                         catch (error) {
@@ -268,7 +299,10 @@ export function createSubscriptionsPlugin(config) {
         },
         async onStop() {
             log('Stopping subscriptions plugin');
-            await config.store.shutdown();
+            if (currentStore) {
+                await currentStore.shutdown();
+            }
+            ;
             currentStore = null;
             currentConfig = null;
             log('Subscriptions plugin stopped');

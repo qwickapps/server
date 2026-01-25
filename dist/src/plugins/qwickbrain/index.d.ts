@@ -22,8 +22,4 @@
  */
 export { createQwickBrainPlugin, getConnectionStatus, isConnected } from './qwickbrain-plugin.js';
 export type { QwickBrainPluginConfig, MCPToolDefinition, MCPToolCallRequest, MCPToolCallResponse, QwickBrainConnectionStatus, MCPRateLimitConfig, } from './types.js';
-export { QwickbrainStatusWidget } from './QwickbrainStatusWidget.js';
-export { QwickbrainManagementPage } from './QwickbrainManagementPage.js';
-export type { QwickbrainStatusWidgetProps } from './QwickbrainStatusWidget.js';
-export type { QwickbrainManagementPageProps } from './QwickbrainManagementPage.js';
 //# sourceMappingURL=index.d.ts.map

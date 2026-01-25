@@ -48,8 +48,6 @@ export type {
 // Stores
 export { postgresProfileStore } from './stores/index.js';
 
-// UI Components
-export { ProfilesStatusWidget } from './ProfilesStatusWidget.js';
-export type { ProfilesStatusWidgetProps } from './ProfilesStatusWidget.js';
-export { ProfilesManagementPage } from './ProfilesManagementPage.js';
-export type { ProfilesManagementPageProps } from './ProfilesManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
+

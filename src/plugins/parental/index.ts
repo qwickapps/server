@@ -54,8 +54,6 @@ export { postgresParentalStore } from './stores/index.js';
 export { kidsAdapter } from './adapters/index.js';
 export type { KidsAdapterConfig } from './adapters/index.js';
 
-// UI Components
-export { ParentalStatusWidget } from './ParentalStatusWidget.js';
-export type { ParentalStatusWidgetProps } from './ParentalStatusWidget.js';
-export { ParentalManagementPage } from './ParentalManagementPage.js';
-export type { ParentalManagementPageProps } from './ParentalManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
+

@@ -30,22 +30,26 @@ import { getEntitlements } from '../entitlements/entitlements-plugin.js';
 import { getPreferences } from '../preferences/preferences-plugin.js';
 import { getActiveBan } from '../bans/bans-plugin.js';
 import { autoCreateUserTenant } from '../tenants/index.js';
+import { hasPostgres, getPostgres } from '../postgres-plugin.js';
+import { postgresUserStore } from './stores/index.js';
 
 // Store instance for helper access
 let currentStore: UserStore | null = null;
 let currentRegistry: PluginRegistry | null = null;
 
 /**
- * Create the Users plugin
+ * Create the Users plugin with smart defaults
+ *
+ * Config is optional - plugin will use defaults and get dependencies from registry.
+ * Gracefully handles missing dependencies with clear log messages.
  */
-export function createUsersPlugin(config: UsersPluginConfig): Plugin {
-  const debug = config.debug || false;
-  // Routes are mounted under /api by the control panel, so don't include /api in prefix
-  const apiPrefix = config.api?.prefix || '/'; // Framework adds /users prefix automatically
-
-  function log(message: string, data?: Record<string, unknown>) {
-    if (debug) {
-      console.log(`[UsersPlugin] ${message}`, data || '');
+export function createUsersPlugin(config: Partial<UsersPluginConfig> = {}): Plugin {
+  function log(message: string, data?: Record<string, unknown>, isError = false) {
+    const prefix = '[UsersPlugin]';
+    if (isError) {
+      console.error(`${prefix} ${message}`, data || '');
+    } else if (config.debug) {
+      console.log(`${prefix} ${message}`, data || '');
     }
   }
 
@@ -55,14 +59,42 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
     version: '1.0.0',
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
+      const logger = registry.getLogger('users');
+
+      // Check for postgres in registry
+      if (!hasPostgres()) {
+        logger.warn('No Database! Users plugin disabled.');
+        registry.registerHealthCheck({
+          name: 'users-store',
+          type: 'custom',
+          check: async () => ({
+            healthy: false,
+            details: {
+              error: 'PostgreSQL not available',
+              state: 'disabled',
+            },
+          }),
+        });
+        return;
+      }
+
+      // Smart defaults - get dependencies from registry
+      const store = config.store ?? postgresUserStore({
+        pool: () => getPostgres().getPool(),
+        autoCreateTables: true,
+      });
+
+      const debug = config.debug ?? false;
+      const apiPrefix = config.api?.prefix ?? '/users';
+
       log('Starting users plugin');
 
       // Initialize the store (creates tables if needed)
-      await config.store.initialize();
+      await store.initialize();
       log('Users plugin migrations complete');
 
       // Store references for helper access
-      currentStore = config.store;
+      currentStore = store;
       currentRegistry = registry;
 
       // Register health check
@@ -72,7 +104,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
         check: async () => {
           try {
             // Simple health check - try to search with limit 1
-            await config.store.search({ limit: 1 });
+            await store.search({ limit: 1 });
             return { healthy: true };
           } catch {
             return { healthy: false };
@@ -98,7 +130,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
                 sortOrder: (req.query.sortOrder as UserSearchParams['sortOrder']) || 'desc',
               };
 
-              const result = await config.store.search(params);
+              const result = await store.search(params);
               res.json(result);
             } catch (error) {
               console.error('[UsersPlugin] Search error:', error);
@@ -114,7 +146,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
           pluginId: 'users',
           handler: async (req: Request, res: Response) => {
             try {
-              const user = await config.store.getById(req.params.id);
+              const user = await store.getById(req.params.id);
               if (!user) {
                 return res.status(404).json({ error: 'User not found' });
               }
@@ -147,12 +179,12 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
               }
 
               // Check if user already exists
-              const existing = await config.store.getByEmail(input.email);
+              const existing = await store.getByEmail(input.email);
               if (existing) {
                 return res.status(409).json({ error: 'User with this email already exists' });
               }
 
-              const user = await config.store.create(input);
+              const user = await store.create(input);
 
               // Auto-create personal tenant if tenants plugin available
               if (registry.hasPlugin('tenants')) {
@@ -187,7 +219,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
               }
 
               // Check if user already exists
-              const existing = await config.store.getByEmail(email);
+              const existing = await store.getByEmail(email);
               if (existing) {
                 return res.status(409).json({ error: 'User with this email already exists' });
               }
@@ -200,7 +232,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
               expiresAt.setDate(expiresAt.getDate() + 7);
 
               // Create user with invited status
-              const user = await config.store.create({
+              const user = await store.create({
                 email,
                 name,
                 metadata: role ? { role } : undefined,
@@ -251,7 +283,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
                 return res.status(400).json({ error: 'Invitation token is required' });
               }
 
-              const user = await config.store.acceptInvitation(token);
+              const user = await store.acceptInvitation(token);
 
               if (!user) {
                 return res.status(404).json({
@@ -290,7 +322,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
                 metadata: req.body.metadata,
               };
 
-              const user = await config.store.update(req.params.id, input);
+              const user = await store.update(req.params.id, input);
               if (!user) {
                 return res.status(404).json({ error: 'User not found' });
               }
@@ -309,7 +341,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
           pluginId: 'users',
           handler: async (req: Request, res: Response) => {
             try {
-              const deleted = await config.store.delete(req.params.id);
+              const deleted = await store.delete(req.params.id);
               if (!deleted) {
                 return res.status(404).json({ error: 'User not found' });
               }
@@ -328,7 +360,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
           pluginId: 'users',
           handler: async (req: Request, res: Response) => {
             try {
-              const user = await config.store.getById(req.params.id);
+              const user = await store.getById(req.params.id);
               if (!user) {
                 return res.status(404).json({ error: 'User not found' });
               }
@@ -391,7 +423,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
           pluginId: 'users',
           handler: async (_req: Request, res: Response) => {
             try {
-              const allUsers = await config.store.search({ limit: 10000 });
+              const allUsers = await store.search({ limit: 10000 });
               const now = Date.now();
               const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
 
@@ -419,7 +451,7 @@ export function createUsersPlugin(config: UsersPluginConfig): Plugin {
 
     async onStop(): Promise<void> {
       log('Stopping users plugin');
-      await config.store.shutdown();
+      if (currentStore) { await currentStore.shutdown(); };
       currentStore = null;
       currentRegistry = null;
       log('Users plugin stopped');

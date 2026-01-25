@@ -20,7 +20,6 @@ export { auth0Adapter } from './adapters/auth0-adapter.js';
 export { basicAdapter } from './adapters/basic-adapter.js';
 export { supabaseAdapter } from './adapters/supabase-adapter.js';
 export { supertokensAdapter } from './adapters/supertokens-adapter.js';
-// UI Components
-export { AuthStatusWidget } from './AuthStatusWidget.js';
-export { AuthManagementPage } from './AuthManagementPage.js';
+// UI Components are exported from main package index (@qwickapps/server)
+// Do NOT export here to avoid loading UI dependencies when importing plugins
 //# sourceMappingURL=index.js.map
