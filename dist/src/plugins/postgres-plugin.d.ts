@@ -75,6 +75,18 @@ export interface PostgresPluginConfig {
     onConnect?: (client: pg.PoolClient) => Promise<void>;
     /** Called on pool errors */
     onError?: (error: Error) => void;
+    /** Admin user for database operations (e.g., 'postgres') */
+    adminUser?: string;
+    /** Admin password for database operations */
+    adminPassword?: string;
+    /** Admin database to connect to for operations (default: 'postgres') */
+    adminDatabase?: string;
+    /** Database name to create/ensure exists (parsed from url if not provided) */
+    databaseName?: string;
+    /** User who should own the database (parsed from url if not provided) */
+    databaseOwner?: string;
+    /** Automatically initialize database if connection fails (default: true if admin credentials provided) */
+    autoInitialize?: boolean;
 }
 /**
  * Transaction callback function

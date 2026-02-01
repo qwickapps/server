@@ -64,9 +64,10 @@ children, }) {
     const [version, setVersion] = useState('');
     // Combine built-in widget components with custom ones
     const allWidgetComponents = [...getBuiltInWidgetComponents(), ...widgetComponents];
-    // Configure API base URL - API routes are always at '/api' regardless of control panel mount path
-    // The control panel might be mounted at /cpanel, but API is always at /api (not /cpanel/api)
-    const apiBasePath = '';
+    // Configure API base URL - read from injected __APP_BASE_PATH__ if available
+    // Server injects window.__APP_BASE_PATH__ when control panel is mounted at a base path
+    // Example: mounted at /cpanel → API calls go to /cpanel/api (not /api)
+    const apiBasePath = window.__APP_BASE_PATH__ || '';
     api.setBaseUrl(apiBasePath);
     // Fetch version from API
     useEffect(() => {

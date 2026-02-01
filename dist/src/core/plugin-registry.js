@@ -34,6 +34,7 @@ export class PluginRegistryImpl {
         this.pluginConfigs = new Map();
         this.pluginSlugs = new Map(); // pluginId -> slug
         this.currentPlugin = null; // Track plugin during onStart
+        this.maintenanceActions = new Map(); // pluginId -> maintenance info
         this.routes = [];
         this.menuItems = [];
         this.pages = [];
@@ -377,6 +378,99 @@ export class PluginRegistryImpl {
         const pluginIds = Array.from(this.plugins.keys()).reverse();
         for (const pluginId of pluginIds) {
             await this.stopPlugin(pluginId);
+        }
+    }
+    // ---------------------------------------------------------------------------
+    // Maintenance actions
+    // ---------------------------------------------------------------------------
+    /**
+     * Register maintenance actions for a plugin that failed to start
+     */
+    registerMaintenance(info) {
+        this.maintenanceActions.set(info.pluginId, info);
+        this.logger.warn(`Plugin ${info.pluginId} requires maintenance: ${info.error}`, { availableActions: info.actions.map(a => a.id) });
+    }
+    /**
+     * Get maintenance info for a plugin (if it needs maintenance)
+     */
+    getMaintenanceInfo(pluginId) {
+        return this.maintenanceActions.get(pluginId);
+    }
+    /**
+     * Get all plugins that need maintenance
+     */
+    getPluginsNeedingMaintenance() {
+        return Array.from(this.maintenanceActions.values());
+    }
+    /**
+     * Run a maintenance action for a plugin
+     */
+    async runMaintenanceAction(pluginId, actionId) {
+        const maintenanceInfo = this.maintenanceActions.get(pluginId);
+        if (!maintenanceInfo) {
+            return {
+                success: false,
+                error: `Plugin ${pluginId} does not have any registered maintenance actions`,
+            };
+        }
+        const action = maintenanceInfo.actions.find(a => a.id === actionId);
+        if (!action) {
+            return {
+                success: false,
+                error: `Action ${actionId} not found for plugin ${pluginId}`,
+            };
+        }
+        this.logger.info(`Running maintenance action ${actionId} for plugin ${pluginId}`);
+        try {
+            const result = await action.handler();
+            if (result.success) {
+                this.logger.info(`Maintenance action ${actionId} succeeded for plugin ${pluginId}`);
+                // Try to restart the plugin after successful maintenance action
+                const plugin = this.plugins.get(pluginId);
+                const config = this.pluginConfigs.get(pluginId);
+                if (plugin && config) {
+                    this.logger.info(`Attempting to restart plugin ${pluginId} after maintenance`);
+                    const started = await this.startPlugin(plugin, config);
+                    if (started) {
+                        // Plugin started successfully, clear maintenance state
+                        this.clearMaintenance(pluginId);
+                        return {
+                            success: true,
+                            message: `${result.message || 'Action completed successfully'}. Plugin restarted successfully.`,
+                        };
+                    }
+                    else {
+                        // Plugin still failed to start
+                        const pluginInfo = this.listPlugins().find(p => p.id === pluginId);
+                        return {
+                            success: false,
+                            error: `Action completed but plugin failed to restart: ${pluginInfo?.error || 'Unknown error'}`,
+                        };
+                    }
+                }
+                return result;
+            }
+            else {
+                this.logger.error(`Maintenance action ${actionId} failed for plugin ${pluginId}`, { error: result.error });
+                return result;
+            }
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Maintenance action ${actionId} threw exception for plugin ${pluginId}`, { error: errorMessage });
+            return {
+                success: false,
+                error: `Action threw exception: ${errorMessage}`,
+            };
+        }
+    }
+    /**
+     * Clear maintenance state for a plugin (used after successful fix)
+     */
+    clearMaintenance(pluginId) {
+        const wasPresent = this.maintenanceActions.delete(pluginId);
+        if (wasPresent) {
+            this.logger.info(`Cleared maintenance state for plugin ${pluginId}`);
         }
     }
 }

@@ -18,11 +18,11 @@ export interface SeedExecutionResult {
 /**
  * Validate script path to prevent path traversal attacks
  *
- * @param scriptName - Name of the script (e.g., "seed-products.mjs")
+ * @param scriptPath - Relative path to the script (e.g., "database/001.init.mjs" or "01-Setup/seed-data.mjs")
  * @param scriptsPath - Base path for scripts directory
- * @returns Resolved path if valid, null if invalid
+ * @returns Resolved absolute path if valid, null if invalid
  */
-export declare function validateScriptPath(scriptName: string, scriptsPath: string): string | null;
+export declare function validateScriptPath(scriptPath: string, scriptsPath: string): string | null;
 /**
  * Seed Executor
  *
@@ -40,9 +40,11 @@ export declare class SeedExecutor {
      *
      * @param scriptPath - Absolute path to the script
      * @param res - Express response object (for SSE streaming)
+     * @param databaseUrl - Optional database URL to pass to the script
+     * @param projectRoot - Optional project root directory (defaults to script's directory)
      * @returns Promise resolving to execution result
      */
-    execute(scriptPath: string, res: Response): Promise<SeedExecutionResult>;
+    execute(scriptPath: string, res: Response, databaseUrl?: string, projectRoot?: string): Promise<SeedExecutionResult>;
     /**
      * Check if executor is currently running a process
      */

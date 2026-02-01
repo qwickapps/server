@@ -7,7 +7,7 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 export { createApiKeysPlugin, getApiKeysStore, verifyApiKey, createApiKey, listApiKeys, getApiKey, updateApiKey, deleteApiKey, } from './api-keys-plugin.js';
-export type { ApiKeysPluginConfig, ApiKeyStore, ApiKey, ApiKeyWithPlaintext, ApiKeyScope, ApiKeyType, CreateApiKeyParams, UpdateApiKeyParams, PostgresApiKeyStoreConfig, ApiKeysApiConfig, } from './types.js';
+export type { ApiKeysPluginConfig, ApiKeyStore, ApiKey, ApiKeyWithPlaintext, ApiKeyScope, ApiKeyType, CreateApiKeyParams, UpdateApiKeyParams, PostgresApiKeyStoreConfig, ApiKeysApiConfig, StoreInitializationResult, } from './types.js';
 export { ApiKeyScopeSchema, ApiKeyTypeSchema, CreateApiKeySchema, UpdateApiKeySchema, ApiKeySchema, } from './types.js';
 export { postgresApiKeyStore } from './stores/index.js';
 export { bearerTokenAuth } from './middleware/index.js';

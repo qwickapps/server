@@ -77,6 +77,48 @@ export interface PluginScope {
 }
 
 /**
+ * Result of running a maintenance action
+ */
+export interface MaintenanceActionResult {
+  /** Whether the action succeeded */
+  success: boolean;
+  /** Error message if action failed */
+  error?: string;
+  /** Optional message with additional details */
+  message?: string;
+}
+
+/**
+ * Maintenance action that can be executed to fix a plugin issue
+ */
+export interface MaintenanceAction {
+  /** Unique action identifier (e.g., 'truncate-table', 'migrate-data') */
+  id: string;
+  /** Human-readable action name */
+  name: string;
+  /** Description of what the action does */
+  description: string;
+  /** Whether this action is destructive (shows warning in UI) */
+  destructive?: boolean;
+  /** Handler function that performs the action */
+  handler: () => Promise<MaintenanceActionResult>;
+}
+
+/**
+ * Information about a plugin that requires maintenance
+ */
+export interface PluginMaintenanceInfo {
+  /** Plugin ID that needs maintenance */
+  pluginId: string;
+  /** Error message describing what's wrong */
+  error: string;
+  /** Available actions to fix the issue */
+  actions: MaintenanceAction[];
+  /** Optional suggestion for which action to run */
+  recommendedAction?: string;
+}
+
+/**
  * The Plugin interface - simple lifecycle with event handling
  */
 export interface Plugin {
@@ -365,6 +407,25 @@ export interface PluginRegistry {
   registerHealthCheck(check: HealthCheck): void;
 
   // ---------------------------------------------------------------------------
+  // Maintenance actions
+  // ---------------------------------------------------------------------------
+
+  /** Register maintenance actions for a plugin that failed to start */
+  registerMaintenance(info: PluginMaintenanceInfo): void;
+
+  /** Get maintenance info for a plugin (if it needs maintenance) */
+  getMaintenanceInfo(pluginId: string): PluginMaintenanceInfo | undefined;
+
+  /** Get all plugins that need maintenance */
+  getPluginsNeedingMaintenance(): PluginMaintenanceInfo[];
+
+  /** Run a maintenance action for a plugin */
+  runMaintenanceAction(pluginId: string, actionId: string): Promise<MaintenanceActionResult>;
+
+  /** Clear maintenance state for a plugin (used after successful fix) */
+  clearMaintenance(pluginId: string): void;
+
+  // ---------------------------------------------------------------------------
   // Express integration
   // ---------------------------------------------------------------------------
 
@@ -406,6 +467,7 @@ export class PluginRegistryImpl implements PluginRegistry {
   private pluginConfigs = new Map<string, PluginConfig>();
   private pluginSlugs = new Map<string, string>();  // pluginId -> slug
   private currentPlugin: string | null = null;  // Track plugin during onStart
+  private maintenanceActions = new Map<string, PluginMaintenanceInfo>();  // pluginId -> maintenance info
 
   private routes: RouteDefinition[] = [];
   private menuItems: MenuContribution[] = [];
@@ -827,6 +889,115 @@ export class PluginRegistryImpl implements PluginRegistry {
     const pluginIds = Array.from(this.plugins.keys()).reverse();
     for (const pluginId of pluginIds) {
       await this.stopPlugin(pluginId);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Maintenance actions
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Register maintenance actions for a plugin that failed to start
+   */
+  registerMaintenance(info: PluginMaintenanceInfo): void {
+    this.maintenanceActions.set(info.pluginId, info);
+    this.logger.warn(
+      `Plugin ${info.pluginId} requires maintenance: ${info.error}`,
+      { availableActions: info.actions.map(a => a.id) }
+    );
+  }
+
+  /**
+   * Get maintenance info for a plugin (if it needs maintenance)
+   */
+  getMaintenanceInfo(pluginId: string): PluginMaintenanceInfo | undefined {
+    return this.maintenanceActions.get(pluginId);
+  }
+
+  /**
+   * Get all plugins that need maintenance
+   */
+  getPluginsNeedingMaintenance(): PluginMaintenanceInfo[] {
+    return Array.from(this.maintenanceActions.values());
+  }
+
+  /**
+   * Run a maintenance action for a plugin
+   */
+  async runMaintenanceAction(pluginId: string, actionId: string): Promise<MaintenanceActionResult> {
+    const maintenanceInfo = this.maintenanceActions.get(pluginId);
+
+    if (!maintenanceInfo) {
+      return {
+        success: false,
+        error: `Plugin ${pluginId} does not have any registered maintenance actions`,
+      };
+    }
+
+    const action = maintenanceInfo.actions.find(a => a.id === actionId);
+
+    if (!action) {
+      return {
+        success: false,
+        error: `Action ${actionId} not found for plugin ${pluginId}`,
+      };
+    }
+
+    this.logger.info(`Running maintenance action ${actionId} for plugin ${pluginId}`);
+
+    try {
+      const result = await action.handler();
+
+      if (result.success) {
+        this.logger.info(`Maintenance action ${actionId} succeeded for plugin ${pluginId}`);
+
+        // Try to restart the plugin after successful maintenance action
+        const plugin = this.plugins.get(pluginId);
+        const config = this.pluginConfigs.get(pluginId);
+
+        if (plugin && config) {
+          this.logger.info(`Attempting to restart plugin ${pluginId} after maintenance`);
+          const started = await this.startPlugin(plugin, config);
+
+          if (started) {
+            // Plugin started successfully, clear maintenance state
+            this.clearMaintenance(pluginId);
+            return {
+              success: true,
+              message: `${result.message || 'Action completed successfully'}. Plugin restarted successfully.`,
+            };
+          } else {
+            // Plugin still failed to start
+            const pluginInfo = this.listPlugins().find(p => p.id === pluginId);
+            return {
+              success: false,
+              error: `Action completed but plugin failed to restart: ${pluginInfo?.error || 'Unknown error'}`,
+            };
+          }
+        }
+
+        return result;
+      } else {
+        this.logger.error(`Maintenance action ${actionId} failed for plugin ${pluginId}`, { error: result.error });
+        return result;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Maintenance action ${actionId} threw exception for plugin ${pluginId}`, { error: errorMessage });
+      return {
+        success: false,
+        error: `Action threw exception: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
+   * Clear maintenance state for a plugin (used after successful fix)
+   */
+  clearMaintenance(pluginId: string): void {
+    const wasPresent = this.maintenanceActions.delete(pluginId);
+    if (wasPresent) {
+      this.logger.info(`Cleared maintenance state for plugin ${pluginId}`);
     }
   }
 }

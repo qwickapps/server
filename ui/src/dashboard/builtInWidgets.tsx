@@ -21,6 +21,7 @@ import {
   ServiceControlWidget,
   EnvironmentConfigWidget,
   DatabaseOpsWidget,
+  DatabaseOperationsWidget,
   LogsMaintenanceWidget,
   CacheMaintenanceWidget,
 } from './widgets';
@@ -42,6 +43,7 @@ export const builtInWidgetComponents: Record<string, React.ComponentType> = {
   ServiceControlWidget: ServiceControlWidget,
   EnvironmentConfigWidget: EnvironmentConfigWidget,
   DatabaseOpsWidget: DatabaseOpsWidget,
+  DatabaseOperationsWidget: DatabaseOperationsWidget,
   LogsMaintenanceWidget: LogsMaintenanceWidget,
   CacheMaintenanceWidget: CacheMaintenanceWidget,
   PreferencesPage: PreferencesPage,
@@ -66,6 +68,7 @@ export function getBuiltInWidgetComponents(): WidgetComponent[] {
     { name: 'ServiceControlWidget', component: ServiceControlWidget },
     { name: 'EnvironmentConfigWidget', component: EnvironmentConfigWidget },
     { name: 'DatabaseOpsWidget', component: DatabaseOpsWidget },
+    { name: 'DatabaseOperationsWidget', component: DatabaseOperationsWidget },
     { name: 'LogsMaintenanceWidget', component: LogsMaintenanceWidget },
     { name: 'CacheMaintenanceWidget', component: CacheMaintenanceWidget },
     { name: 'PreferencesPage', component: PreferencesPage },

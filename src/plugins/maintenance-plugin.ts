@@ -10,12 +10,102 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import { readdirSync, statSync } from 'fs';
-import { resolve } from 'path';
+import { readdirSync, statSync, readFileSync } from 'fs';
+import { resolve, join, relative } from 'path';
 import type { Request, Response } from 'express';
 import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
 import { SeedExecutor, validateScriptPath } from './maintenance/seed-executor.js';
 import { getPostgres, hasPostgres } from './postgres-plugin.js';
+
+/**
+ * Extract description from JSDoc comment at top of file
+ */
+function extractDescription(filePath: string): string | undefined {
+  try {
+    const content = readFileSync(filePath, 'utf-8');
+    // Match JSDoc comment at start of file (after any whitespace)
+    const jsdocMatch = content.match(/^\s*\/\*\*\s*\n([\s\S]*?)\*\//);
+
+    if (jsdocMatch) {
+      // Extract lines and clean up asterisks and whitespace
+      const lines = jsdocMatch[1]
+        .split('\n')
+        .map(line => line.replace(/^\s*\*\s?/, '').trim())
+        .filter(line => line.length > 0);
+
+      // Skip the first line if it's just the title (will be shown separately)
+      // Return subsequent lines as the description
+      return lines.slice(1).join(' ').trim() || undefined;
+    }
+  } catch (err) {
+    // Failed to read file or parse description
+  }
+
+  return undefined;
+}
+
+/**
+ * Recursively scan directory for .mjs files
+ */
+function scanSeedScripts(dir: string, basePath: string = dir): any[] {
+  const results: any[] = [];
+
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        // Recursively scan subdirectories
+        results.push(...scanSeedScripts(fullPath, basePath));
+      } else if (entry.isFile() && entry.name.endsWith('.mjs')) {
+        // Found a .mjs file
+        const stats = statSync(fullPath);
+        const relativePath = relative(basePath, fullPath);
+        const description = extractDescription(fullPath);
+
+        results.push({
+          type: 'file',
+          name: entry.name,
+          path: relativePath, // Relative path from scripts directory
+          fullPath: fullPath, // Absolute path
+          size: stats.size,
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime,
+          description, // Add description from JSDoc
+        });
+      }
+    }
+  } catch (err) {
+    // Directory not accessible, return empty array
+  }
+
+  return results;
+}
+
+/**
+ * Custom seed task handler
+ */
+export interface SeedTaskHandler {
+  (options?: Record<string, any>, res?: Response): Promise<void>;
+}
+
+/**
+ * Custom seed task definition
+ */
+export interface SeedTask {
+  /** Unique task identifier */
+  id: string;
+  /** Display name */
+  name: string;
+  /** Description of what this task does */
+  description: string;
+  /** Task handler function */
+  handler: SeedTaskHandler;
+  /** Optional task options/parameters */
+  options?: Record<string, any>;
+}
 
 export interface MaintenancePluginConfig {
   /** Path to scripts directory (default: './scripts') */
@@ -41,6 +131,9 @@ export interface MaintenancePluginConfig {
 
   /** Enable database operations (default: true) */
   enableDatabaseOps?: boolean;
+
+  /** Custom seed tasks */
+  customTasks?: SeedTask[];
 }
 
 /**
@@ -59,6 +152,38 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
       const logger = registry.getLogger('maintenance');
       logger.info('Maintenance plugin starting...');
+
+      // Initialize seed_executions table if PostgreSQL is available
+      if (hasPostgres()) {
+        try {
+          const db = getPostgres();
+          await db.queryRaw(`
+            CREATE TABLE IF NOT EXISTS seed_executions (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              name TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
+              started_at TIMESTAMPTZ NOT NULL,
+              completed_at TIMESTAMPTZ,
+              exit_code INTEGER,
+              output TEXT,
+              error TEXT,
+              duration_ms INTEGER,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+          `);
+
+          // Create index on status for faster queries
+          await db.queryRaw(`
+            CREATE INDEX IF NOT EXISTS idx_seed_executions_status
+            ON seed_executions(status)
+          `);
+
+          logger.debug('Seed executions table initialized');
+        } catch (error) {
+          logger.error('Failed to initialize seed_executions table', { error });
+        }
+      }
 
       // Clean up orphaned executions from previous crashes
       if (hasPostgres()) {
@@ -112,7 +237,7 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
           logger.warn('Seed management requires PostgreSQL plugin for execution history');
         }
 
-        // GET /seeds/discover - List available seed scripts
+        // GET /seeds/discover - List available seed scripts and custom tasks
         registry.addRoute({
           method: 'get',
           path: '/seeds/discover',
@@ -120,25 +245,30 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
           handler: (_req: Request, res: Response) => {
             try {
               const resolvedPath = resolve(scriptsPath);
-              const files = readdirSync(resolvedPath);
+              let seedFiles: any[] = [];
 
-              // Filter for seed-*.mjs files
-              const seedFiles = files
-                .filter((file) => /^seed-[a-z0-9-]+\.mjs$/.test(file))
-                .map((file) => {
-                  const filePath = resolve(resolvedPath, file);
-                  const stats = statSync(filePath);
-                  return {
-                    name: file,
-                    path: filePath,
-                    size: stats.size,
-                    createdAt: stats.birthtime,
-                    modifiedAt: stats.mtime,
-                  };
-                })
-                .sort((a, b) => a.name.localeCompare(b.name));
+              try {
+                // Recursively scan for .mjs files
+                seedFiles = scanSeedScripts(resolvedPath);
 
-              res.json({ seeds: seedFiles });
+                // Sort by relative path (natural ordering respects numbered prefixes)
+                // Example: "01-Setup/001.init.mjs" comes before "02-Production/001.seed.mjs"
+                seedFiles.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
+              } catch (err) {
+                // Scripts directory may not exist, which is fine if we have custom tasks
+                logger.debug('Scripts directory not found or not readable');
+              }
+
+              // Add custom tasks
+              const customTasks = (config.customTasks || []).map((task) => ({
+                type: 'task',
+                id: task.id,
+                name: task.name,
+                description: task.description,
+                options: task.options,
+              }));
+
+              res.json({ seeds: [...seedFiles, ...customTasks] });
             } catch (error) {
               logger.error('Failed to discover seed scripts', { error });
               res.status(500).json({
@@ -149,23 +279,45 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
           },
         });
 
-        // POST /seeds/execute - Execute a seed script
+        // POST /seeds/execute - Execute a seed script or custom task
         registry.addRoute({
           method: 'post',
           path: '/seeds/execute',
           pluginId: 'maintenance',
           handler: async (req: Request, res: Response) => {
             try {
-              const { name } = req.body;
+              const { name, type, options } = req.body;
 
               if (!name || typeof name !== 'string') {
                 return res.status(400).json({ error: 'Script name is required' });
               }
 
-              // Validate script path
-              const scriptPath = validateScriptPath(name, scriptsPath);
-              if (!scriptPath) {
-                return res.status(400).json({ error: 'Invalid script name or file not found' });
+              // Ensure seed_executions table exists (lazy initialization)
+              if (hasPostgres()) {
+                const db = getPostgres();
+                try {
+                  await db.queryRaw(`
+                    CREATE TABLE IF NOT EXISTS seed_executions (
+                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                      name TEXT NOT NULL,
+                      status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
+                      started_at TIMESTAMPTZ NOT NULL,
+                      completed_at TIMESTAMPTZ,
+                      exit_code INTEGER,
+                      output TEXT,
+                      error TEXT,
+                      duration_ms INTEGER,
+                      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                  `);
+                  await db.queryRaw(`
+                    CREATE INDEX IF NOT EXISTS idx_seed_executions_status
+                    ON seed_executions(status)
+                  `);
+                } catch (err) {
+                  logger.debug('Table initialization check', { err });
+                }
               }
 
               // Check for concurrent execution
@@ -204,10 +356,39 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
                 executionId = result?.id || null;
               }
 
-              // Execute seed script
-              const executor = new SeedExecutor();
+              const startTime = Date.now();
+              let exitCode = 0;
+              let output = '';
+              let error = '';
+
               try {
-                const result = await executor.execute(scriptPath, res);
+                // Execute based on type
+                if (type === 'task') {
+                  // Find custom task
+                  const task = (config.customTasks || []).find((t) => t.id === name);
+                  if (!task) {
+                    throw new Error(`Custom task not found: ${name}`);
+                  }
+
+                  // Execute custom task handler with SSE streaming
+                  await task.handler(options || {}, res);
+                } else {
+                  // Execute file-based seed script
+                  const scriptPath = validateScriptPath(name, scriptsPath);
+                  if (!scriptPath) {
+                    throw new Error('Invalid script name or file not found');
+                  }
+
+                  const executor = new SeedExecutor();
+                  // Project root is one level up from scripts directory
+                  const projectRoot = resolve(scriptsPath, '..');
+                  const result = await executor.execute(scriptPath, res, config.databaseUrl, projectRoot);
+                  exitCode = result.exitCode;
+                  output = result.output;
+                  error = result.error;
+                }
+
+                const duration = Date.now() - startTime;
 
                 // Update execution record
                 if (hasPostgres() && executionId) {
@@ -218,11 +399,11 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
                          output = $3, error = $4, duration_ms = $5, updated_at = NOW()
                      WHERE id = $6`,
                     [
-                      result.exitCode === 0 ? 'completed' : 'failed',
-                      result.exitCode,
-                      result.output,
-                      result.error,
-                      result.duration,
+                      exitCode === 0 ? 'completed' : 'failed',
+                      exitCode,
+                      output,
+                      error,
+                      duration,
                       executionId,
                     ]
                   );
@@ -256,6 +437,56 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
               logger.error('Failed to start seed execution', { error });
               res.status(500).json({
                 error: 'Failed to start seed execution',
+                message: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        });
+
+        // POST /database/reset - Drop and recreate database schema (local/dev only)
+        registry.addRoute({
+          method: 'post',
+          path: '/database/reset',
+          pluginId: 'maintenance',
+          handler: async (req: Request, res: Response) => {
+            try {
+              // Security: Only allow in local or development environments
+              const nodeEnv = process.env.NODE_ENV?.toLowerCase();
+              if (nodeEnv !== 'local' && nodeEnv !== 'development') {
+                return res.status(403).json({
+                  error: 'Database reset is only available in local or development environments',
+                  currentEnv: nodeEnv || 'production',
+                });
+              }
+
+              if (!hasPostgres()) {
+                return res.status(503).json({
+                  error: 'PostgreSQL plugin required for database reset',
+                });
+              }
+
+              const db = getPostgres();
+
+              // Drop and recreate public schema (removes all tables, data, etc.)
+              await db.queryRaw('DROP SCHEMA IF EXISTS public CASCADE');
+              await db.queryRaw('CREATE SCHEMA public');
+              await db.queryRaw('GRANT ALL ON SCHEMA public TO public');
+              await db.queryRaw('GRANT ALL ON SCHEMA public TO postgres');
+              await db.queryRaw('GRANT ALL ON SCHEMA public TO qwickapps');
+
+              // Grant default privileges for future tables and sequences
+              await db.queryRaw('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO qwickapps');
+              await db.queryRaw('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO qwickapps');
+
+              res.json({
+                success: true,
+                message: 'Database schema has been reset. All tables and data have been deleted.',
+                timestamp: new Date().toISOString(),
+              });
+            } catch (error) {
+              logger.error('Database reset failed', { error });
+              res.status(500).json({
+                error: 'Failed to reset database',
                 message: error instanceof Error ? error.message : String(error),
               });
             }

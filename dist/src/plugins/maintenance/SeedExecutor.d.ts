@@ -9,6 +9,8 @@ import React from 'react';
 export interface SeedExecutorProps {
     apiPrefix: string;
     seedName: string;
+    seedType?: string;
+    seedOptions?: any;
     onComplete: () => void;
     onCancel: () => void;
 }

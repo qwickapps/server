@@ -1,7 +1,7 @@
 /**
  * Seed Management Page
  *
- * Main page for managing and executing seed scripts.
+ * Main page for managing and executing seed scripts and custom tasks.
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */

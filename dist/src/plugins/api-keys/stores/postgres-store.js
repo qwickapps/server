@@ -177,76 +177,94 @@ export function postgresApiKeyStore(config) {
     return {
         name: 'postgres',
         async initialize() {
-            if (!autoCreateTables)
-                return;
-            const pool = getPool();
-            // Create table with foreign key to users
-            await pool.query(`
-        CREATE TABLE IF NOT EXISTS ${tableFullName} (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id UUID NOT NULL REFERENCES "public"."users"(id) ON DELETE CASCADE,
-          name VARCHAR(255) NOT NULL,
-          key_hash VARCHAR(64) NOT NULL,
-          key_prefix VARCHAR(12) NOT NULL,
-          key_type VARCHAR(10) NOT NULL CHECK (key_type IN ('m2m', 'pat')),
-          scopes TEXT[] NOT NULL DEFAULT '{}',
-          last_used_at TIMESTAMPTZ,
-          expires_at TIMESTAMPTZ,
-          is_active BOOLEAN NOT NULL DEFAULT true,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
+            if (!autoCreateTables) {
+                return { success: true };
+            }
+            try {
+                const pool = getPool();
+                // Create table with foreign key to users
+                await pool.query(`
+          CREATE TABLE IF NOT EXISTS ${tableFullName} (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES "public"."users"(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            key_hash VARCHAR(64) NOT NULL,
+            key_prefix VARCHAR(12) NOT NULL,
+            key_type VARCHAR(10) NOT NULL CHECK (key_type IN ('m2m', 'pat')),
+            scopes TEXT[] NOT NULL DEFAULT '{}',
+            last_used_at TIMESTAMPTZ,
+            expires_at TIMESTAMPTZ,
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
 
-        CREATE INDEX IF NOT EXISTS idx_${tableName}_user_id ON ${tableFullName}(user_id);
-        CREATE INDEX IF NOT EXISTS idx_${tableName}_key_prefix ON ${tableFullName}(key_prefix);
-        CREATE INDEX IF NOT EXISTS idx_${tableName}_key_hash ON ${tableFullName}(key_hash);
-      `);
-            // Migration: Add user_id column if it doesn't exist (for existing installations)
-            await pool.query(`
-        DO $$
-        DECLARE
-          row_count INTEGER;
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = '${schema}'
-            AND table_name = '${tableName}'
-            AND column_name = 'user_id'
-          ) THEN
-            -- Check if table has data
-            EXECUTE 'SELECT COUNT(*) FROM ${tableFullName}' INTO row_count;
-
-            IF row_count > 0 THEN
-              -- If table has data, cannot add NOT NULL column
-              -- This requires manual migration or data cleanup
-              RAISE EXCEPTION 'Cannot add user_id column: table ${tableFullName} contains % rows. Please migrate data or clear the table first.', row_count;
-            ELSE
-              -- Table is empty, safe to add NOT NULL column
+          CREATE INDEX IF NOT EXISTS idx_${tableName}_user_id ON ${tableFullName}(user_id);
+          CREATE INDEX IF NOT EXISTS idx_${tableName}_key_prefix ON ${tableFullName}(key_prefix);
+          CREATE INDEX IF NOT EXISTS idx_${tableName}_key_hash ON ${tableFullName}(key_hash);
+        `);
+                // Migration: Check if table needs user_id column migration
+                const needsMigration = await pool.query(`
+          SELECT
+            NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema = '${schema}'
+              AND table_name = '${tableName}'
+              AND column_name = 'user_id'
+            ) AS missing_column,
+            (SELECT COUNT(*) FROM ${tableFullName}) AS row_count
+        `);
+                const { missing_column, row_count } = needsMigration.rows[0];
+                if (missing_column) {
+                    if (row_count > 0) {
+                        // Table has data but is missing user_id column - requires maintenance
+                        logger.warn(`Table ${tableFullName} has ${row_count} rows but is missing user_id column. ` +
+                            `Requires maintenance action to migrate or clear data.`);
+                        return {
+                            success: false,
+                            error: `Table ${tableFullName} contains ${row_count} rows without user_id column. Migration required.`,
+                            requiresMaintenance: true,
+                        };
+                    }
+                    else {
+                        // Table is empty, safe to add NOT NULL column
+                        await pool.query(`
               ALTER TABLE ${tableFullName}
               ADD COLUMN user_id UUID NOT NULL REFERENCES "public"."users"(id) ON DELETE CASCADE;
 
               CREATE INDEX IF NOT EXISTS idx_${tableName}_user_id ON ${tableFullName}(user_id);
-            END IF;
-          END IF;
-        END $$;
-      `);
-            // Enable RLS if configured
-            if (enableRLS) {
-                await pool.query(`
-          ALTER TABLE ${tableFullName} ENABLE ROW LEVEL SECURITY;
-          ALTER TABLE ${tableFullName} FORCE ROW LEVEL SECURITY;
-        `);
-                // Create or replace the RLS policy
-                await pool.query(`
-          DROP POLICY IF EXISTS "${tableName}_owner" ON ${tableFullName};
-        `);
-                // RLS policy: users can only access their own keys
-                await pool.query(`
-          CREATE POLICY "${tableName}_owner" ON ${tableFullName}
-            FOR ALL
-            USING (user_id::text = current_setting('app.current_user_id', true))
-            WITH CHECK (user_id::text = current_setting('app.current_user_id', true));
-        `);
+            `);
+                        logger.info(`Added user_id column to empty table ${tableFullName}`);
+                    }
+                }
+                // Enable RLS if configured
+                if (enableRLS) {
+                    await pool.query(`
+            ALTER TABLE ${tableFullName} ENABLE ROW LEVEL SECURITY;
+            ALTER TABLE ${tableFullName} FORCE ROW LEVEL SECURITY;
+          `);
+                    // Create or replace the RLS policy
+                    await pool.query(`
+            DROP POLICY IF EXISTS "${tableName}_owner" ON ${tableFullName};
+          `);
+                    // RLS policy: users can only access their own keys
+                    await pool.query(`
+            CREATE POLICY "${tableName}_owner" ON ${tableFullName}
+              FOR ALL
+              USING (user_id::text = current_setting('app.current_user_id', true))
+              WITH CHECK (user_id::text = current_setting('app.current_user_id', true));
+          `);
+                }
+                logger.info(`API keys store initialized successfully (table: ${tableFullName})`);
+                return { success: true };
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.error(`Failed to initialize API keys store: ${errorMessage}`, { error });
+                return {
+                    success: false,
+                    error: `Database initialization failed: ${errorMessage}`,
+                };
             }
         },
         async create(params) {

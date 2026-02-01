@@ -10,7 +10,7 @@ export type { CMSPluginConfig } from './cms/index.js';
 export { createLogsPlugin } from './logs-plugin.js';
 export type { LogsPluginConfig } from './logs-plugin.js';
 export { createMaintenancePlugin } from './maintenance-plugin.js';
-export type { MaintenancePluginConfig } from './maintenance-plugin.js';
+export type { MaintenancePluginConfig, SeedTask, SeedTaskHandler } from './maintenance-plugin.js';
 export { MaintenanceManagementPage, MaintenanceStatusWidget, SeedManagementPage, SeedList, SeedExecutorUI, SeedHistory, } from './maintenance/index.js';
 export type { MaintenanceManagementPageProps, MaintenanceStatusWidgetProps, SeedManagementPageProps, SeedListProps, SeedExecutorProps, SeedHistoryProps, } from './maintenance/index.js';
 export { createConfigPlugin } from './config-plugin.js';

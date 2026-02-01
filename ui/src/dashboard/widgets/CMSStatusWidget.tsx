@@ -35,7 +35,11 @@ export function CMSStatusWidget() {
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch('/api/cms/status');
+      const basePath = (window as any).__APP_BASE_PATH__ || '';
+      const response = await fetch(`${basePath}/api/cms/status`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const data = await response.json();
       setStatus(data);
       setError(null);

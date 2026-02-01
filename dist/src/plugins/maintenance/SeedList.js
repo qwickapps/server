@@ -2,7 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 /**
  * Seed List Component
  *
- * Displays available seed scripts with metadata.
+ * Displays available seed scripts and custom tasks with metadata.
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
@@ -42,6 +42,12 @@ export const SeedList = ({ apiPrefix, onExecute }) => {
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleString();
     };
+    const isFileType = (item) => {
+        return item.type === 'file';
+    };
+    const isTaskType = (item) => {
+        return item.type === 'task';
+    };
     if (loading) {
         return _jsx("div", { style: { padding: '20px' }, children: "Loading seeds..." });
     }
@@ -49,20 +55,39 @@ export const SeedList = ({ apiPrefix, onExecute }) => {
         return (_jsxs("div", { style: { padding: '20px', color: '#d32f2f' }, children: ["Error: ", error] }));
     }
     if (seeds.length === 0) {
-        return (_jsx("div", { style: { padding: '20px', color: '#666' }, children: "No seed scripts found in scripts directory." }));
+        return (_jsx("div", { style: { padding: '20px', color: '#666' }, children: "No seed scripts or tasks found." }));
     }
-    return (_jsxs("div", { style: { padding: '20px' }, children: [_jsxs("h3", { children: ["Available Seed Scripts (", seeds.length, ")"] }), _jsxs("table", { style: { width: '100%', borderCollapse: 'collapse', marginTop: '16px' }, children: [_jsx("thead", { children: _jsxs("tr", { style: { borderBottom: '2px solid #ddd', textAlign: 'left' }, children: [_jsx("th", { style: { padding: '12px' }, children: "Name" }), _jsx("th", { style: { padding: '12px' }, children: "Size" }), _jsx("th", { style: { padding: '12px' }, children: "Modified" }), _jsx("th", { style: { padding: '12px' }, children: "Action" })] }) }), _jsx("tbody", { children: seeds.map((seed) => (_jsxs("tr", { style: { borderBottom: '1px solid #eee' }, children: [_jsx("td", { style: { padding: '12px', fontFamily: 'monospace' }, children: seed.name }), _jsx("td", { style: { padding: '12px' }, children: formatFileSize(seed.size) }), _jsx("td", { style: { padding: '12px', fontSize: '14px', color: '#666' }, children: formatDate(seed.modifiedAt) }), _jsx("td", { style: { padding: '12px' }, children: _jsx("button", { onClick: () => {
-                                            if (confirm(`Execute ${seed.name}?`)) {
-                                                onExecute(seed.name);
-                                            }
-                                        }, style: {
-                                            padding: '6px 12px',
-                                            backgroundColor: '#1976d2',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            cursor: 'pointer',
-                                        }, "data-testid": `execute-${seed.name}`, children: "Execute" }) })] }, seed.name))) })] })] }));
+    return (_jsxs("div", { style: { padding: '20px' }, children: [_jsxs("h3", { children: ["Available Seeds & Tasks (", seeds.length, ")"] }), _jsxs("table", { style: { width: '100%', borderCollapse: 'collapse', marginTop: '16px' }, children: [_jsx("thead", { children: _jsxs("tr", { style: { borderBottom: '2px solid #ddd', textAlign: 'left' }, children: [_jsx("th", { style: { padding: '12px' }, children: "Type" }), _jsx("th", { style: { padding: '12px' }, children: "Name" }), _jsx("th", { style: { padding: '12px' }, children: "Description" }), _jsx("th", { style: { padding: '12px' }, children: "Details" }), _jsx("th", { style: { padding: '12px' }, children: "Action" })] }) }), _jsx("tbody", { children: seeds.map((seed) => {
+                            const itemKey = isFileType(seed) ? seed.name : seed.id;
+                            return (_jsxs("tr", { style: { borderBottom: '1px solid #eee' }, children: [_jsx("td", { style: { padding: '12px' }, children: _jsx("span", { style: {
+                                                display: 'inline-block',
+                                                padding: '4px 8px',
+                                                borderRadius: '4px',
+                                                fontSize: '12px',
+                                                fontWeight: 'bold',
+                                                backgroundColor: isFileType(seed) ? '#e3f2fd' : '#f3e5f5',
+                                                color: isFileType(seed) ? '#1976d2' : '#7b1fa2',
+                                            }, children: isFileType(seed) ? 'FILE' : 'TASK' }) }), _jsx("td", { style: { padding: '12px', fontFamily: 'monospace' }, children: isFileType(seed) ? seed.name : seed.name }), _jsx("td", { style: { padding: '12px', fontSize: '14px', color: '#666' }, children: isTaskType(seed) ? seed.description : '-' }), _jsx("td", { style: { padding: '12px', fontSize: '14px', color: '#666' }, children: isFileType(seed)
+                                            ? `${formatFileSize(seed.size)} • ${formatDate(seed.modifiedAt)}`
+                                            : '-' }), _jsx("td", { style: { padding: '12px' }, children: _jsx("button", { onClick: () => {
+                                                const displayName = isFileType(seed) ? seed.name : seed.name;
+                                                if (confirm(`Execute ${displayName}?`)) {
+                                                    if (isFileType(seed)) {
+                                                        onExecute(seed.name, 'file');
+                                                    }
+                                                    else {
+                                                        onExecute(seed.id, 'task', seed.options);
+                                                    }
+                                                }
+                                            }, style: {
+                                                padding: '6px 12px',
+                                                backgroundColor: '#1976d2',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                            }, "data-testid": `execute-${itemKey}`, children: "Execute" }) })] }, itemKey));
+                        }) })] })] }));
 };
 export default SeedList;
 //# sourceMappingURL=SeedList.js.map

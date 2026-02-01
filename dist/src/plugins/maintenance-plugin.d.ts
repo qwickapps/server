@@ -9,7 +9,29 @@
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
+import type { Response } from 'express';
 import type { Plugin } from '../core/plugin-registry.js';
+/**
+ * Custom seed task handler
+ */
+export interface SeedTaskHandler {
+    (options?: Record<string, any>, res?: Response): Promise<void>;
+}
+/**
+ * Custom seed task definition
+ */
+export interface SeedTask {
+    /** Unique task identifier */
+    id: string;
+    /** Display name */
+    name: string;
+    /** Description of what this task does */
+    description: string;
+    /** Task handler function */
+    handler: SeedTaskHandler;
+    /** Optional task options/parameters */
+    options?: Record<string, any>;
+}
 export interface MaintenancePluginConfig {
     /** Path to scripts directory (default: './scripts') */
     scriptsPath?: string;
@@ -27,6 +49,8 @@ export interface MaintenancePluginConfig {
     enableEnvManagement?: boolean;
     /** Enable database operations (default: true) */
     enableDatabaseOps?: boolean;
+    /** Custom seed tasks */
+    customTasks?: SeedTask[];
 }
 /**
  * Create a maintenance plugin

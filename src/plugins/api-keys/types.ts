@@ -141,6 +141,18 @@ export interface ApiKeyWithPlaintext extends ApiKey {
 }
 
 /**
+ * Result of store initialization
+ */
+export interface StoreInitializationResult {
+  /** Whether initialization succeeded */
+  success: boolean;
+  /** Error message if initialization failed */
+  error?: string;
+  /** Additional details about what needs to be done */
+  requiresMaintenance?: boolean;
+}
+
+/**
  * API key store interface - all storage backends must implement this
  */
 export interface ApiKeyStore {
@@ -149,8 +161,9 @@ export interface ApiKeyStore {
 
   /**
    * Initialize the store (create tables, RLS policies, etc.)
+   * Returns initialization status instead of throwing
    */
-  initialize(): Promise<void>;
+  initialize(): Promise<StoreInitializationResult>;
 
   /**
    * Create a new API key

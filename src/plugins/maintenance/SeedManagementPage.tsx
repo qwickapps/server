@@ -1,7 +1,7 @@
 /**
  * Seed Management Page
  *
- * Main page for managing and executing seed scripts.
+ * Main page for managing and executing seed scripts and custom tasks.
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
@@ -23,9 +23,13 @@ export const SeedManagementPage: React.FC<SeedManagementPageProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('list');
   const [selectedSeed, setSelectedSeed] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string>('file');
+  const [selectedOptions, setSelectedOptions] = useState<any>(undefined);
 
-  const handleExecute = (seedName: string) => {
+  const handleExecute = (seedName: string, type: string = 'file', options?: any) => {
     setSelectedSeed(seedName);
+    setSelectedType(type);
+    setSelectedOptions(options);
     setActiveTab('execute');
   };
 
@@ -36,7 +40,7 @@ export const SeedManagementPage: React.FC<SeedManagementPageProps> = ({
   return (
     <PluginManagementPage
       title="Seed Management"
-      description="Manage and execute database seed scripts"
+      description="Manage and execute database seed scripts and custom tasks"
     >
       <div style={{ marginBottom: '20px' }}>
         <button
@@ -51,7 +55,7 @@ export const SeedManagementPage: React.FC<SeedManagementPageProps> = ({
             cursor: 'pointer',
           }}
         >
-          Available Seeds
+          Available Seeds & Tasks
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -76,6 +80,8 @@ export const SeedManagementPage: React.FC<SeedManagementPageProps> = ({
         <SeedExecutor
           apiPrefix={apiPrefix}
           seedName={selectedSeed}
+          seedType={selectedType}
+          seedOptions={selectedOptions}
           onComplete={handleExecutionComplete}
           onCancel={() => setActiveTab('list')}
         />

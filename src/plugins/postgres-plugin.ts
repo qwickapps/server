@@ -90,6 +90,26 @@ export interface PostgresPluginConfig {
 
   /** Called on pool errors */
   onError?: (error: Error) => void;
+
+  // Database initialization options
+
+  /** Admin user for database operations (e.g., 'postgres') */
+  adminUser?: string;
+
+  /** Admin password for database operations */
+  adminPassword?: string;
+
+  /** Admin database to connect to for operations (default: 'postgres') */
+  adminDatabase?: string;
+
+  /** Database name to create/ensure exists (parsed from url if not provided) */
+  databaseName?: string;
+
+  /** User who should own the database (parsed from url if not provided) */
+  databaseOwner?: string;
+
+  /** Automatically initialize database if connection fails (default: true if admin credentials provided) */
+  autoInitialize?: boolean;
 }
 
 /**
@@ -139,6 +159,127 @@ export interface PostgresInstance {
 
 // Global registry of PostgreSQL instances by name
 const instances = new Map<string, PostgresInstance>();
+
+/**
+ * Parse database connection URL to extract components
+ */
+function parseConnectionUrl(url: string): {
+  user: string;
+  password: string;
+  host: string;
+  port: number;
+  database: string;
+} {
+  const match = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+  if (!match) {
+    throw new Error('Invalid PostgreSQL connection URL format');
+  }
+  return {
+    user: match[1],
+    password: match[2],
+    host: match[3],
+    port: parseInt(match[4], 10),
+    database: match[5],
+  };
+}
+
+/**
+ * Helper to create an admin pool for database operations
+ */
+function createAdminPool(config: {
+  adminUser: string;
+  adminPassword: string;
+  host: string;
+  port: number;
+  adminDatabase?: string;
+}): pg.Pool {
+  return new Pool({
+    user: config.adminUser,
+    password: config.adminPassword,
+    host: config.host,
+    port: config.port,
+    database: config.adminDatabase || 'postgres',
+    max: 1,
+    idleTimeoutMillis: 5000,
+    connectionTimeoutMillis: 5000,
+  });
+}
+
+/**
+ * Ensure database user exists with password
+ */
+async function ensureUserExists(
+  adminPool: pg.Pool,
+  user: string,
+  password: string
+): Promise<void> {
+  const result = await adminPool.query(
+    `SELECT 1 FROM pg_roles WHERE rolname = $1`,
+    [user]
+  );
+
+  if (result.rows.length === 0) {
+    await adminPool.query(
+      `CREATE USER ${user} WITH PASSWORD '${password}'`
+    );
+  } else {
+    await adminPool.query(
+      `ALTER USER ${user} WITH PASSWORD '${password}'`
+    );
+  }
+}
+
+/**
+ * Ensure database exists with correct owner
+ */
+async function ensureDatabaseExists(
+  adminPool: pg.Pool,
+  database: string,
+  owner: string
+): Promise<void> {
+  const result = await adminPool.query(
+    `SELECT 1 FROM pg_database WHERE datname = $1`,
+    [database]
+  );
+
+  if (result.rows.length === 0) {
+    await adminPool.query(
+      `CREATE DATABASE ${database} OWNER ${owner}`
+    );
+  }
+}
+
+/**
+ * Grant all permissions to user on database
+ */
+async function grantPermissions(
+  adminPool: pg.Pool,
+  database: string,
+  user: string
+): Promise<void> {
+  const tempPool = new Pool({
+    user: adminPool.options.user as string,
+    password: adminPool.options.password as string,
+    host: adminPool.options.host as string,
+    port: adminPool.options.port as number,
+    database,
+    max: 1,
+    idleTimeoutMillis: 5000,
+    connectionTimeoutMillis: 5000,
+  });
+
+  try {
+    await tempPool.query(`
+      GRANT ALL ON SCHEMA public TO ${user};
+      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${user};
+      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${user};
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${user};
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${user};
+    `);
+  } finally {
+    await tempPool.end();
+  }
+}
 
 /**
  * Get a PostgreSQL instance by name
@@ -305,14 +446,278 @@ export function createPostgresPlugin(
       const instance = createInstance();
       instances.set(instanceName, instance);
 
-      // Test connection
+      // Register maintenance widget FIRST (before connection attempt)
+      // This ensures the widget is available even if database connection fails
+      registry.addWidget({
+        id: `postgres-operations-${instanceName}`,
+        title: `Database Operations (${instanceName})`,
+        component: 'DatabaseOperationsWidget',
+        type: 'maintenance',
+        priority: 50,
+        showByDefault: true,
+        pluginId: pluginId,
+      });
+
+      // Three-phase initialization: connect → auto-repair → error state
+
+      // PHASE 1: Try to connect with DATABASE_URI
       try {
         await instance.query('SELECT 1');
-        logger.debug(`PostgreSQL "${instanceName}" connected`);
-      } catch (err) {
-        logger.error(`PostgreSQL "${instanceName}" connection failed: ${err instanceof Error ? err.message : String(err)}`);
-        throw err;
+        logger.info(`PostgreSQL "${instanceName}" connected successfully`);
+      } catch (connectionError) {
+        const errorMsg = connectionError instanceof Error ? connectionError.message : String(connectionError);
+        logger.warn(`PostgreSQL "${instanceName}" connection failed: ${errorMsg}`);
+
+        // PHASE 2: Auto-repair if admin credentials provided
+        const shouldAutoRepair =
+          config.adminUser &&
+          config.adminPassword &&
+          config.autoInitialize !== false &&
+          config.url;
+
+        if (shouldAutoRepair) {
+          logger.info(`Attempting auto-repair for "${instanceName}"...`);
+
+          try {
+            const connParams = parseConnectionUrl(config.url!);
+            const adminPool = createAdminPool({
+              adminUser: config.adminUser!,
+              adminPassword: config.adminPassword!,
+              host: connParams.host,
+              port: connParams.port,
+              adminDatabase: config.adminDatabase,
+            });
+
+            try {
+              // Ensure user exists
+              logger.debug(`Ensuring user "${connParams.user}" exists...`);
+              await ensureUserExists(adminPool, connParams.user, connParams.password);
+
+              // Ensure database exists
+              logger.debug(`Ensuring database "${connParams.database}" exists...`);
+              await ensureDatabaseExists(adminPool, connParams.database, connParams.user);
+
+              // Grant permissions
+              logger.debug(`Granting permissions to "${connParams.user}" on "${connParams.database}"...`);
+              await grantPermissions(adminPool, connParams.database, connParams.user);
+
+              logger.info(`Auto-repair completed successfully for "${instanceName}"`);
+
+              // Try connection again after repair
+              await instance.query('SELECT 1');
+              logger.info(`PostgreSQL "${instanceName}" connected after auto-repair`);
+            } finally {
+              await adminPool.end();
+            }
+          } catch (repairError) {
+            const repairMsg = repairError instanceof Error ? repairError.message : String(repairError);
+            // Log error but don't throw - allow plugin to continue starting
+            // This ensures the widget and API routes are available for manual database initialization
+            logger.error(
+              `PostgreSQL connection failed and auto-repair unsuccessful. ` +
+              `Original error: ${errorMsg}. Repair error: ${repairMsg}. ` +
+              `Use the maintenance UI to manually initialize the database.`
+            );
+          }
+        } else {
+          // PHASE 3: No auto-repair available, remain in error state
+          const missingConfig = [];
+          if (!config.adminUser) missingConfig.push('adminUser');
+          if (!config.adminPassword) missingConfig.push('adminPassword');
+
+          const hint = missingConfig.length > 0
+            ? ` Provide ${missingConfig.join(', ')} in config to enable auto-repair.`
+            : ' Set autoInitialize=true to enable auto-repair.';
+
+          // Log error but don't throw - allow plugin to continue starting
+          // This ensures the widget and API routes are available for manual database initialization
+          logger.error(
+            `PostgreSQL connection failed: ${errorMsg}.${hint} ` +
+            `Use the maintenance UI to manually initialize the database.`
+          );
+        }
       }
+
+      // Register API routes for database operations
+      registry.addRoute({
+        method: 'get',
+        path: '/status',
+        pluginId: pluginId,
+        handler: async (req: import('express').Request, res: import('express').Response) => {
+          try {
+            const requestedInstance = (req.query.instance as string) || 'default';
+            const targetInstance = instances.get(requestedInstance);
+
+            if (!targetInstance) {
+              return res.status(404).json({
+                status: 'error',
+                connected: false,
+                errorMessage: `PostgreSQL instance "${requestedInstance}" not found`,
+                autoInitializeEnabled: false,
+                adminCredentialsProvided: false,
+              });
+            }
+
+            let connParams: ReturnType<typeof parseConnectionUrl> | null = null;
+            if (config.url) {
+              try {
+                connParams = parseConnectionUrl(config.url);
+              } catch (err) {
+                // URL parsing failed, ignore
+              }
+            }
+
+            try {
+              await targetInstance.query('SELECT 1');
+              res.json({
+                status: 'healthy',
+                connected: true,
+                database: connParams?.database,
+                user: connParams?.user,
+                host: connParams?.host,
+                port: connParams?.port,
+                autoInitializeEnabled: config.autoInitialize !== false,
+                adminCredentialsProvided: !!(config.adminUser && config.adminPassword),
+              });
+            } catch (err) {
+              res.json({
+                status: 'error',
+                connected: false,
+                database: connParams?.database,
+                user: connParams?.user,
+                host: connParams?.host,
+                port: connParams?.port,
+                errorMessage: err instanceof Error ? err.message : String(err),
+                autoInitializeEnabled: config.autoInitialize !== false,
+                adminCredentialsProvided: !!(config.adminUser && config.adminPassword),
+              });
+            }
+          } catch (err) {
+            res.status(500).json({
+              status: 'error',
+              connected: false,
+              errorMessage: err instanceof Error ? err.message : 'Unknown error',
+              autoInitializeEnabled: false,
+              adminCredentialsProvided: false,
+            });
+          }
+        },
+      });
+
+      registry.addRoute({
+        method: 'post',
+        path: '/initialize',
+        pluginId: pluginId,
+        handler: async (req: import('express').Request, res: import('express').Response) => {
+          try {
+            const { instance: requestedInstance, adminUser, adminPassword } = req.body;
+            const targetInstance = requestedInstance || 'default';
+
+            if (!instances.has(targetInstance)) {
+              return res.status(404).json({ message: `Instance "${targetInstance}" not found` });
+            }
+
+            if (!config.url) {
+              return res.status(400).json({ message: 'No database URL configured' });
+            }
+
+            const connParams = parseConnectionUrl(config.url);
+            const effectiveAdminUser = adminUser || config.adminUser;
+            const effectiveAdminPassword = adminPassword || config.adminPassword;
+
+            if (!effectiveAdminUser || !effectiveAdminPassword) {
+              return res.status(400).json({
+                message: 'Admin credentials required. Provide adminUser and adminPassword.',
+              });
+            }
+
+            const adminPool = createAdminPool({
+              adminUser: effectiveAdminUser,
+              adminPassword: effectiveAdminPassword,
+              host: connParams.host,
+              port: connParams.port,
+              adminDatabase: config.adminDatabase,
+            });
+
+            try {
+              await ensureUserExists(adminPool, connParams.user, connParams.password);
+              await ensureDatabaseExists(adminPool, connParams.database, connParams.user);
+              await grantPermissions(adminPool, connParams.database, connParams.user);
+
+              logger.info(`Database "${connParams.database}" initialized successfully`);
+              res.json({ message: `Database "${connParams.database}" initialized successfully` });
+            } finally {
+              await adminPool.end();
+            }
+          } catch (err) {
+            logger.error('Database initialization failed', { error: err });
+            res.status(500).json({
+              message: err instanceof Error ? err.message : 'Unknown error',
+            });
+          }
+        },
+      });
+
+      registry.addRoute({
+        method: 'post',
+        path: '/recreate',
+        pluginId: pluginId,
+        handler: async (req: import('express').Request, res: import('express').Response) => {
+          try {
+            const { instance: requestedInstance, adminUser, adminPassword } = req.body;
+            const targetInstance = requestedInstance || 'default';
+
+            if (!instances.has(targetInstance)) {
+              return res.status(404).json({ message: `Instance "${targetInstance}" not found` });
+            }
+
+            if (!config.url) {
+              return res.status(400).json({ message: 'No database URL configured' });
+            }
+
+            const connParams = parseConnectionUrl(config.url);
+            const effectiveAdminUser = adminUser || config.adminUser;
+            const effectiveAdminPassword = adminPassword || config.adminPassword;
+
+            if (!effectiveAdminUser || !effectiveAdminPassword) {
+              return res.status(400).json({
+                message: 'Admin credentials required. Provide adminUser and adminPassword.',
+              });
+            }
+
+            const adminPool = createAdminPool({
+              adminUser: effectiveAdminUser,
+              adminPassword: effectiveAdminPassword,
+              host: connParams.host,
+              port: connParams.port,
+              adminDatabase: config.adminDatabase,
+            });
+
+            try {
+              // Drop database if exists
+              await adminPool.query(`DROP DATABASE IF EXISTS ${connParams.database}`);
+
+              // Recreate database
+              await adminPool.query(
+                `CREATE DATABASE ${connParams.database} OWNER ${connParams.user}`
+              );
+
+              // Grant permissions
+              await grantPermissions(adminPool, connParams.database, connParams.user);
+
+              logger.info(`Database "${connParams.database}" recreated successfully`);
+              res.json({ message: `Database "${connParams.database}" recreated successfully` });
+            } finally {
+              await adminPool.end();
+            }
+          } catch (err) {
+            logger.error('Database recreation failed', { error: err });
+            res.status(500).json({
+              message: err instanceof Error ? err.message : 'Unknown error',
+            });
+          }
+        },
+      });
 
       // Register health check if enabled
       if (config.healthCheck !== false) {

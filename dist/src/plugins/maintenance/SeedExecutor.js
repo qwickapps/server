@@ -7,7 +7,7 @@ import { jsxs as _jsxs, jsx as _jsx, Fragment as _Fragment } from "react/jsx-run
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 import { useEffect, useRef, useState } from 'react';
-export const SeedExecutor = ({ apiPrefix, seedName, onComplete, onCancel, }) => {
+export const SeedExecutor = ({ apiPrefix, seedName, seedType = 'file', seedOptions, onComplete, onCancel, }) => {
     const [status, setStatus] = useState('idle');
     const [output, setOutput] = useState([]);
     const [exitCode, setExitCode] = useState(null);
@@ -37,7 +37,11 @@ export const SeedExecutor = ({ apiPrefix, seedName, onComplete, onCancel, }) => 
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ name: seedName }),
+                body: JSON.stringify({
+                    name: seedName,
+                    type: seedType,
+                    options: seedOptions,
+                }),
             });
             if (!response.ok) {
                 const error = await response.json();

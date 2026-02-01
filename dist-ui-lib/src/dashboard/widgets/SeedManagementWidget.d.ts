@@ -1,7 +1,7 @@
 /**
  * Seed Management Widget
  *
- * Displays available seed scripts and allows executing them.
+ * Displays available seed scripts grouped by folder and allows executing them.
  * Part of the maintenance plugin.
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.

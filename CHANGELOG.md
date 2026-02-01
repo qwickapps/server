@@ -5,6 +5,39 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-01-31
+
+### Added
+
+- **Resilient Plugin Architecture**: Graceful failure recovery for plugins (#870)
+  - Plugins that fail to start no longer crash the entire server
+  - Error state tracking with detailed error messages
+  - Automatic recovery attempt on plugin restart
+  - Health check integration shows plugin status (active/stopped/error/starting)
+  - Control Panel displays plugin errors with stack traces
+  - Enables zero-downtime deployments with failing plugins
+- **Database Operations Widget**: Enhanced seed management and database maintenance (#866)
+  - Real-time seed script execution monitoring via Server-Sent Events
+  - Database operations dashboard with status indicators
+  - Seed execution history with duration tracking
+  - Automatic cleanup of orphaned executions on server restart
+  - Process isolation for reliable execution
+- **Diagnostics Plugin**: System diagnostics and health monitoring
+  - Automatic health check registration for core plugins
+  - System information endpoint for debugging
+  - Plugin contribution tracking (routes, menu items, pages, widgets)
+  - Enhanced diagnostics API with plugin details
+
+### Fixed
+
+- **Control Panel**: Read injected base path for API requests (#884)
+  - Control Panel now correctly reads base path from server-injected global
+  - Fixes API request failures when mounted at non-root paths
+  - Works seamlessly behind proxies with X-Forwarded-Prefix
+- **Media Upload**: Fix media upload paths and improve home page rendering (#889)
+  - Corrected file upload paths for proper asset storage
+  - Improved server-side rendering performance for home pages
+
 ## [1.7.2] - 2026-01-24
 
 ### Fixed

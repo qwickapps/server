@@ -148,6 +148,83 @@ export function createDiagnosticsPlugin(config: DiagnosticsPluginConfig = {}): P
         },
       });
 
+      // Register maintenance listing endpoint (GET /diagnostics/maintenance)
+      registry.addRoute({
+        method: 'get',
+        path: '/maintenance',
+        pluginId: 'diagnostics',
+        handler: (_req: Request, res: Response) => {
+          try {
+            const pluginsNeedingMaintenance = registry.getPluginsNeedingMaintenance();
+
+            res.json({
+              timestamp: new Date().toISOString(),
+              count: pluginsNeedingMaintenance.length,
+              plugins: pluginsNeedingMaintenance.map(info => ({
+                pluginId: info.pluginId,
+                error: info.error,
+                recommendedAction: info.recommendedAction,
+                actions: info.actions.map(action => ({
+                  id: action.id,
+                  name: action.name,
+                  description: action.description,
+                  destructive: action.destructive,
+                })),
+              })),
+            });
+          } catch (error) {
+            res.status(500).json({
+              error: 'Failed to retrieve maintenance info',
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
+        },
+      });
+
+      // Register maintenance action endpoint (POST /diagnostics/maintenance/:pluginId/:actionId)
+      registry.addRoute({
+        method: 'post',
+        path: '/maintenance/:pluginId/:actionId',
+        pluginId: 'diagnostics',
+        handler: async (req: Request, res: Response) => {
+          try {
+            const { pluginId, actionId } = req.params;
+
+            if (!pluginId || !actionId) {
+              return res.status(400).json({
+                error: 'Missing required parameters',
+                message: 'Both pluginId and actionId are required',
+              });
+            }
+
+            logger.info(`Executing maintenance action ${actionId} for plugin ${pluginId}`);
+
+            const result = await registry.runMaintenanceAction(pluginId, actionId);
+
+            if (result.success) {
+              res.json({
+                success: true,
+                message: result.message || 'Maintenance action completed successfully',
+                pluginId,
+                actionId,
+              });
+            } else {
+              res.status(500).json({
+                success: false,
+                error: result.error || 'Maintenance action failed',
+                pluginId,
+                actionId,
+              });
+            }
+          } catch (error) {
+            res.status(500).json({
+              error: 'Failed to execute maintenance action',
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
+        },
+      });
+
       logger.debug('Diagnostics plugin initialized');
     },
 

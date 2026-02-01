@@ -11,6 +11,8 @@ import React, { useEffect, useRef, useState } from 'react';
 export interface SeedExecutorProps {
   apiPrefix: string;
   seedName: string;
+  seedType?: string;
+  seedOptions?: any;
   onComplete: () => void;
   onCancel: () => void;
 }
@@ -26,6 +28,8 @@ interface OutputLine {
 export const SeedExecutor: React.FC<SeedExecutorProps> = ({
   apiPrefix,
   seedName,
+  seedType = 'file',
+  seedOptions,
   onComplete,
   onCancel,
 }) => {
@@ -63,7 +67,11 @@ export const SeedExecutor: React.FC<SeedExecutorProps> = ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name: seedName }),
+        body: JSON.stringify({
+          name: seedName,
+          type: seedType,
+          options: seedOptions,
+        }),
       });
 
       if (!response.ok) {

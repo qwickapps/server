@@ -25,7 +25,8 @@ export function CacheMaintenanceWidget() {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/cache:default/stats');
+            const basePath = window.__APP_BASE_PATH__ || '';
+            const response = await fetch(`${basePath}/api/cache:default/stats`);
             if (!response.ok) {
                 if (response.status === 404) {
                     throw new Error('Cache plugin not configured');
@@ -52,7 +53,8 @@ export function CacheMaintenanceWidget() {
         setError(null);
         setSuccess(null);
         try {
-            const response = await fetch('/api/cache:default/flush', {
+            const basePath = window.__APP_BASE_PATH__ || '';
+            const response = await fetch(`${basePath}/api/cache:default/flush`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             });

@@ -31,6 +31,7 @@ export type {
   UpdateApiKeyParams,
   PostgresApiKeyStoreConfig,
   ApiKeysApiConfig,
+  StoreInitializationResult,
 } from './types.js';
 
 // Zod schemas

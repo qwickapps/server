@@ -75,6 +75,45 @@ export interface PluginScope {
     category?: 'read' | 'write' | 'admin';
 }
 /**
+ * Result of running a maintenance action
+ */
+export interface MaintenanceActionResult {
+    /** Whether the action succeeded */
+    success: boolean;
+    /** Error message if action failed */
+    error?: string;
+    /** Optional message with additional details */
+    message?: string;
+}
+/**
+ * Maintenance action that can be executed to fix a plugin issue
+ */
+export interface MaintenanceAction {
+    /** Unique action identifier (e.g., 'truncate-table', 'migrate-data') */
+    id: string;
+    /** Human-readable action name */
+    name: string;
+    /** Description of what the action does */
+    description: string;
+    /** Whether this action is destructive (shows warning in UI) */
+    destructive?: boolean;
+    /** Handler function that performs the action */
+    handler: () => Promise<MaintenanceActionResult>;
+}
+/**
+ * Information about a plugin that requires maintenance
+ */
+export interface PluginMaintenanceInfo {
+    /** Plugin ID that needs maintenance */
+    pluginId: string;
+    /** Error message describing what's wrong */
+    error: string;
+    /** Available actions to fix the issue */
+    actions: MaintenanceAction[];
+    /** Optional suggestion for which action to run */
+    recommendedAction?: string;
+}
+/**
  * The Plugin interface - simple lifecycle with event handling
  */
 export interface Plugin {
@@ -302,6 +341,16 @@ export interface PluginRegistry {
     emit(event: PluginEvent): void;
     /** Register a health check */
     registerHealthCheck(check: HealthCheck): void;
+    /** Register maintenance actions for a plugin that failed to start */
+    registerMaintenance(info: PluginMaintenanceInfo): void;
+    /** Get maintenance info for a plugin (if it needs maintenance) */
+    getMaintenanceInfo(pluginId: string): PluginMaintenanceInfo | undefined;
+    /** Get all plugins that need maintenance */
+    getPluginsNeedingMaintenance(): PluginMaintenanceInfo[];
+    /** Run a maintenance action for a plugin */
+    runMaintenanceAction(pluginId: string, actionId: string): Promise<MaintenanceActionResult>;
+    /** Clear maintenance state for a plugin (used after successful fix) */
+    clearMaintenance(pluginId: string): void;
     /** Get the Express app (for advanced use cases) */
     getApp(): Application;
     /** Get the Express router (for advanced use cases) */
@@ -319,6 +368,7 @@ export declare class PluginRegistryImpl implements PluginRegistry {
     private pluginConfigs;
     private pluginSlugs;
     private currentPlugin;
+    private maintenanceActions;
     private routes;
     private menuItems;
     private pages;
@@ -370,6 +420,26 @@ export declare class PluginRegistryImpl implements PluginRegistry {
      * Stop all plugins (in reverse order they were started)
      */
     stopAllPlugins(): Promise<void>;
+    /**
+     * Register maintenance actions for a plugin that failed to start
+     */
+    registerMaintenance(info: PluginMaintenanceInfo): void;
+    /**
+     * Get maintenance info for a plugin (if it needs maintenance)
+     */
+    getMaintenanceInfo(pluginId: string): PluginMaintenanceInfo | undefined;
+    /**
+     * Get all plugins that need maintenance
+     */
+    getPluginsNeedingMaintenance(): PluginMaintenanceInfo[];
+    /**
+     * Run a maintenance action for a plugin
+     */
+    runMaintenanceAction(pluginId: string, actionId: string): Promise<MaintenanceActionResult>;
+    /**
+     * Clear maintenance state for a plugin (used after successful fix)
+     */
+    clearMaintenance(pluginId: string): void;
 }
 /**
  * Create and initialize the plugin registry

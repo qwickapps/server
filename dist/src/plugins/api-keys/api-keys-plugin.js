@@ -77,7 +77,59 @@ export function createApiKeysPlugin(config = {}) {
             const apiEnabled = config.api?.enabled ?? true;
             log('Starting API keys plugin');
             // Initialize the store (creates tables and RLS policies if needed)
-            await store.initialize();
+            const initResult = await store.initialize();
+            if (!initResult.success) {
+                logger.error('API keys store initialization failed', { error: initResult.error });
+                // If migration is required, register maintenance actions
+                if (initResult.requiresMaintenance) {
+                    registry.registerMaintenance({
+                        pluginId: 'api-keys',
+                        error: initResult.error || 'Store initialization failed',
+                        actions: [
+                            {
+                                id: 'truncate-api-keys-table',
+                                name: 'Clear API Keys Table',
+                                description: 'Delete all API keys from the database. This allows the migration to proceed by removing old data.',
+                                destructive: true,
+                                handler: async () => {
+                                    try {
+                                        const pool = getPostgres().getPool();
+                                        await pool.query('TRUNCATE TABLE "public"."api_keys" CASCADE');
+                                        logger.info('API keys table truncated successfully');
+                                        return {
+                                            success: true,
+                                            message: 'API keys table cleared. Plugin will retry initialization.',
+                                        };
+                                    }
+                                    catch (error) {
+                                        const errorMessage = error instanceof Error ? error.message : String(error);
+                                        logger.error('Failed to truncate API keys table', { error: errorMessage });
+                                        return {
+                                            success: false,
+                                            error: `Failed to truncate table: ${errorMessage}`,
+                                        };
+                                    }
+                                },
+                            },
+                        ],
+                        recommendedAction: 'truncate-api-keys-table',
+                    });
+                    logger.warn('API keys plugin requires maintenance - registered recovery actions');
+                }
+                // Register unhealthy health check
+                registry.registerHealthCheck({
+                    name: 'api-keys-store',
+                    type: 'custom',
+                    check: async () => ({
+                        healthy: false,
+                        details: {
+                            error: initResult.error || 'Initialization failed',
+                            requiresMaintenance: initResult.requiresMaintenance,
+                        },
+                    }),
+                });
+                return; // Don't continue startup
+            }
             log('API keys store initialized');
             // Initialize optional Phase 2 stores
             if (config.scopeStore) {

@@ -14,5 +14,6 @@ export { SeedManagementWidget } from './SeedManagementWidget';
 export { ServiceControlWidget } from './ServiceControlWidget';
 export { EnvironmentConfigWidget } from './EnvironmentConfigWidget';
 export { DatabaseOpsWidget } from './DatabaseOpsWidget';
+export { DatabaseOperationsWidget } from './DatabaseOperationsWidget';
 export { LogsMaintenanceWidget } from './LogsMaintenanceWidget';
 export { CacheMaintenanceWidget } from './CacheMaintenanceWidget';

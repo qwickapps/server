@@ -14,7 +14,7 @@ export { createLogsPlugin } from './logs-plugin.js';
 export type { LogsPluginConfig } from './logs-plugin.js';
 
 export { createMaintenancePlugin } from './maintenance-plugin.js';
-export type { MaintenancePluginConfig } from './maintenance-plugin.js';
+export type { MaintenancePluginConfig, SeedTask, SeedTaskHandler } from './maintenance-plugin.js';
 export {
   MaintenanceManagementPage,
   MaintenanceStatusWidget,

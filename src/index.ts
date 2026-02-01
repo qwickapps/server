@@ -310,6 +310,8 @@ export type {
   HealthPluginConfig,
   LogsPluginConfig,
   MaintenancePluginConfig,
+  SeedTask,
+  SeedTaskHandler,
   ConfigPluginConfig,
   DiagnosticsPluginConfig,
   FrontendAppPluginConfig,

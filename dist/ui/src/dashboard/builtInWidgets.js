@@ -9,7 +9,7 @@
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
-import { ServiceHealthWidget, IntegrationStatusWidget, AuthStatusWidget, NotificationsStatsWidget, CMSStatusWidget, CMSMaintenanceWidget, SeedManagementWidget, ServiceControlWidget, EnvironmentConfigWidget, DatabaseOpsWidget, LogsMaintenanceWidget, CacheMaintenanceWidget, } from './widgets';
+import { ServiceHealthWidget, IntegrationStatusWidget, AuthStatusWidget, NotificationsStatsWidget, CMSStatusWidget, CMSMaintenanceWidget, SeedManagementWidget, ServiceControlWidget, EnvironmentConfigWidget, DatabaseOpsWidget, DatabaseOperationsWidget, LogsMaintenanceWidget, CacheMaintenanceWidget, } from './widgets';
 import { PreferencesPage } from '../pages/PreferencesPage';
 /**
  * Map of built-in widget component names to their React component functions.
@@ -26,6 +26,7 @@ export const builtInWidgetComponents = {
     ServiceControlWidget: ServiceControlWidget,
     EnvironmentConfigWidget: EnvironmentConfigWidget,
     DatabaseOpsWidget: DatabaseOpsWidget,
+    DatabaseOperationsWidget: DatabaseOperationsWidget,
     LogsMaintenanceWidget: LogsMaintenanceWidget,
     CacheMaintenanceWidget: CacheMaintenanceWidget,
     PreferencesPage: PreferencesPage,
@@ -49,6 +50,7 @@ export function getBuiltInWidgetComponents() {
         { name: 'ServiceControlWidget', component: ServiceControlWidget },
         { name: 'EnvironmentConfigWidget', component: EnvironmentConfigWidget },
         { name: 'DatabaseOpsWidget', component: DatabaseOpsWidget },
+        { name: 'DatabaseOperationsWidget', component: DatabaseOperationsWidget },
         { name: 'LogsMaintenanceWidget', component: LogsMaintenanceWidget },
         { name: 'CacheMaintenanceWidget', component: CacheMaintenanceWidget },
         { name: 'PreferencesPage', component: PreferencesPage },

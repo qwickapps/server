@@ -21,6 +21,7 @@
  */
 
 import type { Application } from 'express';
+import { createServer } from 'http';
 import type { IncomingMessage, ServerResponse, Server } from 'http';
 import type { Socket } from 'net';
 import type { Duplex } from 'stream';
@@ -35,13 +36,13 @@ import { resolve, join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // Get QwickApps Server version from package.json
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const _filename = fileURLToPath(import.meta.url);
+const _dirname = dirname(_filename);
 
 // Find package.json by walking up directories
 // Recommended approach for libraries that work in both source and compiled contexts
 function findPackageJson(): string {
-  let currentDir = __dirname;
+  let currentDir = _dirname;
   // Walk up max 5 levels looking for the correct package.json
   for (let i = 0; i < 5; i++) {
     try {
@@ -1075,7 +1076,7 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
 
   const logger = config.logger || getControlPanelLogger('Gateway');
 
-  // Port configuration - new scheme: 3000 gateway, 3001 cpanel, 3002+ apps
+  // Port configuration - gateway with integrated control panel, apps on 3001+
   const gatewayPort = config.port || parseInt(process.env.GATEWAY_PORT || process.env.PORT || '3000', 10);
   const nodeEnv = process.env.NODE_ENV || 'development';
   const version = config.version || process.env.npm_package_version || '1.0.0';
@@ -1084,7 +1085,6 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
   const cpConfig = config.controlPanel ?? { enabled: true };
   const cpEnabled = cpConfig.enabled !== false;
   const cpPath = cpConfig.path || '/cpanel';
-  const cpPort = cpConfig.port || 3001;
 
   // Create gateway Express app
   const app = express();
@@ -1279,6 +1279,7 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
 
     // 1. Start internal control panel if enabled
     if (cpEnabled) {
+      const cpPort = parseInt(process.env.CPANEL_PORT || String(gatewayPort + 1), 10);
       logger.debug(`Starting control panel on port ${cpPort}...`);
 
       controlPanelInstance = createControlPanel({
@@ -1289,7 +1290,7 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
           logoIconUrl: config.logoIconUrl,
           branding: config.branding,
           cors: config.corsOrigins ? { origins: config.corsOrigins } : undefined,
-          mountPath: '/', // Control panel runs at / internally
+          mountPath: cpPath, // Control panel runs at same path as gateway mount (no path translation needed)
           guard: cpConfig.guard,
           customUiPath: cpConfig.customUiPath,
           links: cpConfig.links,
@@ -1300,20 +1301,132 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
 
       await controlPanelInstance.start();
       logger.debug(`Control panel started on port ${cpPort}`);
+
+      // Check if any plugins require maintenance
+      const pluginsNeedingMaintenance = controlPanelInstance.getPluginRegistry().getPluginsNeedingMaintenance();
+      if (pluginsNeedingMaintenance.length > 0) {
+        logger.warn(
+          `${pluginsNeedingMaintenance.length} plugin(s) require maintenance`,
+          { plugins: pluginsNeedingMaintenance.map(p => p.pluginId) }
+        );
+      }
+
+      // 2. Setup control panel proxies (BEFORE server.listen)
+      // Control panel runs at / internally with APIs at /api and UI at /
+      // We proxy both /api and /cpanel to the control panel
+
+      // Proxy control panel APIs at {cpPath}/api
+      // IMPORTANT: Express strips the API path prefix before passing to middleware,
+      // so we need pathRewrite to reconstruct the full path for the control panel
+      const cpApiPath = `${cpPath}/api`;
+      const apiProxy = createProxyMiddleware({
+        target: `http://localhost:${cpPort}`,
+        changeOrigin: true,
+        pathRewrite: (path) => `/api${path}`, // Express removed {cpPath}/api, add back just /api (control panel APIs are at /api/*)
+        on: {
+          proxyReq: (proxyReq, req) => {
+            // Set X-Forwarded-Prefix so control panel knows its public mount path
+            proxyReq.setHeader('X-Forwarded-Prefix', cpPath);
+            logger.debug(`[API Proxy] Forwarding ${req.method} ${req.url} to control panel`);
+          },
+          proxyRes: (proxyRes, req) => {
+            logger.debug(`[API Proxy] Response for ${req.url}: ${proxyRes.statusCode} ${proxyRes.headers['content-type']}`);
+          },
+          error: (err: Error, req: IncomingMessage, res: ServerResponse | Socket) => {
+            logger.error(`[API Proxy] Error for ${req.url}`, { error: err.message });
+            if (res && 'writeHead' in res && !res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                error: 'Service Unavailable',
+                message: 'The control panel API is currently unavailable.',
+                details: nodeEnv === 'development' ? err.message : undefined,
+              }));
+            }
+          },
+        },
+      });
+      app.use(cpApiPath, apiProxy);
+      logger.debug(`Setting up proxy: ${cpApiPath} -> http://localhost:${cpPort}/api`);
+      mountedApps.push({ path: cpApiPath, type: 'proxy', target: `http://localhost:${cpPort}` });
     }
 
-    // 2. Create HTTP server
-    server = app.listen(gatewayPort);
+    // 3. Create HTTP server (but don't listen yet - need server object for WS)
+    server = createServer(app);
 
-    // 3. Setup mounted apps (proxy and static)
+    // 4. Setup control panel UI proxy (needs server for WebSocket handling)
+    if (cpEnabled) {
+      const cpPort = parseInt(process.env.CPANEL_PORT || String(gatewayPort + 1), 10);
+
+      // Proxy /cpanel to control panel UI
+      // Express strips cpPath prefix, so we need custom proxy to add it back
+      const cpUiProxy = createProxyMiddleware({
+        target: `http://localhost:${cpPort}`,
+        changeOrigin: true,
+        ws: true,
+        pathRewrite: (path) => `${cpPath}${path}`, // Express removed cpPath, add it back
+        on: {
+          proxyReq: (proxyReq) => {
+            // Set X-Forwarded-Prefix so control panel knows its public mount path
+            proxyReq.setHeader('X-Forwarded-Prefix', cpPath);
+          },
+          error: (err: Error, req: IncomingMessage, res: ServerResponse | Socket) => {
+            logger.error(`[Control Panel UI Proxy] Error for ${req.url}`, { error: err.message });
+            if (res && 'writeHead' in res && !res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'text/html' });
+              res.end('<h1>Control Panel Unavailable</h1><p>The control panel service is not responding.</p>');
+            }
+          },
+        },
+      });
+      app.use(cpPath, cpUiProxy);
+
+      // WebSocket upgrade handling for control panel
+      server!.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+        if (req.url?.startsWith(cpPath)) {
+          cpUiProxy.upgrade?.(req, socket as Socket, head);
+        }
+      });
+
+      mountedApps.push({ path: cpPath, type: 'proxy', target: `http://localhost:${cpPort}` });
+    }
+
+    // 5. Setup mounted apps (proxy and static)
     const apps = config.apps || [];
 
-    // Add control panel as a proxy app if enabled
+    // If plugins need maintenance, add root-level maintenance page
+    // but keep /cpanel and /diagnostics accessible
     if (cpEnabled) {
-      setupProxyApp({
-        path: cpPath,
-        source: { type: 'proxy', target: `http://localhost:${cpPort}` },
-      }, server);
+      const pluginsNeedingMaintenance = controlPanelInstance!.getPluginRegistry().getPluginsNeedingMaintenance();
+      if (pluginsNeedingMaintenance.length > 0) {
+        logger.info('Adding maintenance page at root path due to plugin failures');
+
+        // Add middleware BEFORE frontend setup to intercept root requests
+        app.use((req, res, next) => {
+          // Allow access to control panel, API, and diagnostics
+          if (req.path.startsWith(cpPath) || req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/ping')) {
+            return next();
+          }
+
+          // Show maintenance page for all other requests to root
+          if (req.path === '/' || (!req.path.startsWith(cpPath) && !req.path.startsWith('/api'))) {
+            const maintenanceConfig: MaintenanceConfig = {
+              enabled: true,
+              title: 'System Maintenance Required',
+              message: `${pluginsNeedingMaintenance.length} system component(s) require attention before the service can start normally.`,
+              contactUrl: `${cpPath}/diagnostics/maintenance`,
+            };
+            const html = generateMaintenancePageHtml(
+              config.productName,
+              maintenanceConfig,
+              config.productName
+            );
+            res.status(503).type('html').send(html);
+            return;
+          }
+
+          next();
+        });
+      }
     }
 
     // Setup additional apps
@@ -1325,8 +1438,15 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
       }
     }
 
-    // 4. Setup frontend app at root
+    // 6. Setup frontend app at root
     setupFrontendApp();
+
+    // 7. Start listening (LAST STEP - after all middleware is registered)
+    await new Promise<void>((resolve) => {
+      server!.listen(gatewayPort, () => {
+        resolve();
+      });
+    });
 
     // Log startup info
     const authInfo = cpConfig.guard?.type === 'basic'
