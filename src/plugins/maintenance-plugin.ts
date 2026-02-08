@@ -450,12 +450,18 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
           pluginId: 'maintenance',
           handler: async (req: Request, res: Response) => {
             try {
-              // Security: Only allow in local or development environments
-              const nodeEnv = process.env.NODE_ENV?.toLowerCase();
-              if (nodeEnv !== 'local' && nodeEnv !== 'development') {
+              // Security: Prevent running on production domain
+              const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || process.env.APP_URL || '';
+
+              // Block if domain is exactly faabzi.com (production)
+              // Allow dev.faabzi.com, staging.faabzi.com, localhost, etc.
+              const isProductionDomain = /^https?:\/\/faabzi\.com(\/|$)/.test(serverUrl);
+
+              if (isProductionDomain) {
                 return res.status(403).json({
-                  error: 'Database reset is only available in local or development environments',
-                  currentEnv: nodeEnv || 'production',
+                  error: 'Database reset is not allowed on production domain (faabzi.com)',
+                  currentUrl: serverUrl,
+                  allowedDomains: 'dev.faabzi.com, staging.faabzi.com, localhost, or local',
                 });
               }
 

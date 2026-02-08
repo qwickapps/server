@@ -12,6 +12,14 @@ A flexible, pluggable control panel framework for QwickApps services. Provides a
 - **Frontend App Support**: Handle root path with redirect, static files, or landing page
 - **Theming**: Customizable branding and styling
 
+## What's New in v1.8.1
+
+- **Enhanced Security**: Database reset endpoint now uses domain-based authorization instead of environment variables
+- **Production Safety**: Improved validation prevents accidental database resets in production environments
+- **Reliable Controls**: More robust domain checking for development and staging workflows
+
+See [CHANGELOG.md](./CHANGELOG.md) for full release history.
+
 ## What's New in v1.7.0
 
 - **Tenants Plugin** - Complete multi-tenancy system with data isolation and organization management

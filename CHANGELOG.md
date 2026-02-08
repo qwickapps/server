@@ -5,6 +5,15 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-02-07
+
+### Fixed
+
+- **Maintenance Plugin**: Enhanced security for database reset endpoint
+  - Use domain-based check instead of environment variable for database reset authorization
+  - Improved safety controls to prevent accidental database resets in production
+  - More reliable domain validation for development and staging environments
+
 ## [1.8.0] - 2026-01-31
 
 ### Added

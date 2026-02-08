@@ -73,6 +73,54 @@ vi.mock('@mui/icons-material', () => ({
 
 // Mock @qwickapps/react-framework components
 vi.mock('@qwickapps/react-framework', () => ({
+  // Config exports
+  AppConfig: class AppConfig {
+    static create = vi.fn();
+    validate = vi.fn(() => ({ isValid: true, errors: [] }));
+  },
+  AppConfigBuilder: {
+    create: vi.fn(() => ({
+      // App methods
+      withName: vi.fn().mockReturnThis(),
+      withId: vi.fn().mockReturnThis(),
+      withShortName: vi.fn().mockReturnThis(),
+      withDescription: vi.fn().mockReturnThis(),
+      withVersion: vi.fn().mockReturnThis(),
+      withLogo: vi.fn().mockReturnThis(),
+      withAuthor: vi.fn().mockReturnThis(),
+      withHomepage: vi.fn().mockReturnThis(),
+      // Build methods
+      withPort: vi.fn().mockReturnThis(),
+      withPreviewPort: vi.fn().mockReturnThis(),
+      withOutputDir: vi.fn().mockReturnThis(),
+      withPublicPath: vi.fn().mockReturnThis(),
+      withBase: vi.fn().mockReturnThis(),
+      // PWA methods
+      withThemeColor: vi.fn().mockReturnThis(),
+      withBackgroundColor: vi.fn().mockReturnThis(),
+      withStartUrl: vi.fn().mockReturnThis(),
+      withScope: vi.fn().mockReturnThis(),
+      withDisplay: vi.fn().mockReturnThis(),
+      withOrientation: vi.fn().mockReturnThis(),
+      // UI methods
+      withDefaultTheme: vi.fn().mockReturnThis(),
+      withDefaultPalette: vi.fn().mockReturnThis(),
+      withScaffolding: vi.fn().mockReturnThis(),
+      withThemeSwitcher: vi.fn().mockReturnThis(),
+      withPaletteSwitcher: vi.fn().mockReturnThis(),
+      // Copyright methods
+      withCopyright: vi.fn().mockReturnThis(),
+      withCopyrightYear: vi.fn().mockReturnThis(),
+      withCopyrightAuthor: vi.fn().mockReturnThis(),
+      withCopyrightText: vi.fn().mockReturnThis(),
+      // Other methods
+      withConfig: vi.fn().mockReturnThis(),
+      withOptions: vi.fn().mockReturnThis(),
+      build: vi.fn(() => ({ validate: vi.fn(() => ({ isValid: true, errors: [] })) })),
+    })),
+  },
+  createAppConfig: vi.fn(),
+  // Component exports
   PluginStatusWidget: ({ title, stats, health, loading, error }: any) => {
     if (loading) return React.createElement('div', null, `${title} Loading...`);
     if (error) return React.createElement('div', null, `${title} Error: ${error}`);
