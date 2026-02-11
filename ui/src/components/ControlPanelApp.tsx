@@ -147,10 +147,11 @@ export function ControlPanelApp({
   // Combine built-in widget components with custom ones
   const allWidgetComponents = [...getBuiltInWidgetComponents(), ...widgetComponents];
 
-  // Configure API base URL - read from injected __APP_BASE_PATH__ if available
-  // Server injects window.__APP_BASE_PATH__ when control panel is mounted at a base path
-  // Example: mounted at /cpanel → API calls go to /cpanel/api (not /api)
-  const apiBasePath = (window as any).__APP_BASE_PATH__ || '';
+  // Configure API base URL - read from injected __API_BASE_PATH__ if available
+  // Server injects window.__APP_BASE_PATH__ for UI routing (e.g., '/cpanel')
+  // and window.__API_BASE_PATH__ for API calls (always '/api')
+  // Example: UI mounted at /cpanel, but API calls go to /api (not /cpanel/api)
+  const apiBasePath = (window as any).__API_BASE_PATH__ || '';
   api.setBaseUrl(apiBasePath);
 
   // Fetch version from API

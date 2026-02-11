@@ -91,7 +91,7 @@ export function SeedManagementWidget() {
 
   const fetchSeeds = async () => {
     try {
-      const basePath = (window as any).__APP_BASE_PATH__ || '';
+      const basePath = (window as any).__API_BASE_PATH__ || '';
       const response = await fetch(`${basePath}/api/maintenance/seeds/discover`);
       if (!response.ok) throw new Error('Failed to fetch seeds');
       const data = await response.json();
@@ -172,7 +172,7 @@ export function SeedManagementWidget() {
 
   // Execute a single seed and handle SSE stream
   const executeSeed = async (seedKey: string, friendlyName: string, seedType: string): Promise<ExecutionResult> => {
-    const basePath = (window as any).__APP_BASE_PATH__ || '';
+    const basePath = (window as any).__API_BASE_PATH__ || '';
     const response = await fetch(`${basePath}/api/maintenance/seeds/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -237,7 +237,7 @@ export function SeedManagementWidget() {
     setResetDialogOpen(false);
 
     try {
-      const basePath = (window as any).__APP_BASE_PATH__ || '';
+      const basePath = (window as any).__API_BASE_PATH__ || '';
       const response = await fetch(`${basePath}/api/maintenance/database/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

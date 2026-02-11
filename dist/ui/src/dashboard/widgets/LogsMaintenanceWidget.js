@@ -23,7 +23,7 @@ export function LogsMaintenanceWidget() {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const fetchSources = async () => {
         try {
-            const basePath = window.__APP_BASE_PATH__ || '';
+            const basePath = window.__API_BASE_PATH__ || '';
             const response = await fetch(`${basePath}/api/logs/sources`);
             if (!response.ok)
                 throw new Error('Failed to fetch log sources');
@@ -43,7 +43,7 @@ export function LogsMaintenanceWidget() {
         setLoading(true);
         setError(null);
         try {
-            const basePath = window.__APP_BASE_PATH__ || '';
+            const basePath = window.__API_BASE_PATH__ || '';
             const response = await fetch(`${basePath}/api/logs/stats?source=${selectedSource}`);
             if (!response.ok)
                 throw new Error('Failed to fetch log stats');
@@ -72,7 +72,7 @@ export function LogsMaintenanceWidget() {
         setError(null);
         setSuccess(null);
         try {
-            const basePath = window.__APP_BASE_PATH__ || '';
+            const basePath = window.__API_BASE_PATH__ || '';
             const response = await fetch(`${basePath}/api/logs/clear`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

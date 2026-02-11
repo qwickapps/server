@@ -132,6 +132,9 @@ export interface MaintenancePluginConfig {
   /** Enable database operations (default: true) */
   enableDatabaseOps?: boolean;
 
+  /** Enable migration management (default: true) */
+  enableMigrations?: boolean;
+
   /** Custom seed tasks */
   customTasks?: SeedTask[];
 }
@@ -599,6 +602,462 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
         });
       }
 
+      // Migration Management Routes
+      if (config.enableMigrations !== false) {
+        // Ensure migration_executions table exists
+        registry.addRoute({
+          method: 'post',
+          path: '/migrations/_init',
+          pluginId: 'maintenance',
+          handler: async (req: Request, res: Response) => {
+            try {
+              if (hasPostgres()) {
+                const db = getPostgres();
+                await db.queryRaw(`
+                  CREATE TABLE IF NOT EXISTS migration_executions (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
+                    started_at TIMESTAMPTZ NOT NULL,
+                    completed_at TIMESTAMPTZ,
+                    exit_code INTEGER,
+                    output TEXT,
+                    error TEXT,
+                    duration_ms INTEGER,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                  )
+                `);
+                await db.queryRaw(`
+                  CREATE INDEX IF NOT EXISTS idx_migration_executions_status
+                  ON migration_executions(status)
+                `);
+                await db.queryRaw(`
+                  CREATE INDEX IF NOT EXISTS idx_migration_executions_started_at
+                  ON migration_executions(started_at DESC)
+                `);
+              }
+              res.json({ success: true });
+            } catch (error) {
+              logger.error('Failed to initialize migration_executions table', { error });
+              res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+            }
+          },
+        });
+
+        // GET /migrations/status - Get migration status
+        registry.addRoute({
+          method: 'get',
+          path: '/migrations/status',
+          pluginId: 'maintenance',
+          handler: async (req: Request, res: Response) => {
+            try {
+              // Check if there are any pending migrations by checking Payload
+              // This is a simple implementation - just returns basic status
+              res.json({
+                available: true,
+                lastChecked: new Date().toISOString(),
+              });
+            } catch (error) {
+              logger.error('Failed to get migration status', { error });
+              res.status(500).json({
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        });
+
+        // GET /migrations/execute - Execute Payload migrations with SSE output
+        registry.addRoute({
+          method: 'get',
+          path: '/migrations/execute',
+          pluginId: 'maintenance',
+          handler: async (req: Request, res: Response) => {
+            const MIGRATION_LOCK_ID = 123456789;
+            const MIGRATION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+            let lockAcquired = false;
+
+            try {
+              // Ensure table exists (lazy initialization)
+              if (hasPostgres()) {
+                const db = getPostgres();
+                try {
+                  await db.queryRaw(`
+                    CREATE TABLE IF NOT EXISTS migration_executions (
+                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                      status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
+                      started_at TIMESTAMPTZ NOT NULL,
+                      completed_at TIMESTAMPTZ,
+                      exit_code INTEGER,
+                      output TEXT,
+                      error TEXT,
+                      duration_ms INTEGER,
+                      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                  `);
+                } catch (err) {
+                  logger.debug('Table initialization check', { err });
+                }
+              }
+
+              // Acquire advisory lock for concurrency control
+              if (hasPostgres()) {
+                const db = getPostgres();
+                const lockResult = await db.queryOne<{ pg_try_advisory_lock: boolean }>(
+                  'SELECT pg_try_advisory_lock($1) as pg_try_advisory_lock',
+                  [MIGRATION_LOCK_ID]
+                );
+
+                lockAcquired = lockResult?.pg_try_advisory_lock || false;
+
+                if (!lockAcquired) {
+                  return res.status(409).json({
+                    error: 'Migrations are already running. Please wait for them to complete.',
+                  });
+                }
+              }
+
+              // Set SSE headers
+              res.setHeader('Content-Type', 'text/event-stream');
+              res.setHeader('Cache-Control', 'no-cache');
+              res.setHeader('Connection', 'keep-alive');
+              res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+              res.setHeader('Content-Encoding', 'identity'); // Disable compression
+              res.flushHeaders();
+
+              // Create execution record in database
+              let executionId: string | null = null;
+              if (hasPostgres()) {
+                const db = getPostgres();
+                const result = await db.queryOne<{ id: string }>(
+                  `INSERT INTO migration_executions (status, started_at)
+                   VALUES ($1, NOW())
+                   RETURNING id`,
+                  ['running']
+                );
+                executionId = result?.id || null;
+              }
+
+              const startTime = Date.now();
+              let exitCode: number | undefined = undefined;
+              let output = '';
+              let error = '';
+              let migrationProcess: any = null;
+              let timeoutHandle: NodeJS.Timeout | null = null;
+
+              // Cleanup function to ensure resources are released
+              const cleanup = async (reason: string) => {
+                logger.debug(`Migration cleanup: ${reason}`, { executionId });
+
+                // Clear timeout if set
+                if (timeoutHandle) {
+                  clearTimeout(timeoutHandle);
+                  timeoutHandle = null;
+                }
+
+                // Kill process if still running
+                if (migrationProcess && !migrationProcess.killed) {
+                  migrationProcess.kill('SIGTERM');
+                }
+
+                // Update execution record if not already completed
+                if (hasPostgres() && executionId && exitCode === undefined) {
+                  const db = getPostgres();
+                  const duration = Date.now() - startTime;
+                  await db.query(
+                    `UPDATE migration_executions
+                     SET status = $1, completed_at = NOW(),
+                         error = $2, duration_ms = $3, updated_at = NOW()
+                     WHERE id = $4 AND status = 'running'`,
+                    ['failed', reason, duration, executionId]
+                  ).catch(err => logger.error('Failed to update execution on cleanup', { err }));
+                }
+
+                // Release advisory lock
+                if (hasPostgres() && lockAcquired) {
+                  const db = getPostgres();
+                  await db.query(
+                    'SELECT pg_advisory_unlock($1)',
+                    [MIGRATION_LOCK_ID]
+                  ).catch(err => logger.error('Failed to release advisory lock', { err }));
+                  lockAcquired = false;
+                }
+              };
+
+              // Handle client disconnect
+              res.on('close', () => {
+                cleanup('Client disconnected before completion').catch(err =>
+                  logger.error('Cleanup failed on disconnect', { err })
+                );
+              });
+
+              try {
+                // Execute Payload migration command
+                const { spawn } = await import('child_process');
+
+                migrationProcess = spawn('npx', ['payload', 'migrate', '--force-accept-warning'], {
+                  cwd: process.cwd(),
+                  env: {
+                    ...process.env,
+                    CI: 'true',              // Force non-interactive mode
+                    NODE_ENV: 'production',   // Disable dev mode prompts
+                  },
+                });
+
+                // Automatically answer 'y' to any interactive prompts
+                if (migrationProcess.stdin) {
+                  migrationProcess.stdin.write('y\n');
+                  migrationProcess.stdin.end();
+                }
+
+                // Set timeout to prevent hanging migrations
+                timeoutHandle = setTimeout(() => {
+                  logger.warn('Migration timeout - killing process', { executionId, timeout: MIGRATION_TIMEOUT_MS });
+                  if (migrationProcess && !migrationProcess.killed) {
+                    migrationProcess.kill('SIGTERM');
+                    error += '\n[TIMEOUT] Migration exceeded maximum execution time and was terminated.';
+                  }
+                }, MIGRATION_TIMEOUT_MS);
+
+                // Stream stdout
+                migrationProcess.stdout?.on('data', (data: Buffer) => {
+                  const chunk = data.toString();
+                  output += chunk;
+                  if (!res.writableEnded) {
+                    res.write(`data: ${JSON.stringify({
+                      type: 'output',
+                      data: chunk,
+                      timestamp: new Date().toISOString()
+                    })}\n\n`);
+                  }
+                });
+
+                // Stream stderr
+                migrationProcess.stderr?.on('data', (data: Buffer) => {
+                  const chunk = data.toString();
+                  error += chunk;
+                  if (!res.writableEnded) {
+                    res.write(`data: ${JSON.stringify({
+                      type: 'error',
+                      data: chunk,
+                      timestamp: new Date().toISOString()
+                    })}\n\n`);
+                  }
+                });
+
+                // Wait for process to complete
+                await new Promise<void>((resolve, reject) => {
+                  migrationProcess.on('close', (code: number | null) => {
+                    exitCode = code || 0;
+                    resolve();
+                  });
+                  migrationProcess.on('error', (err: Error) => {
+                    reject(err);
+                  });
+                });
+
+                // Clear timeout since process completed
+                if (timeoutHandle) {
+                  clearTimeout(timeoutHandle);
+                  timeoutHandle = null;
+                }
+
+                const duration = Date.now() - startTime;
+
+                // Update execution record
+                if (hasPostgres() && executionId) {
+                  const db = getPostgres();
+                  await db.query(
+                    `UPDATE migration_executions
+                     SET status = $1, completed_at = NOW(), exit_code = $2,
+                         output = $3, error = $4, duration_ms = $5, updated_at = NOW()
+                     WHERE id = $6`,
+                    [
+                      exitCode === 0 ? 'completed' : 'failed',
+                      exitCode,
+                      output,
+                      error,
+                      duration,
+                      executionId,
+                    ]
+                  );
+                }
+
+                // Send completion event
+                if (!res.writableEnded) {
+                  res.write(`data: ${JSON.stringify({
+                    type: 'complete',
+                    exitCode,
+                    duration,
+                    timestamp: new Date().toISOString()
+                  })}\n\n`);
+                }
+
+                res.end();
+
+                // Release advisory lock after successful completion
+                if (hasPostgres() && lockAcquired) {
+                  const db = getPostgres();
+                  await db.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]);
+                  lockAcquired = false;
+                }
+              } catch (error) {
+                logger.error('Migration execution failed', { error });
+
+                // Send error event via SSE
+                if (!res.writableEnded) {
+                  res.write(`data: ${JSON.stringify({
+                    type: 'error',
+                    data: error instanceof Error ? error.message : String(error),
+                    timestamp: new Date().toISOString()
+                  })}\n\n`);
+                }
+
+                // Update execution record as failed
+                if (hasPostgres() && executionId) {
+                  const db = getPostgres();
+                  const duration = Date.now() - startTime;
+                  await db.query(
+                    `UPDATE migration_executions
+                     SET status = $1, completed_at = NOW(),
+                         error = $2, duration_ms = $3, updated_at = NOW()
+                     WHERE id = $4`,
+                    ['failed', error instanceof Error ? error.message : String(error), duration, executionId]
+                  );
+                }
+
+                res.end();
+
+                // Release advisory lock after error
+                if (hasPostgres() && lockAcquired) {
+                  const db = getPostgres();
+                  await db.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]);
+                  lockAcquired = false;
+                }
+              }
+            } catch (error) {
+              logger.error('Migration execution setup failed', { error });
+
+              // Release advisory lock if acquired
+              if (hasPostgres() && lockAcquired) {
+                const db = getPostgres();
+                await db.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID])
+                  .catch(err => logger.error('Failed to release lock on setup error', { err }));
+              }
+
+              res.status(500).json({
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        });
+
+        // GET /migrations/history - Get migration execution history
+        registry.addRoute({
+          method: 'get',
+          path: '/migrations/history',
+          pluginId: 'maintenance',
+          handler: async (req: Request, res: Response) => {
+            try {
+              if (!hasPostgres()) {
+                return res.json({ executions: [] });
+              }
+
+              const db = getPostgres();
+              const { limit = '10', offset = '0', status, search } = req.query;
+
+              let query = 'SELECT * FROM migration_executions WHERE 1=1';
+              const params: (string | number)[] = [];
+              let paramIndex = 1;
+
+              if (status && typeof status === 'string') {
+                query += ` AND status = $${paramIndex}`;
+                params.push(status);
+                paramIndex++;
+              }
+
+              if (search && typeof search === 'string') {
+                query += ` AND (output ILIKE $${paramIndex} OR error ILIKE $${paramIndex})`;
+                params.push(`%${search}%`);
+                paramIndex++;
+              }
+
+              query += ` ORDER BY started_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+              params.push(parseInt(limit as string, 10), parseInt(offset as string, 10));
+
+              const executions = await db.query(query, params);
+
+              // Get total count
+              let countQuery = 'SELECT COUNT(*) as count FROM migration_executions WHERE 1=1';
+              const countParams: string[] = [];
+              let countParamIndex = 1;
+
+              if (status && typeof status === 'string') {
+                countQuery += ` AND status = $${countParamIndex}`;
+                countParams.push(status);
+                countParamIndex++;
+              }
+
+              if (search && typeof search === 'string') {
+                countQuery += ` AND (output ILIKE $${countParamIndex} OR error ILIKE $${countParamIndex})`;
+                countParams.push(`%${search}%`);
+              }
+
+              const countResult = await db.queryOne<{ count: string }>(countQuery, countParams);
+              const total = parseInt(countResult?.count || '0', 10);
+
+              res.json({
+                executions,
+                pagination: {
+                  total,
+                  limit: parseInt(limit as string, 10),
+                  offset: parseInt(offset as string, 10),
+                },
+              });
+            } catch (error) {
+              logger.error('Failed to fetch migration history', { error });
+              res.status(500).json({
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        });
+
+        // GET /migrations/history/:id - Get detailed migration execution result
+        registry.addRoute({
+          method: 'get',
+          path: '/migrations/history/:id',
+          pluginId: 'maintenance',
+          handler: async (req: Request, res: Response) => {
+            try {
+              if (!hasPostgres()) {
+                return res.status(404).json({ error: 'Execution not found' });
+              }
+
+              const { id } = req.params;
+              const db = getPostgres();
+
+              const execution = await db.queryOne(
+                'SELECT * FROM migration_executions WHERE id = $1',
+                [id]
+              );
+
+              if (!execution) {
+                return res.status(404).json({ error: 'Execution not found' });
+              }
+
+              res.json({ execution });
+            } catch (error) {
+              logger.error('Failed to fetch migration execution detail', { error });
+              res.status(500).json({
+                error: error instanceof Error ? error.message : String(error),
+                message: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        });
+      }
+
       // Register maintenance widgets
       if (config.enableSeeds !== false) {
         registry.addWidget({
@@ -607,6 +1066,19 @@ export function createMaintenancePlugin(config: MaintenancePluginConfig = {}): P
           component: 'SeedManagementWidget',
           type: 'maintenance',
           priority: 10,
+          showByDefault: true, // Show by default on maintenance page
+          pluginId: 'maintenance',
+        });
+      }
+
+      // Register migration management widget
+      if (config.enableMigrations !== false) {
+        registry.addWidget({
+          id: 'migration-management',
+          title: 'Database Migrations',
+          component: 'MigrationManagementWidget',
+          type: 'maintenance',
+          priority: 15,
           showByDefault: true, // Show by default on maintenance page
           pluginId: 'maintenance',
         });

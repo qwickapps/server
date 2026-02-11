@@ -200,10 +200,11 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
     next();
   });
 
-  // CRITICAL: System APIs always mount at /api regardless of mountPath
-  // This ensures consistent API paths across all products
-  // See: ADR-012-QwickApps-Server-Routing-Architecture
-  app.use('/api', router);
+  // CRITICAL: QwickApps Server APIs always mount at /qapi regardless of mountPath
+  // This avoids conflicts with application-level APIs (e.g., Payload CMS uses /api)
+  // /qapi = QwickApps framework APIs (SuperTokens, health, postgres, cache, etc.)
+  // /api = Application/CMS APIs (Payload, custom app routes)
+  app.use('/qapi', router);
 
   // Built-in routes
 
@@ -284,8 +285,10 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
         const effectivePath = forwardedPrefix || mountPath;
         const normalizedPath = effectivePath === '/' ? '' : effectivePath;
 
-        // Inject base path as global variable before other scripts
-        const basePathScript = `<script>window.__APP_BASE_PATH__="${normalizedPath}";</script>`;
+        // Inject base paths as global variables before other scripts
+        // __APP_BASE_PATH__: UI mount path for routing (e.g., '/cpanel')
+        // __API_BASE_PATH__: Base URL for QwickApps Server APIs (always '/qapi')
+        const basePathScript = `<script>window.__APP_BASE_PATH__="${normalizedPath}";window.__API_BASE_PATH__="/qapi";</script>`;
         let html = indexHtmlTemplate.replace('<head>', `<head>\n    ${basePathScript}`);
 
         // Rewrite asset paths if mounted at a subpath

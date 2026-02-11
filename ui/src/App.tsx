@@ -71,9 +71,10 @@ declare global {
  */
 const basePath = window.__APP_BASE_PATH__ ?? '';
 
-// Set API base URL to match the control panel mount path
-// When proxied through a gateway at /cpanel, API calls need to go to /cpanel/api
-api.setBaseUrl(basePath);
+// Set API base URL - use window.__API_BASE_PATH__ (always '/api')
+// When UI is mounted at /cpanel, APIs are still at /api (not /cpanel/api)
+const apiBasePath = (window as any).__API_BASE_PATH__ ?? '';
+api.setBaseUrl(apiBasePath);
 
 // Footer content with QwickApps Server branding
 const footerContent = (

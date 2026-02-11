@@ -10,6 +10,7 @@ export { NotificationsStatsWidget } from './NotificationsStatsWidget';
 export { CMSStatusWidget } from './CMSStatusWidget';
 export { CMSMaintenanceWidget } from './CMSMaintenanceWidget';
 export { SeedManagementWidget } from './SeedManagementWidget';
+export { MigrationManagementWidget } from './MigrationManagementWidget';
 export { ServiceControlWidget } from './ServiceControlWidget';
 export { EnvironmentConfigWidget } from './EnvironmentConfigWidget';
 export { DatabaseOpsWidget } from './DatabaseOpsWidget';

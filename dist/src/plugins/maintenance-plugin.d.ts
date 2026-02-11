@@ -49,6 +49,8 @@ export interface MaintenancePluginConfig {
     enableEnvManagement?: boolean;
     /** Enable database operations (default: true) */
     enableDatabaseOps?: boolean;
+    /** Enable migration management (default: true) */
+    enableMigrations?: boolean;
     /** Custom seed tasks */
     customTasks?: SeedTask[];
 }

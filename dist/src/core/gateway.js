@@ -1023,50 +1023,35 @@ export function createGateway(config) {
             if (pluginsNeedingMaintenance.length > 0) {
                 logger.warn(`${pluginsNeedingMaintenance.length} plugin(s) require maintenance`, { plugins: pluginsNeedingMaintenance.map(p => p.pluginId) });
             }
-            // 2. Setup control panel proxies (BEFORE server.listen)
-            // Control panel runs at / internally with APIs at /api and UI at /
-            // We proxy both /api and /cpanel to the control panel
-            // Proxy control panel APIs at {cpPath}/api
-            // IMPORTANT: Express strips the API path prefix before passing to middleware,
-            // so we need pathRewrite to reconstruct the full path for the control panel
-            const cpApiPath = `${cpPath}/api`;
-            const apiProxy = createProxyMiddleware({
+            // 2. Create HTTP server (but don't listen yet - need server object for WS)
+            server = createServer(app);
+            // 3. Setup mounted apps WITH QwickApps Server API proxy injected at the right position
+            // QwickApps Server APIs (/qapi/*) need to be registered BEFORE root path proxy
+            // to prevent being caught by frontend catch-all routing
+            const qwickAppsApiProxy = createProxyMiddleware({
                 target: `http://localhost:${cpPort}`,
                 changeOrigin: true,
-                pathRewrite: (path) => `/api${path}`, // Express removed {cpPath}/api, add back just /api (control panel APIs are at /api/*)
                 on: {
                     proxyReq: (proxyReq, req) => {
-                        // Set X-Forwarded-Prefix so control panel knows its public mount path
-                        proxyReq.setHeader('X-Forwarded-Prefix', cpPath);
-                        logger.debug(`[API Proxy] Forwarding ${req.method} ${req.url} to control panel`);
+                        logger.debug(`[QwickApps API] Forwarding ${req.method} ${req.url} to QwickApps Server`);
                     },
                     proxyRes: (proxyRes, req) => {
-                        logger.debug(`[API Proxy] Response for ${req.url}: ${proxyRes.statusCode} ${proxyRes.headers['content-type']}`);
+                        logger.debug(`[QwickApps API] Response for ${req.url}: ${proxyRes.statusCode}`);
                     },
                     error: (err, req, res) => {
-                        logger.error(`[API Proxy] Error for ${req.url}`, { error: err.message });
+                        logger.error(`[QwickApps API] Error for ${req.url}`, { error: err.message });
                         if (res && 'writeHead' in res && !res.headersSent) {
                             res.writeHead(503, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({
                                 error: 'Service Unavailable',
-                                message: 'The control panel API is currently unavailable.',
+                                message: 'QwickApps Server APIs are currently unavailable.',
                                 details: nodeEnv === 'development' ? err.message : undefined,
                             }));
                         }
                     },
                 },
             });
-            app.use(cpApiPath, apiProxy);
-            logger.debug(`Setting up proxy: ${cpApiPath} -> http://localhost:${cpPort}/api`);
-            mountedApps.push({ path: cpApiPath, type: 'proxy', target: `http://localhost:${cpPort}` });
-        }
-        // 3. Create HTTP server (but don't listen yet - need server object for WS)
-        server = createServer(app);
-        // 4. Setup control panel UI proxy (needs server for WebSocket handling)
-        if (cpEnabled) {
-            const cpPort = parseInt(process.env.CPANEL_PORT || String(gatewayPort + 1), 10);
-            // Proxy /cpanel to control panel UI
-            // Express strips cpPath prefix, so we need custom proxy to add it back
+            // Create control panel UI proxy (will be registered before root proxy)
             const cpUiProxy = createProxyMiddleware({
                 target: `http://localhost:${cpPort}`,
                 changeOrigin: true,
@@ -1086,19 +1071,42 @@ export function createGateway(config) {
                     },
                 },
             });
-            app.use(cpPath, cpUiProxy);
-            // WebSocket upgrade handling for control panel
-            server.on('upgrade', (req, socket, head) => {
-                if (req.url?.startsWith(cpPath)) {
-                    cpUiProxy.upgrade?.(req, socket, head);
+            const apps = config.apps || [];
+            for (const appConfig of apps) {
+                // IMPORTANT: Insert QwickApps Server and Control Panel proxies BEFORE root path proxy
+                // This ensures /qapi/* and /cpanel requests don't get caught by frontend catch-all routing
+                if (appConfig.path === '/') {
+                    // 1. Register QwickApps Server API proxy at /qapi/* BEFORE the root proxy
+                    //    These are framework APIs: SuperTokens auth, health checks, postgres, cache, etc.
+                    //    Payload CMS uses natural Next.js /api/* path
+                    app.use((req, res, next) => {
+                        if (req.path.startsWith('/qapi/')) {
+                            return qwickAppsApiProxy(req, res, next);
+                        }
+                        next();
+                    });
+                    logger.debug(`Setting up proxy: /qapi/* -> http://localhost:${cpPort} (QwickApps Server APIs)`);
+                    mountedApps.push({ path: '/qapi', type: 'proxy', target: `http://localhost:${cpPort}` });
+                    // 2. Register Control Panel UI proxy BEFORE the root proxy
+                    app.use(cpPath, cpUiProxy);
+                    mountedApps.push({ path: cpPath, type: 'proxy', target: `http://localhost:${cpPort}` });
+                    // 3. Setup WebSocket upgrade handling for control panel UI
+                    server.on('upgrade', (req, socket, head) => {
+                        if (req.url?.startsWith(cpPath)) {
+                            cpUiProxy.upgrade?.(req, socket, head);
+                        }
+                    });
                 }
-            });
-            mountedApps.push({ path: cpPath, type: 'proxy', target: `http://localhost:${cpPort}` });
+                // Now register the app itself
+                if (appConfig.source.type === 'proxy') {
+                    setupProxyApp(appConfig, server);
+                }
+                else {
+                    setupStaticApp(appConfig);
+                }
+            }
         }
-        // 5. Setup mounted apps (proxy and static)
-        const apps = config.apps || [];
-        // If plugins need maintenance, add root-level maintenance page
-        // but keep /cpanel and /diagnostics accessible
+        // 6. Add maintenance page if needed (after all proxies are set up)
         if (cpEnabled) {
             const pluginsNeedingMaintenance = controlPanelInstance.getPluginRegistry().getPluginsNeedingMaintenance();
             if (pluginsNeedingMaintenance.length > 0) {
@@ -1125,16 +1133,7 @@ export function createGateway(config) {
                 });
             }
         }
-        // Setup additional apps
-        for (const appConfig of apps) {
-            if (appConfig.source.type === 'proxy') {
-                setupProxyApp(appConfig, server);
-            }
-            else {
-                setupStaticApp(appConfig);
-            }
-        }
-        // 6. Setup frontend app at root
+        // 7. Setup frontend app at root
         setupFrontendApp();
         // 7. Start listening (LAST STEP - after all middleware is registered)
         await new Promise((resolve) => {

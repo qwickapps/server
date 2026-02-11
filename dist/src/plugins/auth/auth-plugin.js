@@ -56,6 +56,15 @@ export function createAuthPlugin(config) {
                     app.use(fallbackMiddleware);
                 }
             }
+            // Register SuperTokens middleware on router for /auth/* paths
+            // This ensures Gateway forwards ALL /api/auth/* requests to control panel
+            // where SuperTokens can handle them dynamically
+            if (Array.isArray(primaryMiddleware)) {
+                router.use('/auth', ...primaryMiddleware);
+            }
+            else {
+                router.use('/auth', primaryMiddleware);
+            }
             // Add the auth checking middleware to router (not app)
             // This ensures it processes requests to /api/* routes
             router.use(createAuthMiddleware());

@@ -25,7 +25,7 @@ export function CacheMaintenanceWidget() {
         setLoading(true);
         setError(null);
         try {
-            const basePath = window.__APP_BASE_PATH__ || '';
+            const basePath = window.__API_BASE_PATH__ || '';
             const response = await fetch(`${basePath}/api/cache:default/stats`);
             if (!response.ok) {
                 if (response.status === 404) {
@@ -53,7 +53,7 @@ export function CacheMaintenanceWidget() {
         setError(null);
         setSuccess(null);
         try {
-            const basePath = window.__APP_BASE_PATH__ || '';
+            const basePath = window.__API_BASE_PATH__ || '';
             const response = await fetch(`${basePath}/api/cache:default/flush`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
