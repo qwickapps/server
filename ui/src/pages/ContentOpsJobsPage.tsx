@@ -79,7 +79,7 @@ export function ContentOpsJobsPage() {
       setActionLoading(jobId);
       setActionError(null);
 
-      const response = await fetch(`${api.getBaseUrl()}/api/contentops/jobs/${jobId}/retry`, {
+      const response = await fetch(`${api.getBaseUrl()}/contentops/jobs/${jobId}/retry`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -102,7 +102,7 @@ export function ContentOpsJobsPage() {
       setActionLoading(jobId);
       setActionError(null);
 
-      const response = await fetch(`${api.getBaseUrl()}/api/contentops/jobs/${jobId}/cancel`, {
+      const response = await fetch(`${api.getBaseUrl()}/contentops/jobs/${jobId}/cancel`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -125,7 +125,7 @@ export function ContentOpsJobsPage() {
       setActionLoading(jobId);
       setActionError(null);
 
-      const response = await fetch(`${api.getBaseUrl()}/api/contentops/jobs/${jobId}`, {
+      const response = await fetch(`${api.getBaseUrl()}/contentops/jobs/${jobId}`, {
         method: 'DELETE',
         credentials: 'include',
       });

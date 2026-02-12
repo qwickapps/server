@@ -66,8 +66,8 @@ children, }) {
     const allWidgetComponents = [...getBuiltInWidgetComponents(), ...widgetComponents];
     // Configure API base URL - read from injected __API_BASE_PATH__ if available
     // Server injects window.__APP_BASE_PATH__ for UI routing (e.g., '/cpanel')
-    // and window.__API_BASE_PATH__ for API calls (always '/api')
-    // Example: UI mounted at /cpanel, but API calls go to /api (not /cpanel/api)
+    // and window.__API_BASE_PATH__ for QwickApps Server API calls (always '/qapi')
+    // Example: UI mounted at /cpanel, but QwickApps Server APIs go to /qapi (not /cpanel/qapi)
     const apiBasePath = window.__API_BASE_PATH__ || '';
     api.setBaseUrl(apiBasePath);
     // Fetch version from API

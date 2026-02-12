@@ -2916,7 +2916,7 @@ const ze = te(/* @__PURE__ */ t("path", {
   d: "M1 21h22L12 2zm12-3h-2v-2h2zm0-4h-2v-4h2z"
 }), "Warning");
 async function gs(e) {
-  const r = `${e}/api/client-manifest`, n = await fetch(r);
+  const r = `${e}/client-manifest`, n = await fetch(r);
   if (!n.ok)
     throw new Error(
       `Failed to fetch client manifest: ${n.status} ${n.statusText}`
@@ -3088,7 +3088,7 @@ class vs {
     return (await this.ensureClient()).users.invite(r);
   }
   async acceptInvitation(r) {
-    const n = await this._fetch(`${this.baseUrl}/api/users/accept-invitation/${encodeURIComponent(r)}`);
+    const n = await this._fetch(`${this.baseUrl}/users/accept-invitation/${encodeURIComponent(r)}`);
     if (!n.ok) {
       const a = await n.json().catch(() => ({}));
       throw new Error(a.error || `Accept invitation failed: ${n.statusText}`);
@@ -3098,7 +3098,7 @@ class vs {
   async getInvitations() {
     const r = new URLSearchParams();
     r.set("status", "invited"), r.set("limit", "100");
-    const n = await this._fetch(`${this.baseUrl}/api/users?${r}`);
+    const n = await this._fetch(`${this.baseUrl}/users?${r}`);
     if (!n.ok)
       throw new Error(`Invitations request failed: ${n.statusText}`);
     return n.json();
@@ -3115,7 +3115,7 @@ class vs {
       const l = new Date(a), c = /* @__PURE__ */ new Date();
       o = Math.max(0, Math.floor((l.getTime() - c.getTime()) / 1e3));
     }
-    const i = await this._fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(r)}`, {
+    const i = await this._fetch(`${this.baseUrl}/bans/email/${encodeURIComponent(r)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason: n, duration: o })
@@ -3126,14 +3126,14 @@ class vs {
     }
   }
   async unbanUser(r) {
-    const n = await this._fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(r)}`, {
+    const n = await this._fetch(`${this.baseUrl}/bans/email/${encodeURIComponent(r)}`, {
       method: "DELETE"
     });
     if (!n.ok)
       throw new Error(`Unban request failed: ${n.statusText}`);
   }
   async checkBan(r) {
-    const n = await this._fetch(`${this.baseUrl}/api/bans/email/${encodeURIComponent(r)}`);
+    const n = await this._fetch(`${this.baseUrl}/bans/email/${encodeURIComponent(r)}`);
     if (!n.ok)
       throw new Error(`Ban check failed: ${n.statusText}`);
     return { banned: (await n.json()).isBanned };
@@ -3142,13 +3142,13 @@ class vs {
   // Entitlements API
   // ==================
   async getEntitlements(r) {
-    const n = await this._fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(r)}`);
+    const n = await this._fetch(`${this.baseUrl}/entitlements/${encodeURIComponent(r)}`);
     if (!n.ok)
       throw new Error(`Entitlements request failed: ${n.statusText}`);
     return n.json();
   }
   async refreshEntitlements(r) {
-    const n = await this._fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(r)}/refresh`, {
+    const n = await this._fetch(`${this.baseUrl}/entitlements/${encodeURIComponent(r)}/refresh`, {
       method: "POST"
     });
     if (!n.ok)
@@ -3157,20 +3157,20 @@ class vs {
   }
   async checkEntitlement(r, n) {
     const a = await this._fetch(
-      `${this.baseUrl}/api/entitlements/${encodeURIComponent(r)}/check/${encodeURIComponent(n)}`
+      `${this.baseUrl}/entitlements/${encodeURIComponent(r)}/check/${encodeURIComponent(n)}`
     );
     if (!a.ok)
       throw new Error(`Entitlement check failed: ${a.statusText}`);
     return a.json();
   }
   async getAvailableEntitlements() {
-    const r = await this._fetch(`${this.baseUrl}/api/entitlements/available`);
+    const r = await this._fetch(`${this.baseUrl}/entitlements/available`);
     if (!r.ok)
       throw new Error(`Available entitlements request failed: ${r.statusText}`);
     return (await r.json()).entitlements;
   }
   async grantEntitlement(r, n) {
-    const a = await this._fetch(`${this.baseUrl}/api/entitlements/${encodeURIComponent(r)}`, {
+    const a = await this._fetch(`${this.baseUrl}/entitlements/${encodeURIComponent(r)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entitlement: n })
@@ -3182,14 +3182,14 @@ class vs {
   }
   async revokeEntitlement(r, n) {
     const a = await this._fetch(
-      `${this.baseUrl}/api/entitlements/${encodeURIComponent(r)}/${encodeURIComponent(n)}`,
+      `${this.baseUrl}/entitlements/${encodeURIComponent(r)}/${encodeURIComponent(n)}`,
       { method: "DELETE" }
     );
     if (!a.ok)
       throw new Error(`Revoke entitlement failed: ${a.statusText}`);
   }
   async invalidateEntitlementCache(r) {
-    const n = await this._fetch(`${this.baseUrl}/api/entitlements/cache/${encodeURIComponent(r)}`, {
+    const n = await this._fetch(`${this.baseUrl}/entitlements/cache/${encodeURIComponent(r)}`, {
       method: "DELETE"
     });
     if (!n.ok)
@@ -3226,7 +3226,7 @@ class vs {
     return (await this.ensureClient()).core.plugins();
   }
   async getPluginDetail(r) {
-    const n = await this._fetch(`${this.baseUrl}/api/plugins/${encodeURIComponent(r)}`);
+    const n = await this._fetch(`${this.baseUrl}/plugins/${encodeURIComponent(r)}`);
     if (!n.ok)
       throw n.status === 404 ? new Error(`Plugin not found: ${r}`) : new Error(`Plugin detail request failed: ${n.statusText}`);
     return n.json();
@@ -3268,7 +3268,7 @@ class vs {
    * Delete auth configuration (revert to environment variables)
    */
   async deleteAuthConfig() {
-    const r = await this._fetch(`${this.baseUrl}/api/auth/config`, {
+    const r = await this._fetch(`${this.baseUrl}/auth/config`, {
       method: "DELETE"
     });
     if (!r.ok) {
@@ -3287,7 +3287,7 @@ class vs {
    * Test current auth provider connection (uses existing env/runtime config)
    */
   async testCurrentAuthProvider() {
-    const r = await this._fetch(`${this.baseUrl}/api/auth/test-current`, {
+    const r = await this._fetch(`${this.baseUrl}/auth/test-current`, {
       method: "POST",
       headers: { "Content-Type": "application/json" }
     });
@@ -3316,7 +3316,7 @@ class vs {
     return (await this.ensureClient()).notifications.clients();
   }
   async disconnectNotificationsClient(r) {
-    const n = await this._fetch(`${this.baseUrl}/api/notifications/clients/${encodeURIComponent(r)}`, {
+    const n = await this._fetch(`${this.baseUrl}/notifications/clients/${encodeURIComponent(r)}`, {
       method: "DELETE"
     });
     if (!n.ok) {
@@ -3326,7 +3326,7 @@ class vs {
     return n.json();
   }
   async forceNotificationsReconnect() {
-    const r = await this._fetch(`${this.baseUrl}/api/notifications/reconnect`, {
+    const r = await this._fetch(`${this.baseUrl}/notifications/reconnect`, {
       method: "POST"
     });
     if (!r.ok) {
@@ -3368,7 +3368,7 @@ class vs {
     return (await this.ensureClient()).preferences.query();
   }
   async updatePreferences(r) {
-    const n = `${this.baseUrl}/api/preferences`, a = await this._fetch(n, {
+    const n = `${this.baseUrl}/preferences`, a = await this._fetch(n, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(r)
@@ -3380,7 +3380,7 @@ class vs {
     return a.json();
   }
   async deletePreferences() {
-    const r = `${this.baseUrl}/api/preferences`, n = await this._fetch(r, {
+    const r = `${this.baseUrl}/preferences`, n = await this._fetch(r, {
       method: "DELETE"
     });
     if (!n.ok)
@@ -3881,7 +3881,7 @@ const Bs = te(/* @__PURE__ */ t("path", {
 function Ms() {
   const [e, r] = f(null), [n, a] = f(!0), [o, i] = f(null), l = async () => {
     try {
-      const p = window.__API_BASE_PATH__ || "", g = await fetch(`${p}/api/cms/status`);
+      const p = window.__API_BASE_PATH__ || "", g = await fetch(`${p}/cms/status`);
       if (!g.ok)
         throw new Error(`HTTP ${g.status}: ${g.statusText}`);
       const y = await g.json();
@@ -3935,7 +3935,7 @@ const mt = te(/* @__PURE__ */ t("path", {
 function Rs() {
   const [e, r] = f(null), [n, a] = f([]), [o, i] = f(!0), [l, c] = f(null), [h, u] = f(null), [p, g] = f(null), y = async () => {
     try {
-      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/api/cms/status`);
+      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/cms/status`);
       if (!b.ok)
         throw new Error(`HTTP ${b.status}: ${b.statusText}`);
       const k = await b.json();
@@ -3945,7 +3945,7 @@ function Rs() {
     }
   }, w = async () => {
     try {
-      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/api/cms/seeds`);
+      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/cms/seeds`);
       if (!b.ok)
         throw new Error(`HTTP ${b.status}: ${b.statusText}`);
       const k = await b.json();
@@ -3964,7 +3964,7 @@ function Rs() {
   const x = async () => {
     u(null), g(null);
     try {
-      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/api/cms/restart`, { method: "POST" }), k = await b.json();
+      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/cms/restart`, { method: "POST" }), k = await b.json();
       b.ok ? (g("CMS service restarted successfully"), setTimeout(() => y(), 2e3)) : u(k.message || "Restart not implemented");
     } catch (I) {
       u(I instanceof Error ? I.message : "Failed to restart CMS");
@@ -3972,7 +3972,7 @@ function Rs() {
   }, T = async (I) => {
     c(I), u(null), g(null);
     try {
-      const b = window.__API_BASE_PATH__ || "", k = await fetch(`${b}/api/cms/seeds/${I}/execute`, {
+      const b = window.__API_BASE_PATH__ || "", k = await fetch(`${b}/cms/seeds/${I}/execute`, {
         method: "POST"
       });
       if (!k.ok)
@@ -4065,7 +4065,7 @@ function js() {
   }, []);
   const de = async () => {
     try {
-      const W = window.__API_BASE_PATH__ || "", J = await fetch(`${W}/api/maintenance/seeds/discover`);
+      const W = window.__API_BASE_PATH__ || "", J = await fetch(`${W}/maintenance/seeds/discover`);
       if (!J.ok) throw new Error("Failed to fetch seeds");
       const Q = await J.json();
       r(Q.seeds || []), i(null);
@@ -4092,7 +4092,7 @@ function js() {
     Q ? J.forEach((P) => Z.delete(P)) : J.forEach((P) => Z.add(P)), u(Z);
   }, V = async (W, J, Q) => {
     var it, pt;
-    const Z = window.__API_BASE_PATH__ || "", P = await fetch(`${Z}/api/maintenance/seeds/execute`, {
+    const Z = window.__API_BASE_PATH__ || "", P = await fetch(`${Z}/maintenance/seeds/execute`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: W, type: Q })
@@ -4130,7 +4130,7 @@ function js() {
   }, he = async () => {
     B(!0), U(!1);
     try {
-      const W = window.__API_BASE_PATH__ || "", J = await fetch(`${W}/api/maintenance/database/reset`, {
+      const W = window.__API_BASE_PATH__ || "", J = await fetch(`${W}/maintenance/database/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       }), Q = await J.json();
@@ -4400,7 +4400,7 @@ function Us() {
   const T = async () => {
     try {
       u(!0);
-      const k = window.__API_BASE_PATH__ || "", D = await fetch(`${k}/api/maintenance/migrations/history?limit=${x}`);
+      const k = window.__API_BASE_PATH__ || "", D = await fetch(`${k}/maintenance/migrations/history?limit=${x}`);
       if (!D.ok) throw new Error("Failed to fetch migration history");
       const U = await D.json();
       c(U.executions || []);
@@ -4413,7 +4413,7 @@ function Us() {
     a(!0), i(`Starting migrations...
 `), r(null);
     try {
-      const k = window.__API_BASE_PATH__ || "", D = new EventSource(`${k}/api/maintenance/migrations/execute`, {
+      const k = window.__API_BASE_PATH__ || "", D = new EventSource(`${k}/maintenance/migrations/execute`, {
         withCredentials: !0
       });
       D.addEventListener("message", (U) => {
@@ -4849,7 +4849,7 @@ const Gs = ({
 function Qs() {
   const [e, r] = f([]), [n, a] = f(""), [o, i] = f(null), [l, c] = f(!0), [h, u] = f(!1), [p, g] = f(null), [y, w] = f(null), [x, T] = f(!1), $ = async () => {
     try {
-      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/api/logs/sources`);
+      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/logs/sources`);
       if (!b.ok) throw new Error("Failed to fetch log sources");
       const k = await b.json();
       r(k.sources || []), k.sources && k.sources.length > 0 && !n && a(k.sources[0].name);
@@ -4860,7 +4860,7 @@ function Qs() {
     if (n) {
       c(!0), g(null);
       try {
-        const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/api/logs/stats?source=${n}`);
+        const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/logs/stats?source=${n}`);
         if (!b.ok) throw new Error("Failed to fetch log stats");
         const k = await b.json();
         i(k);
@@ -4879,7 +4879,7 @@ function Qs() {
   const O = async () => {
     T(!1), u(!0), g(null), w(null);
     try {
-      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/api/logs/clear`, {
+      const I = window.__API_BASE_PATH__ || "", b = await fetch(`${I}/logs/clear`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: n })
@@ -4994,7 +4994,7 @@ function Ys() {
   const [e, r] = f(null), [n, a] = f(!0), [o, i] = f(!1), [l, c] = f(null), [h, u] = f(null), [p, g] = f(!1), y = async () => {
     a(!0), c(null);
     try {
-      const x = window.__API_BASE_PATH__ || "", T = await fetch(`${x}/api/cache:default/stats`);
+      const x = window.__API_BASE_PATH__ || "", T = await fetch(`${x}/cache:default/stats`);
       if (!T.ok)
         throw T.status === 404 ? new Error("Cache plugin not configured") : new Error("Failed to fetch cache stats");
       const $ = await T.json();
@@ -5011,7 +5011,7 @@ function Ys() {
   const w = async () => {
     g(!1), i(!0), c(null), u(null);
     try {
-      const x = window.__API_BASE_PATH__ || "", T = await fetch(`${x}/api/cache:default/flush`, {
+      const x = window.__API_BASE_PATH__ || "", T = await fetch(`${x}/cache:default/flush`, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });

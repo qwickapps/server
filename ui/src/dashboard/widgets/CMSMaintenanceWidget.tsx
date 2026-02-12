@@ -50,7 +50,7 @@ export function CMSMaintenanceWidget() {
   const fetchStatus = async () => {
     try {
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const response = await fetch(`${basePath}/api/cms/status`);
+      const response = await fetch(`${basePath}/cms/status`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -64,7 +64,7 @@ export function CMSMaintenanceWidget() {
   const fetchSeeds = async () => {
     try {
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const response = await fetch(`${basePath}/api/cms/seeds`);
+      const response = await fetch(`${basePath}/cms/seeds`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -89,7 +89,7 @@ export function CMSMaintenanceWidget() {
     setSuccess(null);
     try {
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const response = await fetch(`${basePath}/api/cms/restart`, { method: 'POST' });
+      const response = await fetch(`${basePath}/cms/restart`, { method: 'POST' });
       const data = await response.json();
 
       if (response.ok) {
@@ -110,7 +110,7 @@ export function CMSMaintenanceWidget() {
 
     try {
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const response = await fetch(`${basePath}/api/cms/seeds/${seedName}/execute`, {
+      const response = await fetch(`${basePath}/cms/seeds/${seedName}/execute`, {
         method: 'POST',
       });
       if (!response.ok) {

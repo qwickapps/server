@@ -18,15 +18,15 @@ export interface RouteManifestEntry {
 /**
  * Build typed API client from server manifest
  *
- * Fetches the manifest from /api/client-manifest and generates a nested
+ * Fetches the manifest from /client-manifest (baseUrl already includes /qapi) and generates a nested
  * client object with methods for each route.
  *
- * @param baseUrl - Base URL of the server (e.g., 'http://localhost:3000')
+ * @param baseUrl - Base URL for QwickApps Server APIs (e.g., '/qapi' or 'http://localhost:3000/qapi')
  * @returns Promise resolving to the generated client
  *
  * @example
  * ```typescript
- * const client = await buildClientFromManifest<APIClient>('http://localhost:3000');
+ * const client = await buildClientFromManifest<APIClient>('/qapi');
  * const logs = await client.logs.query({ limit: 10 });
  * ```
  */

@@ -71,8 +71,8 @@ declare global {
  */
 const basePath = window.__APP_BASE_PATH__ ?? '';
 
-// Set API base URL - use window.__API_BASE_PATH__ (always '/api')
-// When UI is mounted at /cpanel, APIs are still at /api (not /cpanel/api)
+// Set API base URL - use window.__API_BASE_PATH__ (always '/qapi' for QwickApps Server APIs)
+// When UI is mounted at /cpanel, QwickApps Server APIs are at /qapi (not /cpanel/qapi)
 const apiBasePath = (window as any).__API_BASE_PATH__ ?? '';
 api.setBaseUrl(apiBasePath);
 

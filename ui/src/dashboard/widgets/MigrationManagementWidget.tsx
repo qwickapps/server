@@ -61,7 +61,7 @@ export function MigrationManagementWidget() {
     try {
       setHistoryLoading(true);
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const response = await fetch(`${basePath}/api/maintenance/migrations/history?limit=${historyLimit}`);
+      const response = await fetch(`${basePath}/maintenance/migrations/history?limit=${historyLimit}`);
       if (!response.ok) throw new Error('Failed to fetch migration history');
       const data = await response.json();
       setHistory(data.executions || []);
@@ -79,7 +79,7 @@ export function MigrationManagementWidget() {
 
     try {
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const eventSource = new EventSource(`${basePath}/api/maintenance/migrations/execute`, {
+      const eventSource = new EventSource(`${basePath}/maintenance/migrations/execute`, {
         withCredentials: true,
       });
 

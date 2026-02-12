@@ -62,7 +62,7 @@ export function LogsMaintenanceWidget() {
   const fetchSources = async () => {
     try {
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const response = await fetch(`${basePath}/api/logs/sources`);
+      const response = await fetch(`${basePath}/logs/sources`);
       if (!response.ok) throw new Error('Failed to fetch log sources');
       const data = await response.json();
       setSources(data.sources || []);
@@ -81,7 +81,7 @@ export function LogsMaintenanceWidget() {
     setError(null);
     try {
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const response = await fetch(`${basePath}/api/logs/stats?source=${selectedSource}`);
+      const response = await fetch(`${basePath}/logs/stats?source=${selectedSource}`);
       if (!response.ok) throw new Error('Failed to fetch log stats');
       const data = await response.json();
       setStats(data);
@@ -111,7 +111,7 @@ export function LogsMaintenanceWidget() {
 
     try {
       const basePath = (window as any).__API_BASE_PATH__ || '';
-      const response = await fetch(`${basePath}/api/logs/clear`, {
+      const response = await fetch(`${basePath}/logs/clear`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: selectedSource }),

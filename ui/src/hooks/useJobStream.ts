@@ -61,7 +61,7 @@ export function useJobStream(options: UseJobStreamOptions = {}): UseJobStreamRet
   // Fetch initial jobs via REST API
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch(`${api.getBaseUrl()}/api/contentops/jobs`, {
+      const response = await fetch(`${api.getBaseUrl()}/contentops/jobs`, {
         credentials: 'same-origin',
       });
       if (!response.ok) {
@@ -85,7 +85,7 @@ export function useJobStream(options: UseJobStreamOptions = {}): UseJobStreamRet
 
     try {
       setReconnecting(true);
-      const eventSource = new EventSource(`${api.getBaseUrl()}/api/contentops/jobs/stream`, {
+      const eventSource = new EventSource(`${api.getBaseUrl()}/contentops/jobs/stream`, {
         withCredentials: true,
       });
 
