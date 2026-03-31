@@ -33,7 +33,7 @@ interface HealthSummary {
 }
 
 export const HealthManagementPage: React.FC<HealthManagementPageProps> = ({
-  apiPrefix = '/api/plugins/health',
+  apiPrefix = '/qapi/plugins/health',
 }) => {
   const [summary, setSummary] = useState<HealthSummary | null>(null);
   const [selectedCheck, setSelectedCheck] = useState<HealthCheckResult | null>(null);

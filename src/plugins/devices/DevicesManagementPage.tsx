@@ -23,7 +23,7 @@ interface Device {
   lastActiveAt?: string;
 }
 
-export function DevicesManagementPage({ apiPrefix = '/api/devices' }: DevicesManagementPageProps) {
+export function DevicesManagementPage({ apiPrefix = '/qapi/devices' }: DevicesManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'config'>('all');
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);

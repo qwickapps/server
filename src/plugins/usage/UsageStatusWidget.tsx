@@ -10,7 +10,7 @@ export interface UsageStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function UsageStatusWidget({ apiPrefix = '/api/usage' }: UsageStatusWidgetProps) {
+export function UsageStatusWidget({ apiPrefix = '/qapi/usage' }: UsageStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalEvents: number;
     activeUsers: number;

@@ -80,7 +80,7 @@ export function TenantsManagementPage({
   title = 'Tenant Management',
   subtitle = 'Manage organizations, groups, and departments',
   headerActions,
-  apiBaseUrl = '/api/tenants',
+  apiBaseUrl = '/qapi/tenants',
 }: TenantsManagementPageProps) {
   // Tenants state
   const [tenants, setTenants] = useState<Tenant[]>([]);

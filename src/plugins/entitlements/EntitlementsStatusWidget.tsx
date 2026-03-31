@@ -10,7 +10,7 @@ export interface EntitlementsStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function EntitlementsStatusWidget({ apiPrefix = '/api/entitlements' }: EntitlementsStatusWidgetProps) {
+export function EntitlementsStatusWidget({ apiPrefix = '/qapi/entitlements' }: EntitlementsStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalEntitlements: number;
     activeEntitlements: number;

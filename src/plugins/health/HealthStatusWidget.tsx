@@ -33,7 +33,7 @@ interface HealthSummary {
 }
 
 export const HealthStatusWidget: React.FC<HealthStatusWidgetProps> = ({
-  apiPrefix = '/api/plugins/health',
+  apiPrefix = '/qapi/plugins/health',
 }) => {
   const [summary, setSummary] = useState<HealthSummary | null>(null);
   const [loading, setLoading] = useState(true);

@@ -26,7 +26,7 @@ interface DiagnosticsStats {
 }
 
 export const DiagnosticsStatusWidget: React.FC<DiagnosticsStatusWidgetProps> = ({
-  apiPrefix = '/api/plugins/diagnostics',
+  apiPrefix = '/qapi/plugins/diagnostics',
 }) => {
   const [stats, setStats] = useState<DiagnosticsStats | null>(null);
   const [loading, setLoading] = useState(true);

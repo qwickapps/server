@@ -10,7 +10,7 @@ export interface ApiKeysStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function ApiKeysStatusWidget({ apiPrefix = '/api/api-keys' }: ApiKeysStatusWidgetProps) {
+export function ApiKeysStatusWidget({ apiPrefix = '/qapi/api-keys' }: ApiKeysStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalKeys: number;
     activeKeys: number;

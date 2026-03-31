@@ -10,7 +10,7 @@ export interface NotificationsStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function NotificationsStatusWidget({ apiPrefix = '/api/notifications' }: NotificationsStatusWidgetProps) {
+export function NotificationsStatusWidget({ apiPrefix = '/qapi/notifications' }: NotificationsStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalNotifications: number;
     pendingNotifications: number;

@@ -10,7 +10,7 @@ export interface BansStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function BansStatusWidget({ apiPrefix = '/api/bans' }: BansStatusWidgetProps) {
+export function BansStatusWidget({ apiPrefix = '/qapi/bans' }: BansStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalBans: number;
     activeBans: number;

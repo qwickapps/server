@@ -22,7 +22,7 @@ interface Profile {
   createdAt: string;
 }
 
-export function ProfilesManagementPage({ apiPrefix = '/api/profiles' }: ProfilesManagementPageProps) {
+export function ProfilesManagementPage({ apiPrefix = '/qapi/profiles' }: ProfilesManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'complete' | 'incomplete' | 'config'>('all');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);

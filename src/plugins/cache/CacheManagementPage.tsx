@@ -32,7 +32,7 @@ interface CacheInfo {
 }
 
 export const CacheManagementPage: React.FC<CacheManagementPageProps> = ({
-  apiPrefix = '/api/plugins/cache',
+  apiPrefix = '/qapi/plugins/cache',
 }) => {
   const [keys, setKeys] = useState<CacheKey[]>([]);
   const [info, setInfo] = useState<CacheInfo | null>(null);

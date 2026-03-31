@@ -23,7 +23,7 @@ interface Ban {
   createdBy?: string;
 }
 
-export function BansManagementPage({ apiPrefix = '/api/bans' }: BansManagementPageProps) {
+export function BansManagementPage({ apiPrefix = '/qapi/bans' }: BansManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'expired' | 'config'>('all');
   const [bans, setBans] = useState<Ban[]>([]);
   const [loading, setLoading] = useState(true);

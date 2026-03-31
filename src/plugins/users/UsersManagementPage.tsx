@@ -33,7 +33,7 @@ interface UsersStats {
 }
 
 export const UsersManagementPage: React.FC<UsersManagementPageProps> = ({
-  apiPrefix = '/api/users',
+  apiPrefix = '/qapi/users',
 }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<UsersStats | null>(null);

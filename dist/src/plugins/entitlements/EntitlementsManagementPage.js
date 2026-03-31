@@ -5,7 +5,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function EntitlementsManagementPage({ apiPrefix = '/api/entitlements' }) {
+export function EntitlementsManagementPage({ apiPrefix = '/qapi/entitlements' }) {
     const [activeTab, setActiveTab] = useState('all');
     const [entitlements, setEntitlements] = useState([]);
     const [loading, setLoading] = useState(true);

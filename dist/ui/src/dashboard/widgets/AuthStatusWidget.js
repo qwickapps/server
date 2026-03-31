@@ -26,7 +26,7 @@ export function AuthStatusWidget() {
     useEffect(() => {
         const fetchStatus = async () => {
             try {
-                const data = await api.fetch('/auth/config/status');
+                const data = await api.getAuthConfigStatus();
                 setStatus(data);
             }
             catch (err) {

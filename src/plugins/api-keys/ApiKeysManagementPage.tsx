@@ -24,7 +24,7 @@ interface ApiKey {
   usageCount: number;
 }
 
-export function ApiKeysManagementPage({ apiPrefix = '/api/api-keys' }: ApiKeysManagementPageProps) {
+export function ApiKeysManagementPage({ apiPrefix = '/qapi/api-keys' }: ApiKeysManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'expired' | 'config'>('all');
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);

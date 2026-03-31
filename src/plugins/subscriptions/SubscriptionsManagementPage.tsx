@@ -23,7 +23,7 @@ interface Subscription {
   amount?: number;
 }
 
-export function SubscriptionsManagementPage({ apiPrefix = '/api/subscriptions' }: SubscriptionsManagementPageProps) {
+export function SubscriptionsManagementPage({ apiPrefix = '/qapi/subscriptions' }: SubscriptionsManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'expiring' | 'config'>('all');
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);

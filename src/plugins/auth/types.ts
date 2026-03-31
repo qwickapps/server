@@ -155,6 +155,15 @@ export interface SupertokensAdapterConfig {
   /** Enable email/password auth (default: true) */
   enableEmailPassword?: boolean;
 
+  /** Enable passwordless (magic link) auth (default: false) */
+  enablePasswordless?: boolean;
+
+  /** Resend API key for magic link email delivery (optional — uses SuperTokens core delivery if not set) */
+  resendApiKey?: string;
+
+  /** From email address for magic link emails */
+  resendFromEmail?: string;
+
   /** Social login providers */
   socialProviders?: {
     google?: { clientId: string; clientSecret: string };
@@ -180,6 +189,8 @@ export interface AuthPluginConfig {
   excludePaths?: string[];
   /** Whether auth is required for all routes (default: true) */
   authRequired?: boolean;
+  /** API base path for auth routes registered on the Express router (default: '/auth') */
+  apiBasePath?: string;
   /** Custom unauthorized handler */
   onUnauthorized?: (req: Request, res: Response) => void;
   /**

@@ -11,7 +11,7 @@ import { PluginManagementPage } from '@qwickapps/server/ui';
 import { SeedList } from './SeedList.js';
 import { SeedExecutor } from './SeedExecutor.js';
 import { SeedHistory } from './SeedHistory.js';
-export const SeedManagementPage = ({ apiPrefix = '/api/plugins/maintenance', }) => {
+export const SeedManagementPage = ({ apiPrefix = '/qapi/plugins/maintenance', }) => {
     const [activeTab, setActiveTab] = useState('list');
     const [selectedSeed, setSelectedSeed] = useState(null);
     const [selectedType, setSelectedType] = useState('file');

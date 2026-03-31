@@ -5,7 +5,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function DevicesManagementPage({ apiPrefix = '/api/devices' }) {
+export function DevicesManagementPage({ apiPrefix = '/qapi/devices' }) {
     const [activeTab, setActiveTab] = useState('all');
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(true);

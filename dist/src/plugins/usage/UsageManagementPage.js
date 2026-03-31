@@ -5,7 +5,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function UsageManagementPage({ apiPrefix = '/api/usage' }) {
+export function UsageManagementPage({ apiPrefix = '/qapi/usage' }) {
     const [activeTab, setActiveTab] = useState('recent');
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);

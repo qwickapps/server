@@ -37,6 +37,7 @@ import {
 } from './plugin-registry.js';
 import { bearerTokenAuth } from '../plugins/api-keys/index.js';
 import { createCorePlugin } from '../plugins/core/index.js';
+import { sanitizeUrl } from '../utils/url.js';
 
 // Get the package root directory for serving UI assets
 const _filename = fileURLToPath(import.meta.url);
@@ -239,7 +240,7 @@ export function createControlPanel(options: CreateControlPanelOptions): ControlP
 
       manifest[key] = {
         method: route.method.toUpperCase(),
-        path: `/api${route.path}`,
+        path: route.path,
         auth: route.auth?.required || false,
       };
     }
@@ -506,7 +507,7 @@ function generateLandingPageHtml(options: {
   const linksHtml = links
     .map(
       (link) =>
-        `<a href="${link.url}" class="link">${link.label}</a>`
+        `<a href="${sanitizeUrl(link.url)}" class="link">${link.label}</a>`
     )
     .join('');
 

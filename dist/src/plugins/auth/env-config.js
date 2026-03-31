@@ -108,6 +108,9 @@ function parseSupertokensEnv() {
         apiBasePath: getEnv('SUPERTOKENS_API_BASE_PATH') ?? '/auth',
         websiteBasePath: getEnv('SUPERTOKENS_WEBSITE_BASE_PATH') ?? '/auth',
         enableEmailPassword: getEnvBool('SUPERTOKENS_ENABLE_EMAIL_PASSWORD', true),
+        enablePasswordless: getEnvBool('SUPERTOKENS_ENABLE_PASSWORDLESS', false),
+        resendApiKey: getEnv('RESEND_API_KEY'),
+        resendFromEmail: getEnv('RESEND_FROM_EMAIL'),
     };
     // Parse social providers
     const googleClientId = getEnv('SUPERTOKENS_GOOGLE_CLIENT_ID');
@@ -333,6 +336,7 @@ export function createAuthPluginFromEnv(options) {
         excludePaths,
         authRequired,
         debug,
+        apiBasePath: getEnv('SUPERTOKENS_API_BASE_PATH') ?? getEnv('AUTH_API_BASE_PATH'),
         onUnauthorized: options?.onUnauthorized,
         onAuthenticated: options?.onAuthenticated,
     };

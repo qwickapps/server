@@ -10,7 +10,7 @@ export interface SubscriptionsStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function SubscriptionsStatusWidget({ apiPrefix = '/api/subscriptions' }: SubscriptionsStatusWidgetProps) {
+export function SubscriptionsStatusWidget({ apiPrefix = '/qapi/subscriptions' }: SubscriptionsStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalSubscriptions: number;
     activeSubscriptions: number;

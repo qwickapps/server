@@ -30,7 +30,7 @@ interface MaintenanceStatus {
 }
 
 export const MaintenanceManagementPage: React.FC<MaintenanceManagementPageProps> = ({
-  apiPrefix = '/api/plugins/maintenance',
+  apiPrefix = '/qapi/plugins/maintenance',
 }) => {
   const [status, setStatus] = useState<MaintenanceStatus | null>(null);
   const [loading, setLoading] = useState(true);

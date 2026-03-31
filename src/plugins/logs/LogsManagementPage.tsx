@@ -42,7 +42,7 @@ interface LogStats {
 }
 
 export const LogsManagementPage: React.FC<LogsManagementPageProps> = ({
-  apiPrefix = '/api/plugins/logs',
+  apiPrefix = '/qapi/plugins/logs',
 }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [sources, setSources] = useState<LogSource[]>([]);

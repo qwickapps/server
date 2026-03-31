@@ -8,7 +8,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable, StatCard } from '@qwickapps/react-framework';
-export const CacheManagementPage = ({ apiPrefix = '/api/plugins/cache', }) => {
+export const CacheManagementPage = ({ apiPrefix = '/qapi/plugins/cache', }) => {
     const [keys, setKeys] = useState([]);
     const [info, setInfo] = useState(null);
     const [searchPattern, setSearchPattern] = useState('*');

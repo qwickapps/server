@@ -10,7 +10,7 @@ export interface QwickbrainStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function QwickbrainStatusWidget({ apiPrefix = '/api/qwickbrain' }: QwickbrainStatusWidgetProps) {
+export function QwickbrainStatusWidget({ apiPrefix = '/qapi/qwickbrain' }: QwickbrainStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalDocuments: number;
     indexedRepositories: number;

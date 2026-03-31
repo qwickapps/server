@@ -8,7 +8,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable, StatCard } from '@qwickapps/react-framework';
-export const PostgresManagementPage = ({ apiPrefix = '/api/plugins/postgres', }) => {
+export const PostgresManagementPage = ({ apiPrefix = '/qapi/plugins/postgres', }) => {
     const [connections, setConnections] = useState([]);
     const [queryLogs, setQueryLogs] = useState([]);
     const [config, setConfig] = useState(null);

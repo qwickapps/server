@@ -26,7 +26,7 @@ interface CacheStats {
 }
 
 export const CacheStatusWidget: React.FC<CacheStatusWidgetProps> = ({
-  apiPrefix = '/api/plugins/cache',
+  apiPrefix = '/qapi/plugins/cache',
 }) => {
   const [stats, setStats] = useState<CacheStats | null>(null);
   const [loading, setLoading] = useState(true);

@@ -33,6 +33,7 @@ interface DatabaseStatus {
   user?: string;
   host?: string;
   port?: number;
+  managed?: boolean;
   errorMessage?: string;
   autoInitializeEnabled: boolean;
   adminCredentialsProvided: boolean;
@@ -159,7 +160,8 @@ const AdminCredentialsDialog: React.FC<AdminCredentialsDialogProps> = ({
 
 export const DatabaseOperationsWidget: React.FC<DatabaseOperationsWidgetProps> = () => {
   // Use default values since props cannot be passed through WidgetContribution
-  const apiPrefix = '/api/postgres:default';
+  // QwickApps Server plugin routes are at /qapi/* when integrated with Next.js apps
+  const apiPrefix = '/qapi/postgres:default';
   const instanceName = 'default';
   const [status, setStatus] = useState<DatabaseStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -359,6 +361,12 @@ export const DatabaseOperationsWidget: React.FC<DatabaseOperationsWidgetProps> =
             </Typography>
           </Box>
 
+          {status.managed && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Managed database (Neon / Supabase). Delete and recreate is disabled — manage your database through the provider dashboard.
+            </Alert>
+          )}
+
           {!status.connected && !operating && (
             <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
               <Button
@@ -369,14 +377,16 @@ export const DatabaseOperationsWidget: React.FC<DatabaseOperationsWidgetProps> =
               >
                 Initialize Database
               </Button>
-              <Button
-                variant="contained"
-                color="error"
-                onClick={() => startOperation('recreate')}
-                size="small"
-              >
-                Recreate Database
-              </Button>
+              {!status.managed && (
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => startOperation('recreate')}
+                  size="small"
+                >
+                  Recreate Database
+                </Button>
+              )}
             </Box>
           )}
         </CardContent>

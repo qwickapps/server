@@ -32,7 +32,7 @@ interface NotificationsStats {
 }
 
 export const NotificationsManagementPage: React.FC<NotificationsManagementPageProps> = ({
-  apiPrefix = '/api/notifications',
+  apiPrefix = '/qapi/notifications',
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState<NotificationsStats | null>(null);

@@ -5,7 +5,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function PreferencesManagementPage({ apiPrefix = '/api/preferences' }) {
+export function PreferencesManagementPage({ apiPrefix = '/qapi/preferences' }) {
     const [activeTab, setActiveTab] = useState('overview');
     const [preferenceSets, setPreferenceSets] = useState([]);
     const [preferences, setPreferences] = useState([]);

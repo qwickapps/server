@@ -12,11 +12,11 @@ A flexible, pluggable control panel framework for QwickApps services. Provides a
 - **Frontend App Support**: Handle root path with redirect, static files, or landing page
 - **Theming**: Customizable branding and styling
 
-## What's New in v1.8.1
+## What's New in v1.9.0
 
-- **Enhanced Security**: Database reset endpoint now uses domain-based authorization instead of environment variables
-- **Production Safety**: Improved validation prevents accidental database resets in production environments
-- **Reliable Controls**: More robust domain checking for development and staging workflows
+- **Custom Auth Path**: Auth plugin now supports `SUPERTOKENS_API_BASE_PATH` for custom auth endpoint routing
+- **Dashboard Fix**: Fixed "Unable to load auth status" on the control panel dashboard
+- **Seed Reliability**: Fixed seed execution failures in Docker production and stuck UI state after errors
 
 See [CHANGELOG.md](./CHANGELOG.md) for full release history.
 

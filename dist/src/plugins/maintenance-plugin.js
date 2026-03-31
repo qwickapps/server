@@ -50,8 +50,8 @@ function scanSeedScripts(dir, basePath = dir) {
                 // Recursively scan subdirectories
                 results.push(...scanSeedScripts(fullPath, basePath));
             }
-            else if (entry.isFile() && entry.name.endsWith('.mjs')) {
-                // Found a .mjs file
+            else if (entry.isFile() && (entry.name.endsWith('.mjs') || entry.name.endsWith('.ts'))) {
+                // Found a .mjs or .ts file
                 const stats = statSync(fullPath);
                 const relativePath = relative(basePath, fullPath);
                 const description = extractDescription(fullPath);
@@ -317,10 +317,17 @@ export function createMaintenancePlugin(config = {}) {
                             }
                             catch (error) {
                                 logger.error('Seed execution failed', { name, error });
+                                const duration = Date.now() - startTime;
                                 // Send error event via SSE to notify client
                                 res.write(`data: ${JSON.stringify({
                                     type: 'error',
                                     data: error instanceof Error ? error.message : String(error),
+                                    timestamp: new Date().toISOString()
+                                })}\n\n`);
+                                // Send exit event so the UI can transition out of the "Running..." state
+                                res.write(`data: ${JSON.stringify({
+                                    type: 'exit',
+                                    data: JSON.stringify({ exitCode: 1, duration }),
                                     timestamp: new Date().toISOString()
                                 })}\n\n`);
                                 // Update execution record as failed
@@ -367,15 +374,30 @@ export function createMaintenancePlugin(config = {}) {
                                 });
                             }
                             const db = getPostgres();
+                            // Derive the DB role from the connection URL so GRANT statements
+                            // work regardless of which user owns the schema.
+                            let dbRole = 'qwickapps';
+                            if (config.databaseUrl) {
+                                try {
+                                    const parsedUrl = new URL(config.databaseUrl);
+                                    const urlUser = parsedUrl.username;
+                                    if (urlUser && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(urlUser)) {
+                                        dbRole = urlUser;
+                                    }
+                                }
+                                catch {
+                                    // Keep default if URL is unparseable
+                                }
+                            }
                             // Drop and recreate public schema (removes all tables, data, etc.)
                             await db.queryRaw('DROP SCHEMA IF EXISTS public CASCADE');
                             await db.queryRaw('CREATE SCHEMA public');
                             await db.queryRaw('GRANT ALL ON SCHEMA public TO public');
                             await db.queryRaw('GRANT ALL ON SCHEMA public TO postgres');
-                            await db.queryRaw('GRANT ALL ON SCHEMA public TO qwickapps');
+                            await db.queryRaw(`GRANT ALL ON SCHEMA public TO ${dbRole}`);
                             // Grant default privileges for future tables and sequences
-                            await db.queryRaw('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO qwickapps');
-                            await db.queryRaw('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO qwickapps');
+                            await db.queryRaw(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${dbRole}`);
+                            await db.queryRaw(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${dbRole}`);
                             res.json({
                                 success: true,
                                 message: 'Database schema has been reset. All tables and data have been deleted.',
@@ -636,7 +658,7 @@ export function createMaintenancePlugin(config = {}) {
                             try {
                                 // Execute Payload migration command
                                 const { spawn } = await import('child_process');
-                                migrationProcess = spawn('npx', ['payload', 'migrate', '--force-accept-warning'], {
+                                migrationProcess = spawn('pnpm', ['exec', 'payload', 'migrate', '--force-accept-warning'], {
                                     cwd: process.cwd(),
                                     env: {
                                         ...process.env,

@@ -129,6 +129,23 @@ export interface PostgresInstance {
     close(): Promise<void>;
 }
 /**
+ * Parse database connection URL to extract components.
+ * Supports both `postgresql://` and `postgres://` schemes,
+ * optional port (defaults to 5432), and query-string parameters.
+ */
+export declare function parseConnectionUrl(url: string): {
+    user: string;
+    password: string;
+    host: string;
+    port: number;
+    database: string;
+};
+/**
+ * Returns true when the host belongs to a known managed-database provider
+ * (Neon, Supabase) where destructive operations like DROP DATABASE are unsafe.
+ */
+export declare function isManagedDatabase(host: string): boolean;
+/**
  * Get a PostgreSQL instance by name
  *
  * @param name - Instance name (default: 'default')

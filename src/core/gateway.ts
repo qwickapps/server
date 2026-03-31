@@ -34,6 +34,7 @@ import express from 'express';
 import { existsSync, readFileSync } from 'fs';
 import { resolve, join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { sanitizeUrl } from '../utils/url.js';
 
 // Get QwickApps Server version from package.json
 const _filename = fileURLToPath(import.meta.url);
@@ -287,7 +288,7 @@ function generateLandingPageHtml(
   const linksHtml = links
     .map(
       (link) =>
-        `<a href="${link.url}" class="link">${link.label}</a>`
+        `<a href="${sanitizeUrl(link.url)}" class="link">${link.label}</a>`
     )
     .join('');
 
@@ -846,7 +847,7 @@ function generateMaintenancePageHtml(
   }
 
   const contactHtml = config.contactUrl
-    ? `<a href="${config.contactUrl}" class="btn btn-secondary">
+    ? `<a href="${sanitizeUrl(config.contactUrl)}" class="btn btn-secondary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
           <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
           <polyline points="22,6 12,13 2,6"/>
@@ -1362,35 +1363,33 @@ export function createGateway(config: GatewayConfig): GatewayInstance {
         },
       });
 
+      // Always register QwickApps Server API proxy (/qapi/*) and Control Panel proxy (/cpanel)
+      // regardless of whether any apps are mounted. This ensures createControlPanel() callers
+      // (which pass no apps) still get /cpanel and /api routes proxied from the gateway port.
+      // 1. Register QwickApps Server API proxy at /qapi/*
+      app.use((req, res, next) => {
+        if (req.path.startsWith('/qapi/')) {
+          return qwickAppsApiProxy(req, res, next);
+        }
+        next();
+      });
+      logger.debug(`Setting up proxy: /qapi/* -> http://localhost:${cpPort} (QwickApps Server APIs)`);
+      mountedApps.push({ path: '/qapi', type: 'proxy', target: `http://localhost:${cpPort}` });
+
+      // 2. Register Control Panel UI proxy
+      app.use(cpPath, cpUiProxy);
+      mountedApps.push({ path: cpPath, type: 'proxy', target: `http://localhost:${cpPort}` });
+
+      // 3. Setup WebSocket upgrade handling for control panel UI
+      server!.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+        if (req.url?.startsWith(cpPath)) {
+          cpUiProxy.upgrade?.(req, socket as Socket, head);
+        }
+      });
+
       const apps = config.apps || [];
       for (const appConfig of apps) {
-        // IMPORTANT: Insert QwickApps Server and Control Panel proxies BEFORE root path proxy
-        // This ensures /qapi/* and /cpanel requests don't get caught by frontend catch-all routing
-        if (appConfig.path === '/') {
-          // 1. Register QwickApps Server API proxy at /qapi/* BEFORE the root proxy
-          //    These are framework APIs: SuperTokens auth, health checks, postgres, cache, etc.
-          //    Payload CMS uses natural Next.js /api/* path
-          app.use((req, res, next) => {
-            if (req.path.startsWith('/qapi/')) {
-              return qwickAppsApiProxy(req, res, next);
-            }
-            next();
-          });
-          logger.debug(`Setting up proxy: /qapi/* -> http://localhost:${cpPort} (QwickApps Server APIs)`);
-          mountedApps.push({ path: '/qapi', type: 'proxy', target: `http://localhost:${cpPort}` });
-
-          // 2. Register Control Panel UI proxy BEFORE the root proxy
-          app.use(cpPath, cpUiProxy);
-          mountedApps.push({ path: cpPath, type: 'proxy', target: `http://localhost:${cpPort}` });
-
-          // 3. Setup WebSocket upgrade handling for control panel UI
-          server!.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
-            if (req.url?.startsWith(cpPath)) {
-              cpUiProxy.upgrade?.(req, socket as Socket, head);
-            }
-          });
-        }
-
+        // For apps with a root path, skip re-registering qapi/cpanel proxies (already done above)
         // Now register the app itself
         if (appConfig.source.type === 'proxy') {
           setupProxyApp(appConfig, server);

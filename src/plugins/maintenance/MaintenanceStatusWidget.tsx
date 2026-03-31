@@ -26,7 +26,7 @@ interface MaintenanceStatus {
 }
 
 export const MaintenanceStatusWidget: React.FC<MaintenanceStatusWidgetProps> = ({
-  apiPrefix = '/api/plugins/maintenance',
+  apiPrefix = '/qapi/plugins/maintenance',
 }) => {
   const [status, setStatus] = useState<MaintenanceStatus | null>(null);
   const [loading, setLoading] = useState(true);

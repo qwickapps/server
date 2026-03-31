@@ -5,7 +5,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function ProfilesManagementPage({ apiPrefix = '/api/profiles' }) {
+export function ProfilesManagementPage({ apiPrefix = '/qapi/profiles' }) {
     const [activeTab, setActiveTab] = useState('all');
     const [profiles, setProfiles] = useState([]);
     const [loading, setLoading] = useState(true);

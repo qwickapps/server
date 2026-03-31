@@ -10,7 +10,7 @@ export interface ProfilesStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function ProfilesStatusWidget({ apiPrefix = '/api/profiles' }: ProfilesStatusWidgetProps) {
+export function ProfilesStatusWidget({ apiPrefix = '/qapi/profiles' }: ProfilesStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalProfiles: number;
     completeProfiles: number;

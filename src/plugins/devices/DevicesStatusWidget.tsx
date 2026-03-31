@@ -10,7 +10,7 @@ export interface DevicesStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function DevicesStatusWidget({ apiPrefix = '/api/devices' }: DevicesStatusWidgetProps) {
+export function DevicesStatusWidget({ apiPrefix = '/qapi/devices' }: DevicesStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalDevices: number;
     activeDevices: number;

@@ -47,14 +47,12 @@ export function supertokensAdapter(config: SupertokensAdapterConfig): AuthAdapte
         // Store response on request for later use in getUser()
         (req as SupertokensExtendedRequest)[REQUEST_RES_KEY] = res;
 
-        // Skip if already initialized with error
+        // Skip if already initialized with error — let auth-checking middleware
+        // decide whether to block the request based on authRequired config.
+        // Returning 500 here blocks ALL routes (including /auth/config/status)
+        // even when authRequired is false.
         if (initializationError) {
-          return res.status(500).json({
-            error: 'Auth Configuration Error',
-            message:
-              'Supertokens is not properly configured. Install supertokens-node package: npm install supertokens-node',
-            details: initializationError.message,
-          });
+          return next();
         }
 
         // Lazy initialize Supertokens
@@ -72,6 +70,51 @@ export function supertokensAdapter(config: SupertokensAdapterConfig): AuthAdapte
             // Add EmailPassword recipe if enabled (default: true)
             if (config.enableEmailPassword !== false) {
               recipeList.push(EmailPassword.default.init());
+            }
+
+            // Add Passwordless (magic link) recipe if enabled
+            if (config.enablePasswordless) {
+              const Passwordless = await import('supertokens-node/recipe/passwordless');
+
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const passwordlessConfig: any = {
+                contactMethod: 'EMAIL',
+                flowType: 'MAGIC_LINK',
+              };
+
+              // Override email delivery with Resend if API key is provided
+              if (config.resendApiKey) {
+                const resendApiKey = config.resendApiKey;
+                const fromEmail = config.resendFromEmail || 'noreply@faabzi.com';
+                const appName = config.appName;
+
+                passwordlessConfig.emailDelivery = {
+                  service: {
+                    sendEmail: async ({ email, urlWithLinkCode }: { email: string; urlWithLinkCode?: string }) => {
+                      try {
+                        await fetch('https://api.resend.com/emails', {
+                          method: 'POST',
+                          headers: {
+                            Authorization: `Bearer ${resendApiKey}`,
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            from: fromEmail,
+                            to: email,
+                            subject: `Sign in to ${appName}`,
+                            html: `<p>Click the link below to sign in to ${appName}.</p><p>This link expires in 15 minutes.</p><p><a href="${urlWithLinkCode}" style="display:inline-block;padding:12px 24px;background-color:#1a1a1a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Sign in</a></p><p>Or copy this URL: ${urlWithLinkCode}</p><p>If you did not request this, you can safely ignore this email.</p>`,
+                          }),
+                        });
+                      } catch (err) {
+                        console.error('[SupertokensAdapter] Failed to send magic link email via Resend:', err);
+                        throw err;
+                      }
+                    },
+                  },
+                };
+              }
+
+              recipeList.push(Passwordless.default.init(passwordlessConfig));
             }
 
             // Add ThirdParty recipe if any social providers configured
@@ -163,12 +206,10 @@ export function supertokensAdapter(config: SupertokensAdapterConfig): AuthAdapte
             initializationError =
               error instanceof Error ? error : new Error('Failed to initialize Supertokens');
             console.error('[SupertokensAdapter] Initialization error:', error);
-            return res.status(500).json({
-              error: 'Auth Configuration Error',
-              message:
-                'Supertokens is not properly configured. Install supertokens-node package: npm install supertokens-node',
-              details: initializationError.message,
-            });
+            // Let the auth-checking middleware decide whether to block this request.
+            // Non-auth routes (e.g. /auth/config/status) must remain accessible
+            // so the UI can display the configuration error state.
+            return next();
           }
         }
 

@@ -10,7 +10,7 @@ export interface AuthStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function AuthStatusWidget({ apiPrefix = '/api/auth' }: AuthStatusWidgetProps) {
+export function AuthStatusWidget({ apiPrefix = '/qapi/auth' }: AuthStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalProviders: number;
     activeProviders: number;

@@ -29,7 +29,7 @@ interface Preference {
   updatedAt: string;
 }
 
-export function PreferencesManagementPage({ apiPrefix = '/api/preferences' }: PreferencesManagementPageProps) {
+export function PreferencesManagementPage({ apiPrefix = '/qapi/preferences' }: PreferencesManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'user' | 'global' | 'config'>('overview');
   const [preferenceSets, setPreferenceSets] = useState<PreferenceSet[]>([]);
   const [preferences, setPreferences] = useState<Preference[]>([]);

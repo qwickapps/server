@@ -1,7 +1,8 @@
 {
   "name": "@qwickapps/server",
-  "version": "1.8.1",
+  "version": "1.10.0",
   "description": "Plugin-based application server framework for building websites, APIs, admin dashboards, and full-stack products",
+  "type": "module",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "exports": {
@@ -59,6 +60,8 @@
     "express": "^4.18.2",
     "helmet": "^7.1.0",
     "http-proxy-middleware": "^3.0.3",
+    "prop-types": "^15.8.1",
+    "react-is": "^18.2.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -136,7 +139,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/qwickapps/server.git"
+    "url": "git+https://github.com/qwickapps/server.git"
   },
   "homepage": "https://github.com/qwickapps/server#readme",
   "publishConfig": {

@@ -5,7 +5,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function BansManagementPage({ apiPrefix = '/api/bans' }) {
+export function BansManagementPage({ apiPrefix = '/qapi/bans' }) {
     const [activeTab, setActiveTab] = useState('all');
     const [bans, setBans] = useState([]);
     const [loading, setLoading] = useState(true);

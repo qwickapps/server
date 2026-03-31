@@ -22,7 +22,7 @@ interface Entitlement {
   grantedBy?: string;
 }
 
-export function EntitlementsManagementPage({ apiPrefix = '/api/entitlements' }: EntitlementsManagementPageProps) {
+export function EntitlementsManagementPage({ apiPrefix = '/qapi/entitlements' }: EntitlementsManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'expired' | 'config'>('all');
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
   const [loading, setLoading] = useState(true);

@@ -12,14 +12,9 @@ import { Box, Typography, Chip, CircularProgress, Alert } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import BlockIcon from '@mui/icons-material/Block';
-import { api } from '../../api/controlPanelApi';
+import { api, type AuthConfigStatus } from '../../api/controlPanelApi';
 
-interface AuthStatus {
-  state: 'enabled' | 'disabled' | 'error';
-  adapter: string | null;
-  error?: string;
-  missingVars?: string[];
-}
+type AuthStatus = AuthConfigStatus;
 
 const adapterLabels: Record<string, string> = {
   supertokens: 'SuperTokens',
@@ -36,7 +31,7 @@ export function AuthStatusWidget() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const data = await api.fetch<AuthStatus>('/auth/config/status');
+        const data = await api.getAuthConfigStatus();
         setStatus(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch auth status');

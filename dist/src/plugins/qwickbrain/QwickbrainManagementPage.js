@@ -8,7 +8,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable, StatCard } from '@qwickapps/react-framework';
-export const QwickbrainManagementPage = ({ apiPrefix = '/api/qwickbrain', }) => {
+export const QwickbrainManagementPage = ({ apiPrefix = '/qapi/qwickbrain', }) => {
     const [repositories, setRepositories] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);

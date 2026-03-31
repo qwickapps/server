@@ -25,7 +25,7 @@ interface UsersStats {
 }
 
 export const UsersStatusWidget: React.FC<UsersStatusWidgetProps> = ({
-  apiPrefix = '/api/users',
+  apiPrefix = '/qapi/users',
 }) => {
   const [stats, setStats] = useState<UsersStats | null>(null);
   const [loading, setLoading] = useState(true);

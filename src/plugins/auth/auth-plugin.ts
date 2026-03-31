@@ -73,13 +73,14 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
         }
       }
 
-      // Register SuperTokens middleware on router for /auth/* paths
-      // This ensures Gateway forwards ALL /api/auth/* requests to control panel
-      // where SuperTokens can handle them dynamically
+      // Register SuperTokens middleware on router for auth paths
+      // Uses config.apiBasePath so Gateway forwards requests to the correct path
+      // e.g. SUPERTOKENS_API_BASE_PATH=/qapi/auth → router.use('/qapi/auth', ...)
+      const authBasePath = config.apiBasePath ?? '/auth';
       if (Array.isArray(primaryMiddleware)) {
-        router.use('/auth', ...primaryMiddleware);
+        router.use(authBasePath, ...primaryMiddleware);
       } else {
-        router.use('/auth', primaryMiddleware);
+        router.use(authBasePath, primaryMiddleware);
       }
 
       // Add the auth checking middleware to router (not app)

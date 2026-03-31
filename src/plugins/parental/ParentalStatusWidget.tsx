@@ -10,7 +10,7 @@ export interface ParentalStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function ParentalStatusWidget({ apiPrefix = '/api/parental' }: ParentalStatusWidgetProps) {
+export function ParentalStatusWidget({ apiPrefix = '/qapi/parental' }: ParentalStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalControls: number;
     activeControls: number;

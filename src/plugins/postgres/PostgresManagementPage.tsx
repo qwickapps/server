@@ -42,7 +42,7 @@ interface PoolConfig {
 }
 
 export const PostgresManagementPage: React.FC<PostgresManagementPageProps> = ({
-  apiPrefix = '/api/plugins/postgres',
+  apiPrefix = '/qapi/plugins/postgres',
 }) => {
   const [connections, setConnections] = useState<ConnectionInfo[]>([]);
   const [queryLogs, setQueryLogs] = useState<QueryLog[]>([]);

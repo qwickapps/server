@@ -21,7 +21,7 @@ interface UsageEvent {
   metadata?: Record<string, unknown>;
 }
 
-export function UsageManagementPage({ apiPrefix = '/api/usage' }: UsageManagementPageProps) {
+export function UsageManagementPage({ apiPrefix = '/qapi/usage' }: UsageManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'recent' | 'features' | 'users' | 'config'>('recent');
   const [events, setEvents] = useState<UsageEvent[]>([]);
   const [loading, setLoading] = useState(true);

@@ -18,6 +18,7 @@ import { createRouteGuard } from './guards.js';
 import { createPluginRegistry, } from './plugin-registry.js';
 import { bearerTokenAuth } from '../plugins/api-keys/index.js';
 import { createCorePlugin } from '../plugins/core/index.js';
+import { sanitizeUrl } from '../utils/url.js';
 // Get the package root directory for serving UI assets
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
@@ -173,7 +174,7 @@ export function createControlPanel(options) {
             const key = `${pluginId}.${routeName}`;
             manifest[key] = {
                 method: route.method.toUpperCase(),
-                path: `/api${route.path}`,
+                path: route.path,
                 auth: route.auth?.required || false,
             };
         }
@@ -399,7 +400,7 @@ export function createControlPanel(options) {
 function generateLandingPageHtml(options) {
     const { productName, title, heading, description, controlPanelPath, links = [] } = options;
     const linksHtml = links
-        .map((link) => `<a href="${link.url}" class="link">${link.label}</a>`)
+        .map((link) => `<a href="${sanitizeUrl(link.url)}" class="link">${link.label}</a>`)
         .join('');
     return `<!DOCTYPE html>
 <html lang="en">

@@ -28,7 +28,7 @@ interface PostgresStats {
 }
 
 export const PostgresStatusWidget: React.FC<PostgresStatusWidgetProps> = ({
-  apiPrefix = '/api/plugins/postgres',
+  apiPrefix = '/qapi/plugins/postgres',
 }) => {
   const [stats, setStats] = useState<PostgresStats | null>(null);
   const [loading, setLoading] = useState(true);

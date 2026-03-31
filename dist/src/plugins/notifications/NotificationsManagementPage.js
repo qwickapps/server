@@ -8,7 +8,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable, StatCard } from '@qwickapps/react-framework';
-export const NotificationsManagementPage = ({ apiPrefix = '/api/notifications', }) => {
+export const NotificationsManagementPage = ({ apiPrefix = '/qapi/notifications', }) => {
     const [notifications, setNotifications] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);

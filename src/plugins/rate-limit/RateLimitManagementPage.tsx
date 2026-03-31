@@ -31,7 +31,7 @@ interface RateLimitStats {
 }
 
 export const RateLimitManagementPage: React.FC<RateLimitManagementPageProps> = ({
-  apiPrefix = '/api/rate-limit',
+  apiPrefix = '/qapi/rate-limit',
 }) => {
   const [rules, setRules] = useState<RateLimitRule[]>([]);
   const [stats, setStats] = useState<RateLimitStats | null>(null);

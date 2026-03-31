@@ -5,7 +5,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function AuthManagementPage({ apiPrefix = '/api/auth' }) {
+export function AuthManagementPage({ apiPrefix = '/qapi/auth' }) {
     const [activeTab, setActiveTab] = useState('overview');
     const [providers, setProviders] = useState([]);
     const [sessions, setSessions] = useState([]);

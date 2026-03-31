@@ -30,7 +30,7 @@ interface QwickbrainStats {
 }
 
 export const QwickbrainManagementPage: React.FC<QwickbrainManagementPageProps> = ({
-  apiPrefix = '/api/qwickbrain',
+  apiPrefix = '/qapi/qwickbrain',
 }) => {
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [stats, setStats] = useState<QwickbrainStats | null>(null);

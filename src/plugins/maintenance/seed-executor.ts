@@ -45,8 +45,8 @@ const MAX_OUTPUT_SIZE = 100 * 1024;
  * @returns Resolved absolute path if valid, null if invalid
  */
 export function validateScriptPath(scriptPath: string, scriptsPath: string): string | null {
-  // Only allow .mjs files
-  if (!scriptPath.endsWith('.mjs')) {
+  // Only allow .mjs and .ts files
+  if (!scriptPath.endsWith('.mjs') && !scriptPath.endsWith('.ts')) {
     return null;
   }
 
@@ -106,11 +106,12 @@ export class SeedExecutor {
     this.outputSize = 0;
 
     return new Promise((resolvePromise, rejectPromise) => {
-      // Determine if we need tsx (for .ts/.mts files that import TS modules)
-      // Use tsx for .mjs files too since they might import from TS source
-      const needsTsx = scriptPath.match(/\.(mjs|ts|mts)$/);
+      // .ts/.mts files require tsx for TypeScript compilation.
+      // .mjs files are native ESM and run directly with node — tsx is not
+      // available in the system PATH in Docker production builds.
+      const needsTsx = scriptPath.match(/\.(ts|mts)$/);
       const execCommand = needsTsx ? 'tsx' : process.execPath;
-      const execArgs = needsTsx ? [scriptPath] : [scriptPath];
+      const execArgs = [scriptPath];
 
       // Spawn process with TypeScript support if needed
       this.child = spawn(execCommand, execArgs, {

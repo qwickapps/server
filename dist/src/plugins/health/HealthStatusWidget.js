@@ -7,7 +7,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
  */
 import { useEffect, useState } from 'react';
 import { PluginStatusWidget, } from '@qwickapps/server/ui';
-export const HealthStatusWidget = ({ apiPrefix = '/api/plugins/health', }) => {
+export const HealthStatusWidget = ({ apiPrefix = '/qapi/plugins/health', }) => {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);

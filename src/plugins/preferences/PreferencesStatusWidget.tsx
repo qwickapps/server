@@ -10,7 +10,7 @@ export interface PreferencesStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function PreferencesStatusWidget({ apiPrefix = '/api/preferences' }: PreferencesStatusWidgetProps) {
+export function PreferencesStatusWidget({ apiPrefix = '/qapi/preferences' }: PreferencesStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalPreferences: number;
     activeUsers: number;

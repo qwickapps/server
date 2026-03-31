@@ -161,26 +161,43 @@ export interface PostgresInstance {
 const instances = new Map<string, PostgresInstance>();
 
 /**
- * Parse database connection URL to extract components
+ * Parse database connection URL to extract components.
+ * Supports both `postgresql://` and `postgres://` schemes,
+ * optional port (defaults to 5432), and query-string parameters.
  */
-function parseConnectionUrl(url: string): {
+export function parseConnectionUrl(url: string): {
   user: string;
   password: string;
   host: string;
   port: number;
   database: string;
 } {
-  const match = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-  if (!match) {
+  // Normalise postgres:// → postgresql:// so the URL constructor accepts it
+  const normalised = url.replace(/^postgres:\/\//, 'postgresql://');
+  let parsed: URL;
+  try {
+    parsed = new URL(normalised);
+  } catch {
     throw new Error('Invalid PostgreSQL connection URL format');
   }
-  return {
-    user: match[1],
-    password: match[2],
-    host: match[3],
-    port: parseInt(match[4], 10),
-    database: match[5],
-  };
+  const user = decodeURIComponent(parsed.username);
+  const password = decodeURIComponent(parsed.password);
+  const host = parsed.hostname;
+  const port = parsed.port ? parseInt(parsed.port, 10) : 5432;
+  // pathname starts with '/' — strip it to get the database name
+  const database = decodeURIComponent(parsed.pathname.slice(1));
+  if (!user || !host || !database) {
+    throw new Error('Invalid PostgreSQL connection URL format');
+  }
+  return { user, password, host, port, database };
+}
+
+/**
+ * Returns true when the host belongs to a known managed-database provider
+ * (Neon, Supabase) where destructive operations like DROP DATABASE are unsafe.
+ */
+export function isManagedDatabase(host: string): boolean {
+  return host.endsWith('.neon.tech') || host.endsWith('.supabase.co');
 }
 
 /**
@@ -567,6 +584,8 @@ export function createPostgresPlugin(
               }
             }
 
+            const managed = connParams ? isManagedDatabase(connParams.host) : false;
+
             try {
               await targetInstance.query('SELECT 1');
               res.json({
@@ -576,6 +595,7 @@ export function createPostgresPlugin(
                 user: connParams?.user,
                 host: connParams?.host,
                 port: connParams?.port,
+                managed,
                 autoInitializeEnabled: config.autoInitialize !== false,
                 adminCredentialsProvided: !!(config.adminUser && config.adminPassword),
               });
@@ -587,6 +607,7 @@ export function createPostgresPlugin(
                 user: connParams?.user,
                 host: connParams?.host,
                 port: connParams?.port,
+                managed,
                 errorMessage: err instanceof Error ? err.message : String(err),
                 autoInitializeEnabled: config.autoInitialize !== false,
                 adminCredentialsProvided: !!(config.adminUser && config.adminPassword),
@@ -676,6 +697,13 @@ export function createPostgresPlugin(
             }
 
             const connParams = parseConnectionUrl(config.url);
+
+            if (isManagedDatabase(connParams.host)) {
+              return res.status(403).json({
+                message: 'Delete and recreate is not supported for managed databases (Neon, Supabase). Manage your database through the provider dashboard.',
+              });
+            }
+
             const effectiveAdminUser = adminUser || config.adminUser;
             const effectiveAdminPassword = adminPassword || config.adminPassword;
 

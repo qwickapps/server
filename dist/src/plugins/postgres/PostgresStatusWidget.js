@@ -7,7 +7,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
  */
 import { useEffect, useState } from 'react';
 import { PluginStatusWidget, } from '@qwickapps/server/ui';
-export const PostgresStatusWidget = ({ apiPrefix = '/api/plugins/postgres', }) => {
+export const PostgresStatusWidget = ({ apiPrefix = '/qapi/plugins/postgres', }) => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);

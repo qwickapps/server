@@ -38,7 +38,7 @@ interface DiagnosticsReport {
 }
 
 export const DiagnosticsManagementPage: React.FC<DiagnosticsManagementPageProps> = ({
-  apiPrefix = '/api/plugins/diagnostics',
+  apiPrefix = '/qapi/plugins/diagnostics',
 }) => {
   const [report, setReport] = useState<DiagnosticsReport | null>(null);
   const [loading, setLoading] = useState(true);

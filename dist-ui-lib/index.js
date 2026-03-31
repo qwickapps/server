@@ -26,13 +26,13 @@ const Ka = Wa.create().withName("Control Panel").withId("com.qwickapps.control-p
     }
   };
 }, qa = Ga();
-function nt(e, ...r) {
+function ht(e, ...r) {
   const n = new URL(`https://mui.com/production-error/?code=${e}`);
   return r.forEach((a) => n.searchParams.append("args[]", a)), `Minified MUI error #${e}; visit ${n} for the full message.`;
 }
 function ut(e) {
   if (typeof e != "string")
-    throw new Error(process.env.NODE_ENV !== "production" ? "MUI: `capitalize(string)` expects a string argument." : nt(7));
+    throw new Error(process.env.NODE_ENV !== "production" ? "MUI: `capitalize(string)` expects a string argument." : ht(7));
   return e.charAt(0).toUpperCase() + e.slice(1);
 }
 function jn(e) {
@@ -92,7 +92,7 @@ function Ut(e, r) {
     // No need to clone deep, it's way faster.
   }) : e;
 }
-const ot = process.env.NODE_ENV !== "production" ? ae.oneOfType([ae.number, ae.string, ae.object, ae.array]) : {};
+const at = process.env.NODE_ENV !== "production" ? ae.oneOfType([ae.number, ae.string, ae.object, ae.array]) : {};
 function rn(e, r) {
   if (!e.containerQueries)
     return r;
@@ -115,8 +115,11 @@ function Ya(e, r) {
   const n = r.match(/^@([^/]+)?\/?(.+)?$/);
   if (!n) {
     if (process.env.NODE_ENV !== "production")
-      throw new Error(process.env.NODE_ENV !== "production" ? `MUI: The provided shorthand ${`(${r})`} is invalid. The format should be \`@<breakpoint | number>\` or \`@<breakpoint | number>/<container>\`.
-For example, \`@sm\` or \`@600\` or \`@40rem/sidebar\`.` : nt(18, `(${r})`));
+      throw (
+        /* minify-error */
+        new Error(`MUI: The provided shorthand ${`(${r})`} is invalid. The format should be \`@<breakpoint | number>\` or \`@<breakpoint | number>/<container>\`.
+For example, \`@sm\` or \`@600\` or \`@40rem/sidebar\`.`)
+      );
     return null;
   }
   const [, a, o] = n, i = Number.isNaN(+a) ? a || 0 : +a;
@@ -229,7 +232,7 @@ function ge(e) {
     });
   };
   return i.propTypes = process.env.NODE_ENV !== "production" ? {
-    [r]: ot
+    [r]: at
   } : {}, i.filterProps = [r], i;
 }
 function to(e) {
@@ -297,14 +300,14 @@ function Vn(e, r) {
 function fe(e) {
   return Vn(e, hr);
 }
-fe.propTypes = process.env.NODE_ENV !== "production" ? hr.reduce((e, r) => (e[r] = ot, e), {}) : {};
+fe.propTypes = process.env.NODE_ENV !== "production" ? hr.reduce((e, r) => (e[r] = at, e), {}) : {};
 fe.filterProps = hr;
 function pe(e) {
   return Vn(e, ur);
 }
-pe.propTypes = process.env.NODE_ENV !== "production" ? ur.reduce((e, r) => (e[r] = ot, e), {}) : {};
+pe.propTypes = process.env.NODE_ENV !== "production" ? ur.reduce((e, r) => (e[r] = at, e), {}) : {};
 pe.filterProps = ur;
-process.env.NODE_ENV !== "production" && oo.reduce((e, r) => (e[r] = ot, e), {});
+process.env.NODE_ENV !== "production" && oo.reduce((e, r) => (e[r] = at, e), {});
 function mr(...e) {
   const r = e.reduce((a, o) => (o.filterProps.forEach((i) => {
     a[i] = o;
@@ -331,7 +334,7 @@ const lo = Re("border", Oe), co = Re("borderTop", Oe), ho = Re("borderRight", Oe
   return null;
 };
 fr.propTypes = process.env.NODE_ENV !== "production" ? {
-  borderRadius: ot
+  borderRadius: at
 } : {};
 fr.filterProps = ["borderRadius"];
 mr(lo, co, ho, uo, mo, fo, po, go, yo, bo, fr, vo, xo);
@@ -345,7 +348,7 @@ const pr = (e) => {
   return null;
 };
 pr.propTypes = process.env.NODE_ENV !== "production" ? {
-  gap: ot
+  gap: at
 } : {};
 pr.filterProps = ["gap"];
 const gr = (e) => {
@@ -358,7 +361,7 @@ const gr = (e) => {
   return null;
 };
 gr.propTypes = process.env.NODE_ENV !== "production" ? {
-  columnGap: ot
+  columnGap: at
 } : {};
 gr.filterProps = ["columnGap"];
 const yr = (e) => {
@@ -371,7 +374,7 @@ const yr = (e) => {
   return null;
 };
 yr.propTypes = process.env.NODE_ENV !== "production" ? {
-  rowGap: ot
+  rowGap: at
 } : {};
 yr.filterProps = ["rowGap"];
 const Co = ge({
@@ -1027,7 +1030,7 @@ function qo(e, r, n) {
   };
 }
 /**
- * @mui/styled-engine v7.3.7
+ * @mui/styled-engine v7.3.8
  *
  * @license MIT
  * This source code is licensed under the MIT license found in the
@@ -1045,7 +1048,7 @@ function Qo(e, r) {
   Array.isArray(e.__emotion_styles) && (e.__emotion_styles = r(e.__emotion_styles));
 }
 const dn = [];
-function ht(e) {
+function dt(e) {
   return dn[0] = e, qo(dn);
 }
 const Yo = (e) => {
@@ -1221,18 +1224,18 @@ function Jn(e) {
     ...n
   } = e, a = {
     variants: r,
-    style: ht(n),
+    style: dt(n),
     isProcessed: !0
   };
   return a.style === n || r && r.forEach((o) => {
-    typeof o.style != "function" && (o.style = ht(o.style));
+    typeof o.style != "function" && (o.style = dt(o.style));
   }), a;
 }
 const ai = Gn();
 function kr(e) {
   return e !== "ownerState" && e !== "theme" && e !== "sx" && e !== "as";
 }
-function dt(e, r) {
+function ct(e, r) {
   return r && e && typeof e == "object" && e.styles && !e.styles.startsWith("@layer") && (e.styles = `@layer ${r}{${String(e.styles)}}`), e;
 }
 function oi(e) {
@@ -1248,17 +1251,17 @@ function tr(e, r, n) {
   if (Array.isArray(a == null ? void 0 : a.variants)) {
     let o;
     if (a.isProcessed)
-      o = n ? dt(a.style, n) : a.style;
+      o = n ? ct(a.style, n) : a.style;
     else {
       const {
         variants: i,
         ...l
       } = a;
-      o = n ? dt(ht(l), n) : l;
+      o = n ? ct(dt(l), n) : l;
     }
     return Qn(e, a.variants, [o], n);
   }
-  return a != null && a.isProcessed ? n ? dt(ht(a.style), n) : a.style : n ? dt(ht(a), n) : a;
+  return a != null && a.isProcessed ? n ? ct(dt(a.style), n) : a.style : n ? ct(dt(a), n) : a;
 }
 function Qn(e, r, n = [], a = void 0) {
   var i;
@@ -1280,7 +1283,7 @@ function Qn(e, r, n = [], a = void 0) {
       ...e,
       ...e.ownerState,
       ownerState: e.ownerState
-    }), n.push(a ? dt(ht(c.style(o)), a) : c.style(o))) : n.push(a ? dt(ht(c.style), a) : c.style);
+    }), n.push(a ? ct(dt(c.style(o)), a) : c.style(o))) : n.push(a ? ct(dt(c.style), a) : c.style);
   }
   return n;
 }
@@ -1326,7 +1329,7 @@ function si(e = {}) {
       if (Ve(D)) {
         const U = Jn(D);
         return function(B) {
-          return U.variants ? tr(B, U, B.theme.modularCssLayers ? T : void 0) : B.theme.modularCssLayers ? dt(U.style, T) : U.style;
+          return U.variants ? tr(B, U, B.theme.modularCssLayers ? T : void 0) : B.theme.modularCssLayers ? ct(U.style, T) : U.style;
         };
       }
       return D;
@@ -1424,20 +1427,20 @@ function mi(e) {
   let n = e.match(r);
   return n && n[0].length === 1 && (n = n.map((a) => a + a)), process.env.NODE_ENV !== "production" && e.length !== e.trim().length && console.error(`MUI: The color: "${e}" is invalid. Make sure the color input doesn't contain leading/trailing space.`), n ? `rgb${n.length === 4 ? "a" : ""}(${n.map((a, o) => o < 3 ? parseInt(a, 16) : Math.round(parseInt(a, 16) / 255 * 1e3) / 1e3).join(", ")})` : "";
 }
-function at(e) {
+function nt(e) {
   if (e.type)
     return e;
   if (e.charAt(0) === "#")
-    return at(mi(e));
+    return nt(mi(e));
   const r = e.indexOf("("), n = e.substring(0, r);
   if (!["rgb", "rgba", "hsl", "hsla", "color"].includes(n))
     throw new Error(process.env.NODE_ENV !== "production" ? `MUI: Unsupported \`${e}\` color.
-The following formats are supported: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla(), color().` : nt(9, e));
+The following formats are supported: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla(), color().` : ht(9, e));
   let a = e.substring(r + 1, e.length - 1), o;
   if (n === "color") {
     if (a = a.split(" "), o = a.shift(), a.length === 4 && a[3].charAt(0) === "/" && (a[3] = a[3].slice(1)), !["srgb", "display-p3", "a98-rgb", "prophoto-rgb", "rec-2020"].includes(o))
       throw new Error(process.env.NODE_ENV !== "production" ? `MUI: unsupported \`${o}\` color space.
-The following color spaces are supported: srgb, display-p3, a98-rgb, prophoto-rgb, rec-2020.` : nt(10, o));
+The following color spaces are supported: srgb, display-p3, a98-rgb, prophoto-rgb, rec-2020.` : ht(10, o));
   } else
     a = a.split(",");
   return a = a.map((i) => parseFloat(i)), {
@@ -1447,7 +1450,7 @@ The following color spaces are supported: srgb, display-p3, a98-rgb, prophoto-rg
   };
 }
 const fi = (e) => {
-  const r = at(e);
+  const r = nt(e);
   return r.values.slice(0, 3).map((n, a) => r.type.includes("hsl") && a !== 0 ? `${n}%` : n).join(" ");
 }, jt = (e, r) => {
   try {
@@ -1467,7 +1470,7 @@ function vr(e) {
   return r.includes("rgb") ? a = a.map((o, i) => i < 3 ? parseInt(o, 10) : o) : r.includes("hsl") && (a[1] = `${a[1]}%`, a[2] = `${a[2]}%`), r.includes("color") ? a = `${n} ${a.join(" ")}` : a = `${a.join(", ")}`, `${r}(${a})`;
 }
 function Xn(e) {
-  e = at(e);
+  e = nt(e);
   const {
     values: r
   } = e, n = r[0], a = r[1] / 100, o = r[2] / 100, i = a * Math.min(o, 1 - o), l = (u, p = (u + n / 30) % 12) => o - i * Math.max(Math.min(p - 3, 9 - p, 1), -1);
@@ -1479,8 +1482,8 @@ function Xn(e) {
   });
 }
 function Nr(e) {
-  e = at(e);
-  let r = e.type === "hsl" || e.type === "hsla" ? at(Xn(e)).values : e.values;
+  e = nt(e);
+  let r = e.type === "hsl" || e.type === "hsla" ? nt(Xn(e)).values : e.values;
   return r = r.map((n) => (e.type !== "color" && (n /= 255), n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4)), Number((0.2126 * r[0] + 0.7152 * r[1] + 0.0722 * r[2]).toFixed(3));
 }
 function un(e, r) {
@@ -1488,9 +1491,9 @@ function un(e, r) {
   return (Math.max(n, a) + 0.05) / (Math.min(n, a) + 0.05);
 }
 function Zn(e, r) {
-  return e = at(e), r = Fr(r), (e.type === "rgb" || e.type === "hsl") && (e.type += "a"), e.type === "color" ? e.values[3] = `/${r}` : e.values[3] = r, vr(e);
+  return e = nt(e), r = Fr(r), (e.type === "rgb" || e.type === "hsl") && (e.type += "a"), e.type === "color" ? e.values[3] = `/${r}` : e.values[3] = r, vr(e);
 }
-function ct(e, r, n) {
+function lt(e, r, n) {
   try {
     return Zn(e, r);
   } catch {
@@ -1498,7 +1501,7 @@ function ct(e, r, n) {
   }
 }
 function xr(e, r) {
-  if (e = at(e), r = Fr(r), e.type.includes("hsl"))
+  if (e = nt(e), r = Fr(r), e.type.includes("hsl"))
     e.values[2] *= 1 - r;
   else if (e.type.includes("rgb") || e.type.includes("color"))
     for (let n = 0; n < 3; n += 1)
@@ -1513,7 +1516,7 @@ function le(e, r, n) {
   }
 }
 function Cr(e, r) {
-  if (e = at(e), r = Fr(r), e.type.includes("hsl"))
+  if (e = nt(e), r = Fr(r), e.type.includes("hsl"))
     e.values[2] += (100 - e.values[2]) * r;
   else if (e.type.includes("rgb"))
     for (let n = 0; n < 3; n += 1)
@@ -1985,7 +1988,7 @@ function Ur(e) {
       ...$
     }, !$.main && $[O] && ($.main = $[O]), !$.hasOwnProperty("main"))
       throw new Error(process.env.NODE_ENV !== "production" ? `MUI: The color${N ? ` (${N})` : ""} provided to augmentColor(color) is invalid.
-The color object needs to have a \`main\` property or a \`${O}\` property.` : nt(11, N ? ` (${N})` : "", O));
+The color object needs to have a \`main\` property or a \`${O}\` property.` : ht(11, N ? ` (${N})` : "", O));
     if (typeof $.main != "string")
       throw new Error(process.env.NODE_ENV !== "production" ? `MUI: The color${N ? ` (${N})` : ""} provided to augmentColor(color) is invalid.
 \`color.main\` should be a string, but \`${JSON.stringify($.main)}\` was provided instead.
@@ -2000,7 +2003,7 @@ const theme1 = createTheme({ palette: {
 
 const theme2 = createTheme({ palette: {
   primary: { main: green[500] },
-} });` : nt(12, N ? ` (${N})` : "", JSON.stringify($.main)));
+} });` : ht(12, N ? ` (${N})` : "", JSON.stringify($.main)));
     return o ? (gn(o, $, "light", I, a), gn(o, $, "dark", b, a)) : (pn($, "light", I, a), pn($, "dark", b, a)), $.contrastText || ($.contrastText = y($.main)), $;
   };
   let x;
@@ -2306,7 +2309,7 @@ function _r(e = {}, ...r) {
   if (e.vars && // The error should throw only for the root theme creation because user is not allowed to use a custom node `vars`.
   // `generateThemeVars` is the closest identifier for checking that the `options` is a result of `createTheme` with CSS variables so that user can create new theme for nested ThemeProvider.
   e.generateThemeVars === void 0)
-    throw new Error(process.env.NODE_ENV !== "production" ? "MUI: `vars` is a private field used for CSS variables support.\nPlease use another name or follow the [docs](https://mui.com/material-ui/customization/css-theme-variables/usage/) to enable the feature." : nt(20));
+    throw new Error(process.env.NODE_ENV !== "production" ? "MUI: `vars` is a private field used for CSS variables support.\nPlease use another name or follow the [docs](https://mui.com/material-ui/customization/css-theme-variables/usage/) to enable the feature." : ht(20));
   const g = Ur({
     ...i,
     colorSpace: u
@@ -2527,7 +2530,7 @@ function as(e = {}, ...r) {
   };
   let I = x;
   if ((y === "dark" && !("dark" in n) || y === "light" && !("light" in n)) && (I = !0), !I)
-    throw new Error(process.env.NODE_ENV !== "production" ? `MUI: The \`colorSchemes.${y}\` option is either missing or invalid.` : nt(21, y));
+    throw new Error(process.env.NODE_ENV !== "production" ? `MUI: The \`colorSchemes.${y}\` option is either missing or invalid.` : ht(21, y));
   let b;
   l && (b = "oklch");
   const k = Ir(b, O, I, p, y);
@@ -2555,19 +2558,19 @@ function as(e = {}, ...r) {
     function C(R, V, he) {
       if (b) {
         let G;
-        return R === ct && (G = `transparent ${((1 - he) * 100).toFixed(0)}%`), R === le && (G = `#000 ${(he * 100).toFixed(0)}%`), R === ce && (G = `#fff ${(he * 100).toFixed(0)}%`), `color-mix(in ${b}, ${V}, ${G})`;
+        return R === lt && (G = `transparent ${((1 - he) * 100).toFixed(0)}%`), R === le && (G = `#000 ${(he * 100).toFixed(0)}%`), R === ce && (G = `#fff ${(he * 100).toFixed(0)}%`), `color-mix(in ${b}, ${V}, ${G})`;
       }
       return R(V, he);
     }
     if (ts(d, ["Alert", "AppBar", "Avatar", "Button", "Chip", "FilledInput", "LinearProgress", "Skeleton", "Slider", "SnackbarContent", "SpeedDialAction", "StepConnector", "StepContent", "Switch", "TableCell", "Tooltip"]), d.mode === "light") {
-      S(d.Alert, "errorColor", C(le, d.error.light, 0.6)), S(d.Alert, "infoColor", C(le, d.info.light, 0.6)), S(d.Alert, "successColor", C(le, d.success.light, 0.6)), S(d.Alert, "warningColor", C(le, d.warning.light, 0.6)), S(d.Alert, "errorFilledBg", z("palette-error-main")), S(d.Alert, "infoFilledBg", z("palette-info-main")), S(d.Alert, "successFilledBg", z("palette-success-main")), S(d.Alert, "warningFilledBg", z("palette-warning-main")), S(d.Alert, "errorFilledColor", je(() => d.getContrastText(d.error.main))), S(d.Alert, "infoFilledColor", je(() => d.getContrastText(d.info.main))), S(d.Alert, "successFilledColor", je(() => d.getContrastText(d.success.main))), S(d.Alert, "warningFilledColor", je(() => d.getContrastText(d.warning.main))), S(d.Alert, "errorStandardBg", C(ce, d.error.light, 0.9)), S(d.Alert, "infoStandardBg", C(ce, d.info.light, 0.9)), S(d.Alert, "successStandardBg", C(ce, d.success.light, 0.9)), S(d.Alert, "warningStandardBg", C(ce, d.warning.light, 0.9)), S(d.Alert, "errorIconColor", z("palette-error-main")), S(d.Alert, "infoIconColor", z("palette-info-main")), S(d.Alert, "successIconColor", z("palette-success-main")), S(d.Alert, "warningIconColor", z("palette-warning-main")), S(d.AppBar, "defaultBg", z("palette-grey-100")), S(d.Avatar, "defaultBg", z("palette-grey-400")), S(d.Button, "inheritContainedBg", z("palette-grey-300")), S(d.Button, "inheritContainedHoverBg", z("palette-grey-A100")), S(d.Chip, "defaultBorder", z("palette-grey-400")), S(d.Chip, "defaultAvatarColor", z("palette-grey-700")), S(d.Chip, "defaultIconColor", z("palette-grey-700")), S(d.FilledInput, "bg", "rgba(0, 0, 0, 0.06)"), S(d.FilledInput, "hoverBg", "rgba(0, 0, 0, 0.09)"), S(d.FilledInput, "disabledBg", "rgba(0, 0, 0, 0.12)"), S(d.LinearProgress, "primaryBg", C(ce, d.primary.main, 0.62)), S(d.LinearProgress, "secondaryBg", C(ce, d.secondary.main, 0.62)), S(d.LinearProgress, "errorBg", C(ce, d.error.main, 0.62)), S(d.LinearProgress, "infoBg", C(ce, d.info.main, 0.62)), S(d.LinearProgress, "successBg", C(ce, d.success.main, 0.62)), S(d.LinearProgress, "warningBg", C(ce, d.warning.main, 0.62)), S(d.Skeleton, "bg", b ? C(ct, d.text.primary, 0.11) : `rgba(${z("palette-text-primaryChannel")} / 0.11)`), S(d.Slider, "primaryTrack", C(ce, d.primary.main, 0.62)), S(d.Slider, "secondaryTrack", C(ce, d.secondary.main, 0.62)), S(d.Slider, "errorTrack", C(ce, d.error.main, 0.62)), S(d.Slider, "infoTrack", C(ce, d.info.main, 0.62)), S(d.Slider, "successTrack", C(ce, d.success.main, 0.62)), S(d.Slider, "warningTrack", C(ce, d.warning.main, 0.62));
+      S(d.Alert, "errorColor", C(le, d.error.light, 0.6)), S(d.Alert, "infoColor", C(le, d.info.light, 0.6)), S(d.Alert, "successColor", C(le, d.success.light, 0.6)), S(d.Alert, "warningColor", C(le, d.warning.light, 0.6)), S(d.Alert, "errorFilledBg", z("palette-error-main")), S(d.Alert, "infoFilledBg", z("palette-info-main")), S(d.Alert, "successFilledBg", z("palette-success-main")), S(d.Alert, "warningFilledBg", z("palette-warning-main")), S(d.Alert, "errorFilledColor", je(() => d.getContrastText(d.error.main))), S(d.Alert, "infoFilledColor", je(() => d.getContrastText(d.info.main))), S(d.Alert, "successFilledColor", je(() => d.getContrastText(d.success.main))), S(d.Alert, "warningFilledColor", je(() => d.getContrastText(d.warning.main))), S(d.Alert, "errorStandardBg", C(ce, d.error.light, 0.9)), S(d.Alert, "infoStandardBg", C(ce, d.info.light, 0.9)), S(d.Alert, "successStandardBg", C(ce, d.success.light, 0.9)), S(d.Alert, "warningStandardBg", C(ce, d.warning.light, 0.9)), S(d.Alert, "errorIconColor", z("palette-error-main")), S(d.Alert, "infoIconColor", z("palette-info-main")), S(d.Alert, "successIconColor", z("palette-success-main")), S(d.Alert, "warningIconColor", z("palette-warning-main")), S(d.AppBar, "defaultBg", z("palette-grey-100")), S(d.Avatar, "defaultBg", z("palette-grey-400")), S(d.Button, "inheritContainedBg", z("palette-grey-300")), S(d.Button, "inheritContainedHoverBg", z("palette-grey-A100")), S(d.Chip, "defaultBorder", z("palette-grey-400")), S(d.Chip, "defaultAvatarColor", z("palette-grey-700")), S(d.Chip, "defaultIconColor", z("palette-grey-700")), S(d.FilledInput, "bg", "rgba(0, 0, 0, 0.06)"), S(d.FilledInput, "hoverBg", "rgba(0, 0, 0, 0.09)"), S(d.FilledInput, "disabledBg", "rgba(0, 0, 0, 0.12)"), S(d.LinearProgress, "primaryBg", C(ce, d.primary.main, 0.62)), S(d.LinearProgress, "secondaryBg", C(ce, d.secondary.main, 0.62)), S(d.LinearProgress, "errorBg", C(ce, d.error.main, 0.62)), S(d.LinearProgress, "infoBg", C(ce, d.info.main, 0.62)), S(d.LinearProgress, "successBg", C(ce, d.success.main, 0.62)), S(d.LinearProgress, "warningBg", C(ce, d.warning.main, 0.62)), S(d.Skeleton, "bg", b ? C(lt, d.text.primary, 0.11) : `rgba(${z("palette-text-primaryChannel")} / 0.11)`), S(d.Slider, "primaryTrack", C(ce, d.primary.main, 0.62)), S(d.Slider, "secondaryTrack", C(ce, d.secondary.main, 0.62)), S(d.Slider, "errorTrack", C(ce, d.error.main, 0.62)), S(d.Slider, "infoTrack", C(ce, d.info.main, 0.62)), S(d.Slider, "successTrack", C(ce, d.success.main, 0.62)), S(d.Slider, "warningTrack", C(ce, d.warning.main, 0.62));
       const R = b ? C(le, d.background.default, 0.6825) : Xt(d.background.default, 0.8);
-      S(d.SnackbarContent, "bg", R), S(d.SnackbarContent, "color", je(() => b ? zr.text.primary : d.getContrastText(R))), S(d.SpeedDialAction, "fabHoverBg", Xt(d.background.paper, 0.15)), S(d.StepConnector, "border", z("palette-grey-400")), S(d.StepContent, "border", z("palette-grey-400")), S(d.Switch, "defaultColor", z("palette-common-white")), S(d.Switch, "defaultDisabledColor", z("palette-grey-100")), S(d.Switch, "primaryDisabledColor", C(ce, d.primary.main, 0.62)), S(d.Switch, "secondaryDisabledColor", C(ce, d.secondary.main, 0.62)), S(d.Switch, "errorDisabledColor", C(ce, d.error.main, 0.62)), S(d.Switch, "infoDisabledColor", C(ce, d.info.main, 0.62)), S(d.Switch, "successDisabledColor", C(ce, d.success.main, 0.62)), S(d.Switch, "warningDisabledColor", C(ce, d.warning.main, 0.62)), S(d.TableCell, "border", C(ce, C(ct, d.divider, 1), 0.88)), S(d.Tooltip, "bg", C(ct, d.grey[700], 0.92));
+      S(d.SnackbarContent, "bg", R), S(d.SnackbarContent, "color", je(() => b ? zr.text.primary : d.getContrastText(R))), S(d.SpeedDialAction, "fabHoverBg", Xt(d.background.paper, 0.15)), S(d.StepConnector, "border", z("palette-grey-400")), S(d.StepContent, "border", z("palette-grey-400")), S(d.Switch, "defaultColor", z("palette-common-white")), S(d.Switch, "defaultDisabledColor", z("palette-grey-100")), S(d.Switch, "primaryDisabledColor", C(ce, d.primary.main, 0.62)), S(d.Switch, "secondaryDisabledColor", C(ce, d.secondary.main, 0.62)), S(d.Switch, "errorDisabledColor", C(ce, d.error.main, 0.62)), S(d.Switch, "infoDisabledColor", C(ce, d.info.main, 0.62)), S(d.Switch, "successDisabledColor", C(ce, d.success.main, 0.62)), S(d.Switch, "warningDisabledColor", C(ce, d.warning.main, 0.62)), S(d.TableCell, "border", C(ce, C(lt, d.divider, 1), 0.88)), S(d.Tooltip, "bg", C(lt, d.grey[700], 0.92));
     }
     if (d.mode === "dark") {
-      S(d.Alert, "errorColor", C(ce, d.error.light, 0.6)), S(d.Alert, "infoColor", C(ce, d.info.light, 0.6)), S(d.Alert, "successColor", C(ce, d.success.light, 0.6)), S(d.Alert, "warningColor", C(ce, d.warning.light, 0.6)), S(d.Alert, "errorFilledBg", z("palette-error-dark")), S(d.Alert, "infoFilledBg", z("palette-info-dark")), S(d.Alert, "successFilledBg", z("palette-success-dark")), S(d.Alert, "warningFilledBg", z("palette-warning-dark")), S(d.Alert, "errorFilledColor", je(() => d.getContrastText(d.error.dark))), S(d.Alert, "infoFilledColor", je(() => d.getContrastText(d.info.dark))), S(d.Alert, "successFilledColor", je(() => d.getContrastText(d.success.dark))), S(d.Alert, "warningFilledColor", je(() => d.getContrastText(d.warning.dark))), S(d.Alert, "errorStandardBg", C(le, d.error.light, 0.9)), S(d.Alert, "infoStandardBg", C(le, d.info.light, 0.9)), S(d.Alert, "successStandardBg", C(le, d.success.light, 0.9)), S(d.Alert, "warningStandardBg", C(le, d.warning.light, 0.9)), S(d.Alert, "errorIconColor", z("palette-error-main")), S(d.Alert, "infoIconColor", z("palette-info-main")), S(d.Alert, "successIconColor", z("palette-success-main")), S(d.Alert, "warningIconColor", z("palette-warning-main")), S(d.AppBar, "defaultBg", z("palette-grey-900")), S(d.AppBar, "darkBg", z("palette-background-paper")), S(d.AppBar, "darkColor", z("palette-text-primary")), S(d.Avatar, "defaultBg", z("palette-grey-600")), S(d.Button, "inheritContainedBg", z("palette-grey-800")), S(d.Button, "inheritContainedHoverBg", z("palette-grey-700")), S(d.Chip, "defaultBorder", z("palette-grey-700")), S(d.Chip, "defaultAvatarColor", z("palette-grey-300")), S(d.Chip, "defaultIconColor", z("palette-grey-300")), S(d.FilledInput, "bg", "rgba(255, 255, 255, 0.09)"), S(d.FilledInput, "hoverBg", "rgba(255, 255, 255, 0.13)"), S(d.FilledInput, "disabledBg", "rgba(255, 255, 255, 0.12)"), S(d.LinearProgress, "primaryBg", C(le, d.primary.main, 0.5)), S(d.LinearProgress, "secondaryBg", C(le, d.secondary.main, 0.5)), S(d.LinearProgress, "errorBg", C(le, d.error.main, 0.5)), S(d.LinearProgress, "infoBg", C(le, d.info.main, 0.5)), S(d.LinearProgress, "successBg", C(le, d.success.main, 0.5)), S(d.LinearProgress, "warningBg", C(le, d.warning.main, 0.5)), S(d.Skeleton, "bg", b ? C(ct, d.text.primary, 0.13) : `rgba(${z("palette-text-primaryChannel")} / 0.13)`), S(d.Slider, "primaryTrack", C(le, d.primary.main, 0.5)), S(d.Slider, "secondaryTrack", C(le, d.secondary.main, 0.5)), S(d.Slider, "errorTrack", C(le, d.error.main, 0.5)), S(d.Slider, "infoTrack", C(le, d.info.main, 0.5)), S(d.Slider, "successTrack", C(le, d.success.main, 0.5)), S(d.Slider, "warningTrack", C(le, d.warning.main, 0.5));
+      S(d.Alert, "errorColor", C(ce, d.error.light, 0.6)), S(d.Alert, "infoColor", C(ce, d.info.light, 0.6)), S(d.Alert, "successColor", C(ce, d.success.light, 0.6)), S(d.Alert, "warningColor", C(ce, d.warning.light, 0.6)), S(d.Alert, "errorFilledBg", z("palette-error-dark")), S(d.Alert, "infoFilledBg", z("palette-info-dark")), S(d.Alert, "successFilledBg", z("palette-success-dark")), S(d.Alert, "warningFilledBg", z("palette-warning-dark")), S(d.Alert, "errorFilledColor", je(() => d.getContrastText(d.error.dark))), S(d.Alert, "infoFilledColor", je(() => d.getContrastText(d.info.dark))), S(d.Alert, "successFilledColor", je(() => d.getContrastText(d.success.dark))), S(d.Alert, "warningFilledColor", je(() => d.getContrastText(d.warning.dark))), S(d.Alert, "errorStandardBg", C(le, d.error.light, 0.9)), S(d.Alert, "infoStandardBg", C(le, d.info.light, 0.9)), S(d.Alert, "successStandardBg", C(le, d.success.light, 0.9)), S(d.Alert, "warningStandardBg", C(le, d.warning.light, 0.9)), S(d.Alert, "errorIconColor", z("palette-error-main")), S(d.Alert, "infoIconColor", z("palette-info-main")), S(d.Alert, "successIconColor", z("palette-success-main")), S(d.Alert, "warningIconColor", z("palette-warning-main")), S(d.AppBar, "defaultBg", z("palette-grey-900")), S(d.AppBar, "darkBg", z("palette-background-paper")), S(d.AppBar, "darkColor", z("palette-text-primary")), S(d.Avatar, "defaultBg", z("palette-grey-600")), S(d.Button, "inheritContainedBg", z("palette-grey-800")), S(d.Button, "inheritContainedHoverBg", z("palette-grey-700")), S(d.Chip, "defaultBorder", z("palette-grey-700")), S(d.Chip, "defaultAvatarColor", z("palette-grey-300")), S(d.Chip, "defaultIconColor", z("palette-grey-300")), S(d.FilledInput, "bg", "rgba(255, 255, 255, 0.09)"), S(d.FilledInput, "hoverBg", "rgba(255, 255, 255, 0.13)"), S(d.FilledInput, "disabledBg", "rgba(255, 255, 255, 0.12)"), S(d.LinearProgress, "primaryBg", C(le, d.primary.main, 0.5)), S(d.LinearProgress, "secondaryBg", C(le, d.secondary.main, 0.5)), S(d.LinearProgress, "errorBg", C(le, d.error.main, 0.5)), S(d.LinearProgress, "infoBg", C(le, d.info.main, 0.5)), S(d.LinearProgress, "successBg", C(le, d.success.main, 0.5)), S(d.LinearProgress, "warningBg", C(le, d.warning.main, 0.5)), S(d.Skeleton, "bg", b ? C(lt, d.text.primary, 0.13) : `rgba(${z("palette-text-primaryChannel")} / 0.13)`), S(d.Slider, "primaryTrack", C(le, d.primary.main, 0.5)), S(d.Slider, "secondaryTrack", C(le, d.secondary.main, 0.5)), S(d.Slider, "errorTrack", C(le, d.error.main, 0.5)), S(d.Slider, "infoTrack", C(le, d.info.main, 0.5)), S(d.Slider, "successTrack", C(le, d.success.main, 0.5)), S(d.Slider, "warningTrack", C(le, d.warning.main, 0.5));
       const R = b ? C(ce, d.background.default, 0.985) : Xt(d.background.default, 0.98);
-      S(d.SnackbarContent, "bg", R), S(d.SnackbarContent, "color", je(() => b ? ta.text.primary : d.getContrastText(R))), S(d.SpeedDialAction, "fabHoverBg", Xt(d.background.paper, 0.15)), S(d.StepConnector, "border", z("palette-grey-600")), S(d.StepContent, "border", z("palette-grey-600")), S(d.Switch, "defaultColor", z("palette-grey-300")), S(d.Switch, "defaultDisabledColor", z("palette-grey-600")), S(d.Switch, "primaryDisabledColor", C(le, d.primary.main, 0.55)), S(d.Switch, "secondaryDisabledColor", C(le, d.secondary.main, 0.55)), S(d.Switch, "errorDisabledColor", C(le, d.error.main, 0.55)), S(d.Switch, "infoDisabledColor", C(le, d.info.main, 0.55)), S(d.Switch, "successDisabledColor", C(le, d.success.main, 0.55)), S(d.Switch, "warningDisabledColor", C(le, d.warning.main, 0.55)), S(d.TableCell, "border", C(le, C(ct, d.divider, 1), 0.68)), S(d.Tooltip, "bg", C(ct, d.grey[700], 0.92));
+      S(d.SnackbarContent, "bg", R), S(d.SnackbarContent, "color", je(() => b ? ta.text.primary : d.getContrastText(R))), S(d.SpeedDialAction, "fabHoverBg", Xt(d.background.paper, 0.15)), S(d.StepConnector, "border", z("palette-grey-600")), S(d.StepContent, "border", z("palette-grey-600")), S(d.Switch, "defaultColor", z("palette-grey-300")), S(d.Switch, "defaultDisabledColor", z("palette-grey-600")), S(d.Switch, "primaryDisabledColor", C(le, d.primary.main, 0.55)), S(d.Switch, "secondaryDisabledColor", C(le, d.secondary.main, 0.55)), S(d.Switch, "errorDisabledColor", C(le, d.error.main, 0.55)), S(d.Switch, "infoDisabledColor", C(le, d.info.main, 0.55)), S(d.Switch, "successDisabledColor", C(le, d.success.main, 0.55)), S(d.Switch, "warningDisabledColor", C(le, d.warning.main, 0.55)), S(d.TableCell, "border", C(le, C(lt, d.divider, 1), 0.68)), S(d.Tooltip, "bg", C(lt, d.grey[700], 0.92));
     }
     Ue(d.background, "default"), Ue(d.background, "paper"), Ue(d.common, "background"), Ue(d.common, "onBackground"), Ue(d, "divider"), Object.keys(d).forEach((R) => {
       const V = d[R];
@@ -3667,7 +3670,7 @@ function Ps() {
   if (ie(() => {
     (async () => {
       try {
-        const u = await Y.fetch("/auth/config/status");
+        const u = await Y.getAuthConfigStatus();
         r(u);
       } catch (u) {
         i(u instanceof Error ? u.message : "Failed to fetch auth status");
@@ -4091,13 +4094,13 @@ function js() {
     const J = W.seeds.map(L), Q = J.every((P) => h.has(P)), Z = new Set(h);
     Q ? J.forEach((P) => Z.delete(P)) : J.forEach((P) => Z.add(P)), u(Z);
   }, V = async (W, J, Q) => {
-    var it, pt;
+    var ot, pt;
     const Z = window.__API_BASE_PATH__ || "", P = await fetch(`${Z}/maintenance/seeds/execute`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: W, type: Q })
     });
-    if (!P.ok && !((it = P.headers.get("content-type")) != null && it.includes("text/event-stream"))) {
+    if (!P.ok && !((ot = P.headers.get("content-type")) != null && ot.includes("text/event-stream"))) {
       const Fe = await P.json().catch(() => ({ error: "Failed to start execution" }));
       throw new Error(Fe.error || "Failed to start execution");
     }
@@ -4108,9 +4111,9 @@ function js() {
         for (; ; ) {
           const { done: Fe, value: Ke } = await ye.read();
           if (Fe) break;
-          const lt = Ce.decode(Ke, { stream: !0 }).split(`
+          const st = Ce.decode(Ke, { stream: !0 }).split(`
 `);
-          for (const Le of lt)
+          for (const Le of st)
             if (Le.startsWith("data: "))
               try {
                 const Ie = JSON.parse(Le.slice(6));
@@ -4687,7 +4690,7 @@ const Gs = ({
     ] })
   ] });
 }, Js = () => {
-  const e = "/api/postgres:default", r = "default", [n, a] = f(null), [o, i] = f(!0), [l, c] = f(null), [h, u] = f(!1), [p, g] = f(!1), [y, w] = f("initialize"), [x, T] = f(!1), [$, N] = f(null), O = async () => {
+  const e = "/qapi/postgres:default", r = "default", [n, a] = f(null), [o, i] = f(!0), [l, c] = f(null), [h, u] = f(!1), [p, g] = f(!1), [y, w] = f("initialize"), [x, T] = f(!1), [$, N] = f(null), O = async () => {
     try {
       const L = await fetch(`${e}/status?instance=${r}`);
       if (!L.ok) throw new Error("Failed to fetch database status");
@@ -4795,6 +4798,7 @@ const Gs = ({
           n.port || "N/A"
         ] })
       ] }),
+      n.managed && /* @__PURE__ */ t(q, { severity: "info", sx: { mt: 2 }, children: "Managed database (Neon / Supabase). Delete and recreate is disabled — manage your database through the provider dashboard." }),
       !n.connected && !h && /* @__PURE__ */ s(m, { sx: { display: "flex", gap: 1, mt: 2 }, children: [
         /* @__PURE__ */ t(
           re,
@@ -4806,7 +4810,7 @@ const Gs = ({
             children: "Initialize Database"
           }
         ),
-        /* @__PURE__ */ t(
+        !n.managed && /* @__PURE__ */ t(
           re,
           {
             variant: "contained",
@@ -5939,7 +5943,7 @@ const In = {
   socialProviders: {}
 };
 function Cl() {
-  var lt, Le, Ie;
+  var st, Le, Ie;
   const [e, r] = f(null), [n, a] = f(!0), [o, i] = f(null), [l, c] = f(null), [h, u] = f(!1), [p, g] = f(!1), [y, w] = f(!1), [x, T] = f(null), [$, N] = f(""), [O, I] = f(In), [b, k] = f($n), [D, U] = f(An), [M, B] = f(Tn), [de, L] = f(!0), [d, z] = f(""), [C, R] = f({
     enabled: !1,
     clientId: "",
@@ -6021,7 +6025,7 @@ function Cl() {
       default:
         return {};
     }
-  }, it = async () => {
+  }, ot = async () => {
     if ($) {
       w(!0), T(null);
       try {
@@ -6085,7 +6089,7 @@ function Cl() {
   };
   if (n)
     return /* @__PURE__ */ t(m, { sx: { display: "flex", justifyContent: "center", alignItems: "center", minHeight: "50vh" }, children: /* @__PURE__ */ t(se, {}) });
-  const st = e != null && e.config ? Object.entries(e.config) : [];
+  const it = e != null && e.config ? Object.entries(e.config) : [];
   return /* @__PURE__ */ s(m, { children: [
     /* @__PURE__ */ s(m, { sx: { display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }, children: [
       /* @__PURE__ */ t(v, { variant: "h4", sx: { color: "var(--theme-text-primary)" }, children: "Authentication" }),
@@ -6526,7 +6530,7 @@ function Cl() {
       x && /* @__PURE__ */ s(q, { severity: x.success ? "success" : "error", sx: { mb: 3 }, children: [
         /* @__PURE__ */ t(v, { variant: "body2", sx: { fontWeight: 600 }, children: x.success ? "Connection Successful" : "Connection Failed" }),
         /* @__PURE__ */ t(v, { variant: "body2", children: x.message }),
-        ((lt = x.details) == null ? void 0 : lt.latency) && /* @__PURE__ */ s(v, { variant: "caption", sx: { display: "block", mt: 0.5 }, children: [
+        ((st = x.details) == null ? void 0 : st.latency) && /* @__PURE__ */ s(v, { variant: "caption", sx: { display: "block", mt: 0.5 }, children: [
           "Latency: ",
           x.details.latency,
           "ms"
@@ -6566,7 +6570,7 @@ function Cl() {
             {
               variant: "outlined",
               startIcon: y ? /* @__PURE__ */ t(se, { size: 16 }) : /* @__PURE__ */ t(ft, {}),
-              onClick: it,
+              onClick: ot,
               disabled: !$ || y || p,
               sx: {
                 color: "var(--theme-text-primary)",
@@ -6683,7 +6687,7 @@ function Cl() {
           ] })
         ] })
       ] }) }),
-      st.length > 0 && /* @__PURE__ */ s(F, { sx: { bgcolor: "var(--theme-surface)" }, children: [
+      it.length > 0 && /* @__PURE__ */ s(F, { sx: { bgcolor: "var(--theme-surface)" }, children: [
         /* @__PURE__ */ t(j, { sx: { pb: 0 }, children: /* @__PURE__ */ t(v, { variant: "h6", sx: { color: "var(--theme-text-primary)", mb: 2 }, children: "Current Configuration" }) }),
         /* @__PURE__ */ t(qe, { children: /* @__PURE__ */ s(Je, { size: "small", children: [
           /* @__PURE__ */ t(Qe, { children: /* @__PURE__ */ s(be, { children: [
@@ -6697,7 +6701,7 @@ function Cl() {
               }
             )
           ] }) }),
-          /* @__PURE__ */ t(Ye, { children: st.map(([A, X]) => /* @__PURE__ */ s(be, { children: [
+          /* @__PURE__ */ t(Ye, { children: it.map(([A, X]) => /* @__PURE__ */ s(be, { children: [
             /* @__PURE__ */ t(_, { sx: { borderColor: "var(--theme-border)" }, children: /* @__PURE__ */ t(
               v,
               {
@@ -6728,7 +6732,7 @@ function Cl() {
           ] }, A)) })
         ] }) })
       ] }),
-      (e == null ? void 0 : e.state) === "enabled" && st.length === 0 && /* @__PURE__ */ t(F, { sx: { bgcolor: "var(--theme-surface)" }, children: /* @__PURE__ */ t(j, { children: /* @__PURE__ */ t(v, { sx: { color: "var(--theme-text-secondary)", textAlign: "center" }, children: "No configuration details available" }) }) })
+      (e == null ? void 0 : e.state) === "enabled" && it.length === 0 && /* @__PURE__ */ t(F, { sx: { bgcolor: "var(--theme-surface)" }, children: /* @__PURE__ */ t(j, { children: /* @__PURE__ */ t(v, { sx: { color: "var(--theme-text-secondary)", textAlign: "center" }, children: "No configuration details available" }) }) })
     ] }),
     /* @__PURE__ */ s(Ze, { open: Q, onClose: () => Z(!1), children: [
       /* @__PURE__ */ t(et, { children: "Reset to Environment Variables?" }),
@@ -6873,7 +6877,7 @@ function Rl({
     name: "",
     role: "",
     expiresInDays: 7
-  }), [_e, it] = f(null), [pt, Fe] = f(!1), [Ke, st] = f(""), [lt, Le] = f(!1), [Ie, A] = f(!1), [X, We] = f(null), [Tt, we] = f(null), [$e, ke] = f([]), [Pt, Gr] = f(""), [ha, qr] = f(!1);
+  }), [_e, ot] = f(null), [pt, Fe] = f(!1), [Ke, it] = f(""), [st, Le] = f(!1), [Ie, A] = f(!1), [X, We] = f(null), [Tt, we] = f(null), [$e, ke] = f([]), [Pt, Gr] = f(""), [ha, qr] = f(!1);
   ie(() => {
     n || Y.detectFeatures().then((E) => {
       l(E), h(!0);
@@ -6970,14 +6974,14 @@ function Rl({
         role: ne.role || void 0,
         expiresInDays: ne.expiresInDays
       });
-      it({ token: E.token, inviteLink: E.inviteLink }), W("User invitation created successfully"), Dt();
+      ot({ token: E.token, inviteLink: E.inviteLink }), W("User invitation created successfully"), Dt();
     } catch (E) {
       G(E instanceof Error ? E.message : "Failed to invite user");
     }
   }, pa = () => {
     _e && (navigator.clipboard.writeText(_e.inviteLink), W("Invite link copied to clipboard"));
   }, Qr = () => {
-    Ce(!1), xe({ email: "", name: "", role: "", expiresInDays: 7 }), it(null);
+    Ce(!1), xe({ email: "", name: "", role: "", expiresInDays: 7 }), ot(null);
   }, Yr = async () => {
     if (!Ke.trim()) {
       we("Please enter an email address");
@@ -7033,7 +7037,7 @@ function Rl({
         G(ee instanceof Error ? ee.message : "Failed to revoke entitlement");
       }
   }, Xr = (E) => {
-    E && (st(E), Le(!0), we(null), We(null), Y.getEntitlements(E).then(We).catch((ee) => we(ee instanceof Error ? ee.message : "Failed to lookup entitlements")).finally(() => Le(!1))), Fe(!0);
+    E && (it(E), Le(!0), we(null), We(null), Y.getEntitlements(E).then(We).catch((ee) => we(ee instanceof Error ? ee.message : "Failed to lookup entitlements")).finally(() => Le(!1))), Fe(!0);
   }, yt = (E) => E ? new Date(E).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
@@ -7459,7 +7463,7 @@ function Rl({
                   label: "Email",
                   fullWidth: !0,
                   value: Ke,
-                  onChange: (E) => st(E.target.value),
+                  onChange: (E) => it(E.target.value),
                   placeholder: "Enter user email",
                   onKeyDown: (E) => E.key === "Enter" && Yr()
                 }
@@ -7471,11 +7475,11 @@ function Rl({
                   icon: "search",
                   label: "Lookup",
                   onClick: Yr,
-                  disabled: lt
+                  disabled: st
                 }
               )
             ] }),
-            lt && /* @__PURE__ */ t(m, { sx: { display: "flex", justifyContent: "center", py: 4 }, children: /* @__PURE__ */ t(se, {}) }),
+            st && /* @__PURE__ */ t(m, { sx: { display: "flex", justifyContent: "center", py: 4 }, children: /* @__PURE__ */ t(se, {}) }),
             Tt && /* @__PURE__ */ t(q, { severity: "error", children: Tt }),
             X && /* @__PURE__ */ s(m, { children: [
               /* @__PURE__ */ s(m, { sx: { display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }, children: [

@@ -5,7 +5,7 @@ import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function ApiKeysManagementPage({ apiPrefix = '/api/api-keys' }) {
+export function ApiKeysManagementPage({ apiPrefix = '/qapi/api-keys' }) {
     const [activeTab, setActiveTab] = useState('all');
     const [keys, setKeys] = useState([]);
     const [loading, setLoading] = useState(true);

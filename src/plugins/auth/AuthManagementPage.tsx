@@ -30,7 +30,7 @@ interface AuthSession {
   ipAddress?: string;
 }
 
-export function AuthManagementPage({ apiPrefix = '/api/auth' }: AuthManagementPageProps) {
+export function AuthManagementPage({ apiPrefix = '/qapi/auth' }: AuthManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'providers' | 'sessions' | 'config'>('overview');
   const [providers, setProviders] = useState<AuthProvider[]>([]);
   const [sessions, setSessions] = useState<AuthSession[]>([]);

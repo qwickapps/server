@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { StatCard } from '@qwickapps/react-framework';
 import { Card, CardContent, Typography } from '@mui/material';
-export const MaintenanceManagementPage = ({ apiPrefix = '/api/plugins/maintenance', }) => {
+export const MaintenanceManagementPage = ({ apiPrefix = '/qapi/plugins/maintenance', }) => {
     const [status, setStatus] = useState(null);
     const [loading, setLoading] = useState(true);
     const fetchStatus = async () => {

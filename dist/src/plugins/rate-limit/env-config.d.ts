@@ -12,7 +12,7 @@
  * - RATE_LIMIT_CLEANUP_ENABLED: Enable cleanup job (default: true)
  * - RATE_LIMIT_CLEANUP_INTERVAL_MS: Cleanup interval in ms (default: 300000 = 5 minutes)
  * - RATE_LIMIT_API_ENABLED: Enable status API endpoints (default: true)
- * - RATE_LIMIT_API_PREFIX: API route prefix (default: /rate-limit)
+ * - RATE_LIMIT_API_PREFIX: API route prefix (default: empty, framework adds /rate-limit automatically)
  * - RATE_LIMIT_DEBUG: Enable debug logging (default: false)
  *
  * PostgreSQL Store (via postgres-plugin):

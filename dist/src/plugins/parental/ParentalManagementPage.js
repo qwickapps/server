@@ -5,7 +5,7 @@ import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function ParentalManagementPage({ apiPrefix = '/api/parental' }) {
+export function ParentalManagementPage({ apiPrefix = '/qapi/parental' }) {
     const [activeTab, setActiveTab] = useState('all');
     const [controls, setControls] = useState([]);
     const [loading, setLoading] = useState(true);

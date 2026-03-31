@@ -23,7 +23,7 @@ interface ParentalControl {
   updatedAt: string;
 }
 
-export function ParentalManagementPage({ apiPrefix = '/api/parental' }: ParentalManagementPageProps) {
+export function ParentalManagementPage({ apiPrefix = '/qapi/parental' }: ParentalManagementPageProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'violations' | 'config'>('all');
   const [controls, setControls] = useState<ParentalControl[]>([]);
   const [loading, setLoading] = useState(true);

@@ -5,7 +5,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { DataTable } from '@qwickapps/react-framework';
-export function SubscriptionsManagementPage({ apiPrefix = '/api/subscriptions' }) {
+export function SubscriptionsManagementPage({ apiPrefix = '/qapi/subscriptions' }) {
     const [activeTab, setActiveTab] = useState('all');
     const [subscriptions, setSubscriptions] = useState([]);
     const [loading, setLoading] = useState(true);

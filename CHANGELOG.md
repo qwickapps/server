@@ -5,6 +5,27 @@ All notable changes to @qwickapps/server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-02-23
+
+### Added
+
+- **Auth Plugin API Base Path**: Auth plugin now respects `SUPERTOKENS_API_BASE_PATH` env var for router registration, allowing custom auth endpoint paths
+
+### Fixed
+
+- **Auth Status Widget**: Fixed "Unable to load auth status" on `/cpanel` dashboard. Now uses `api.getAuthConfigStatus()` which constructs the correct URL through the manifest client.
+- **Auth Plugin**: Fixed "API request failed: 500" on `/cpanel/auth`. SuperTokens init middleware now calls `next()` on failure so auth-checking middleware decides whether to block based on `authRequired` config.
+- **Maintenance Plugin - Database Reset**: Fixed "Failed to reset database". Restored dynamic DB role derivation from the database connection URL.
+- **Maintenance Plugin - Seed Execution**: Fixed "Execution failed" in Docker production. Restored correct executor selection: `.mjs` files use `node`, only `.ts`/`.mts` files use `tsx`.
+- **Maintenance Plugin - Seed Execution**: Fixed UI stuck in "Running..." state after seed failure. Restored SSE `exit` event emission in error handler.
+
+## [1.8.2] - 2026-02-17
+
+### Fixed
+
+- **Seed discovery supports .ts files**: Seed scripts with `.ts` extension are now visible in the Control Panel Maintenance UI (fixes workmacha#3)
+- Updated `validateScriptPath` to allow `.ts` files in addition to `.mjs`
+
 ## [1.8.1] - 2026-02-07
 
 ### Fixed

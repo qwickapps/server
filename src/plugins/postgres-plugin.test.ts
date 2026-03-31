@@ -36,6 +36,8 @@ import {
   createPostgresPlugin,
   getPostgres,
   hasPostgres,
+  parseConnectionUrl,
+  isManagedDatabase,
   type PostgresPluginConfig,
 } from './postgres-plugin.js';
 import type { PluginRegistry } from '../core/plugin-registry.js';
@@ -218,6 +220,82 @@ describe('PostgreSQL Plugin', () => {
       expect(stats).toHaveProperty('total');
       expect(stats).toHaveProperty('idle');
       expect(stats).toHaveProperty('waiting');
+    });
+  });
+
+  describe('parseConnectionUrl', () => {
+    it('should parse a standard URL with explicit port', () => {
+      const result = parseConnectionUrl('postgresql://myuser:mypass@localhost:5432/mydb');
+      expect(result).toEqual({ user: 'myuser', password: 'mypass', host: 'localhost', port: 5432, database: 'mydb' });
+    });
+
+    it('should default port to 5432 when omitted (Neon URL)', () => {
+      const result = parseConnectionUrl('postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require');
+      expect(result.host).toBe('ep-xxx.us-east-2.aws.neon.tech');
+      expect(result.port).toBe(5432);
+      expect(result.database).toBe('neondb');
+      expect(result.user).toBe('user');
+    });
+
+    it('should parse a Supabase URL without port', () => {
+      const result = parseConnectionUrl('postgresql://user:pass@db.abc123.supabase.co/postgres');
+      expect(result.host).toBe('db.abc123.supabase.co');
+      expect(result.port).toBe(5432);
+      expect(result.database).toBe('postgres');
+    });
+
+    it('should normalise postgres:// scheme to postgresql://', () => {
+      const result = parseConnectionUrl('postgres://user:pass@localhost:5432/testdb');
+      expect(result.host).toBe('localhost');
+      expect(result.database).toBe('testdb');
+    });
+
+    it('should strip query-string params from the database name', () => {
+      const result = parseConnectionUrl('postgresql://user:pass@host.neon.tech/mydb?sslmode=require&connect_timeout=10');
+      expect(result.database).toBe('mydb');
+    });
+
+    it('should decode percent-encoded characters in password', () => {
+      const result = parseConnectionUrl('postgresql://user:pass%40word@ep-xxx.neon.tech/mydb?sslmode=require');
+      expect(result.user).toBe('user');
+      expect(result.password).toBe('pass@word');
+      expect(result.host).toBe('ep-xxx.neon.tech');
+      expect(result.database).toBe('mydb');
+    });
+
+    it('should handle empty password without throwing', () => {
+      const result = parseConnectionUrl('postgresql://user:@localhost:5432/mydb');
+      expect(result.user).toBe('user');
+      expect(result.password).toBe('');
+      expect(result.host).toBe('localhost');
+      expect(result.port).toBe(5432);
+      expect(result.database).toBe('mydb');
+    });
+
+    it('should throw on an invalid URL', () => {
+      expect(() => parseConnectionUrl('not-a-url')).toThrow('Invalid PostgreSQL connection URL format');
+    });
+  });
+
+  describe('isManagedDatabase', () => {
+    it('should return true for *.neon.tech hosts', () => {
+      expect(isManagedDatabase('ep-xxx.us-east-2.aws.neon.tech')).toBe(true);
+    });
+
+    it('should return true for *.supabase.co hosts', () => {
+      expect(isManagedDatabase('db.abc123.supabase.co')).toBe(true);
+    });
+
+    it('should return false for localhost', () => {
+      expect(isManagedDatabase('localhost')).toBe(false);
+    });
+
+    it('should return false for RDS hosts', () => {
+      expect(isManagedDatabase('mydb.cluster-xyz.us-east-1.rds.amazonaws.com')).toBe(false);
+    });
+
+    it('should return false for a domain that merely contains but does not end with neon.tech', () => {
+      expect(isManagedDatabase('neon.tech.example.com')).toBe(false);
     });
   });
 

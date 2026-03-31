@@ -10,7 +10,7 @@ export interface RateLimitStatusWidgetProps {
   apiPrefix?: string;
 }
 
-export function RateLimitStatusWidget({ apiPrefix = '/api/rate-limit' }: RateLimitStatusWidgetProps) {
+export function RateLimitStatusWidget({ apiPrefix = '/qapi/rate-limit' }: RateLimitStatusWidgetProps) {
   const [stats, setStats] = useState<{
     totalRequests: number;
     blockedRequests: number;

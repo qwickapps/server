@@ -28,7 +28,7 @@ interface LogStats {
 }
 
 export const LogsStatusWidget: React.FC<LogsStatusWidgetProps> = ({
-  apiPrefix = '/api/plugins/logs',
+  apiPrefix = '/qapi/plugins/logs',
 }) => {
   const [stats, setStats] = useState<LogStats | null>(null);
   const [loading, setLoading] = useState(true);

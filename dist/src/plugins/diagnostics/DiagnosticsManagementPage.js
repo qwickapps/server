@@ -8,7 +8,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
 import { StatCard } from '@qwickapps/react-framework';
-export const DiagnosticsManagementPage = ({ apiPrefix = '/api/plugins/diagnostics', }) => {
+export const DiagnosticsManagementPage = ({ apiPrefix = '/qapi/plugins/diagnostics', }) => {
     const [report, setReport] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('system');

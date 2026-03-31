@@ -19,7 +19,7 @@ export interface SeedManagementPageProps {
 type Tab = 'list' | 'execute' | 'history';
 
 export const SeedManagementPage: React.FC<SeedManagementPageProps> = ({
-  apiPrefix = '/api/plugins/maintenance',
+  apiPrefix = '/qapi/plugins/maintenance',
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('list');
   const [selectedSeed, setSelectedSeed] = useState<string | null>(null);
