@@ -85,6 +85,22 @@ export interface PostgresPluginConfig {
   /** Health check interval in milliseconds (default: 30000) */
   healthCheckInterval?: number;
 
+  /**
+   * Separate connection URL used exclusively for health checks.
+   *
+   * Useful when the main `url` points at a Neon / PgBouncer pooler endpoint
+   * that includes `channel_binding=require` — a TLS channel-binding directive
+   * that the `pg` driver cannot satisfy (it lacks SCRAM-SHA-256-PLUS support).
+   * Pass a direct (non-pooler) Neon endpoint here so the health-check pool can
+   * authenticate successfully while your application continues to use the pooler
+   * URL for queries.
+   *
+   * When omitted, the plugin automatically strips `channel_binding=require` from
+   * the main `url` before handing it to the health-check pool (see
+   * `sanitizeConnectionUrl`), which is sufficient for most cases.
+   */
+  healthCheckUrl?: string;
+
   /** Called when a client connects (for setup like setting search_path) */
   onConnect?: (client: pg.PoolClient) => Promise<void>;
 
@@ -159,6 +175,45 @@ export interface PostgresInstance {
 
 // Global registry of PostgreSQL instances by name
 const instances = new Map<string, PostgresInstance>();
+
+/**
+ * Strip connection-string parameters that the `pg` driver cannot honour.
+ *
+ * Currently removes `channel_binding=require`, which is included in Neon's
+ * pgbouncer pooler URLs as a TLS channel-binding directive.  The `pg` driver
+ * does not implement SCRAM-SHA-256-PLUS (the mechanism required for channel
+ * binding), so passing `channel_binding=require` causes every authentication
+ * attempt to fail.  Removing the parameter lets `pg` fall back to plain
+ * SCRAM-SHA-256, which both the pooler and direct endpoints accept.
+ *
+ * The function is a no-op when the parameter is absent, so it is safe to
+ * call unconditionally.
+ */
+export function sanitizeConnectionUrl(url: string): string {
+  // Handle empty / non-string input defensively
+  if (!url) return url;
+
+  // Normalise so URL constructor accepts both postgres:// and postgresql://
+  const scheme = url.startsWith('postgres://') ? 'postgres' : null;
+  const normalised = scheme ? url.replace(/^postgres:\/\//, 'postgresql://') : url;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(normalised);
+  } catch {
+    // Not a valid URL — return as-is rather than crashing
+    return url;
+  }
+
+  if (parsed.searchParams.has('channel_binding')) {
+    parsed.searchParams.delete('channel_binding');
+    // Restore original scheme if it was postgres://
+    const result = parsed.toString();
+    return scheme ? result.replace(/^postgresql:\/\//, 'postgres://') : result;
+  }
+
+  return url;
+}
 
 /**
  * Parse database connection URL to extract components.
@@ -358,9 +413,13 @@ export function createPostgresPlugin(
         // Use pre-configured pool (e.g., pg-mem for testing)
         pool = config.pool;
       } else if (config.url) {
-        // Create pool from URL
+        // Sanitize the URL before passing to pg — in particular, strip
+        // `channel_binding=require` which pg cannot honour (it lacks
+        // SCRAM-SHA-256-PLUS support) and which would cause every auth attempt
+        // to fail when connecting through Neon's pgbouncer pooler.
+        const connectionString = sanitizeConnectionUrl(config.url);
         pool = new Pool({
-          connectionString: config.url,
+          connectionString,
           max: config.maxConnections ?? 20,
           min: config.minConnections ?? 2,
           idleTimeoutMillis: config.idleTimeoutMs ?? 30000,
@@ -749,6 +808,23 @@ export function createPostgresPlugin(
 
       // Register health check if enabled
       if (config.healthCheck !== false) {
+        // When the caller provides an explicit healthCheckUrl, create a
+        // dedicated single-connection pool for health-check probes.  This is
+        // useful when the main `url` is a Neon/PgBouncer pooler endpoint and
+        // a separate direct endpoint should be used for the probe.
+        // Otherwise, fall back to the main instance pool (which already has
+        // channel_binding stripped via sanitizeConnectionUrl above).
+        let healthCheckPool: pg.Pool | null = null;
+        if (config.healthCheckUrl) {
+          healthCheckPool = new Pool({
+            connectionString: sanitizeConnectionUrl(config.healthCheckUrl),
+            max: 1,
+            min: 0,
+            idleTimeoutMillis: 10000,
+            connectionTimeoutMillis: 5000,
+          });
+        }
+
         registry.registerHealthCheck({
           name: config.healthCheckName ?? 'postgres',
           type: 'custom',
@@ -757,7 +833,11 @@ export function createPostgresPlugin(
           check: async () => {
             const start = Date.now();
             try {
-              await instance.query('SELECT 1');
+              if (healthCheckPool) {
+                await healthCheckPool.query('SELECT 1');
+              } else {
+                await instance.query('SELECT 1');
+              }
               const stats = instance.getStats();
               return {
                 healthy: true,
