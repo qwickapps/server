@@ -37,6 +37,7 @@ import {
   getPostgres,
   hasPostgres,
   parseConnectionUrl,
+  sanitizeConnectionUrl,
   isManagedDatabase,
   type PostgresPluginConfig,
 } from './postgres-plugin.js';
@@ -309,6 +310,95 @@ describe('PostgreSQL Plugin', () => {
       await plugin.onStop();
 
       expect(hasPostgres('test')).toBe(false);
+    });
+  });
+
+  describe('sanitizeConnectionUrl', () => {
+    it('should strip channel_binding=require from a Neon pooler URL', () => {
+      const raw = 'postgresql://user:pass@ep-xxx-pooler.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require';
+      const sanitized = sanitizeConnectionUrl(raw);
+      expect(sanitized).not.toContain('channel_binding');
+      expect(sanitized).toContain('sslmode=require');
+    });
+
+    it('should return the URL unchanged when channel_binding is absent', () => {
+      const raw = 'postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require';
+      expect(sanitizeConnectionUrl(raw)).toBe(raw);
+    });
+
+    it('should preserve the postgres:// scheme', () => {
+      const raw = 'postgres://user:pass@ep-xxx-pooler.neon.tech/neondb?channel_binding=require';
+      const sanitized = sanitizeConnectionUrl(raw);
+      expect(sanitized.startsWith('postgres://')).toBe(true);
+      expect(sanitized).not.toContain('channel_binding');
+    });
+
+    it('should return the input unchanged for a non-URL string', () => {
+      const raw = 'not-a-url';
+      expect(sanitizeConnectionUrl(raw)).toBe(raw);
+    });
+
+    it('should handle a URL with only channel_binding in the query string', () => {
+      const raw = 'postgresql://user:pass@host/db?channel_binding=require';
+      const sanitized = sanitizeConnectionUrl(raw);
+      expect(sanitized).not.toContain('channel_binding');
+      // No trailing '?' when the query string becomes empty
+      expect(sanitized).not.toMatch(/\?$/);
+    });
+
+    it('should be a no-op on an empty string', () => {
+      expect(sanitizeConnectionUrl('')).toBe('');
+    });
+  });
+
+  describe('healthCheckUrl option', () => {
+    it('should create a separate pool when healthCheckUrl is provided', async () => {
+      const pg = await import('pg');
+      const PoolMock = vi.mocked(pg.default.Pool);
+      PoolMock.mockClear();
+
+      const configWithHealthUrl = {
+        ...mockConfig,
+        healthCheck: true,
+        healthCheckUrl: 'postgresql://user:pass@ep-direct.neon.tech/db',
+      };
+
+      const plugin = createPostgresPlugin(configWithHealthUrl, 'test');
+      await plugin.onStart({}, mockRegistry);
+
+      // Pool should have been constructed at least twice: once for the main
+      // pool and once for the dedicated health-check pool.
+      expect(PoolMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+      const poolArgs = PoolMock.mock.calls.map((c) => c[0] as Record<string, unknown>);
+      const healthPoolArgs = poolArgs.find(
+        (a) => a && (a['connectionString'] as string | undefined)?.includes('ep-direct.neon.tech')
+      );
+      expect(healthPoolArgs).toBeDefined();
+      // Health-check pool should be minimal (max: 1)
+      expect(healthPoolArgs!['max']).toBe(1);
+    });
+
+    it('should strip channel_binding from healthCheckUrl', async () => {
+      const pg = await import('pg');
+      const PoolMock = vi.mocked(pg.default.Pool);
+      PoolMock.mockClear();
+
+      const configWithHealthUrl = {
+        ...mockConfig,
+        healthCheck: true,
+        healthCheckUrl: 'postgresql://user:pass@ep-direct.neon.tech/db?channel_binding=require',
+      };
+
+      const plugin = createPostgresPlugin(configWithHealthUrl, 'test');
+      await plugin.onStart({}, mockRegistry);
+
+      const poolArgs = PoolMock.mock.calls.map((c) => c[0] as Record<string, unknown>);
+      const healthPoolArgs = poolArgs.find(
+        (a) => a && (a['connectionString'] as string | undefined)?.includes('ep-direct.neon.tech')
+      );
+      expect(healthPoolArgs).toBeDefined();
+      expect(healthPoolArgs!['connectionString']).not.toContain('channel_binding');
     });
   });
 });
