@@ -14,7 +14,7 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import pg from 'pg';
+import type { Client as PgClient, Notification } from 'pg';
 import type { Response } from 'express';
 import type {
   SSEClient,
@@ -26,7 +26,11 @@ import type {
 } from './types.js';
 import type { Logger } from '../../core/types.js';
 
-const { Client } = pg;
+async function createPgClient(connectionString: string): Promise<PgClient> {
+  const pg = await import('pg');
+  const ClientCtor = pg.default?.Client ?? pg.Client;
+  return new ClientCtor({ connectionString });
+}
 
 // Default configuration values
 const DEFAULT_HEARTBEAT_INTERVAL = 60000; // 60 seconds
@@ -40,7 +44,7 @@ const DEFAULT_MAX_CLIENTS = 10000; // Maximum concurrent SSE clients
  * NotificationsManager - Singleton service for realtime notifications
  */
 export class NotificationsManager implements NotificationsManagerInterface {
-  private client: pg.Client | null = null;
+  private client: PgClient | null = null;
   private clients = new Map<string, SSEClient>();
   private channels: string[];
   private connectionString: string;
@@ -132,9 +136,7 @@ export class NotificationsManager implements NotificationsManagerInterface {
       await this.cleanupConnection();
 
       // Create new client
-      this.client = new Client({
-        connectionString: this.connectionString,
-      });
+      this.client = await createPgClient(this.connectionString);
 
       // Set up error handler before connecting
       this.client.on('error', (err) => {
@@ -187,7 +189,7 @@ export class NotificationsManager implements NotificationsManagerInterface {
   /**
    * Handle incoming notification from PostgreSQL
    */
-  private handleNotification(msg: pg.Notification): void {
+  private handleNotification(msg: Notification): void {
     this.stats.eventsProcessed++;
     this.lastEventReceivedAt = Date.now();
 

@@ -13,8 +13,11 @@
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
-import pg from 'pg';
-const { Client } = pg;
+async function createPgClient(connectionString) {
+    const pg = await import('pg');
+    const ClientCtor = pg.default?.Client ?? pg.Client;
+    return new ClientCtor({ connectionString });
+}
 // Default configuration values
 const DEFAULT_HEARTBEAT_INTERVAL = 60000; // 60 seconds
 const DEFAULT_RECONNECT_MAX_ATTEMPTS = 10;
@@ -85,9 +88,7 @@ export class NotificationsManager {
             // Clean up existing connection if any
             await this.cleanupConnection();
             // Create new client
-            this.client = new Client({
-                connectionString: this.connectionString,
-            });
+            this.client = await createPgClient(this.connectionString);
             // Set up error handler before connecting
             this.client.on('error', (err) => {
                 this.logger.error('PostgreSQL LISTEN connection error', { error: err.message });

@@ -7,7 +7,9 @@ export { createHealthPlugin } from './health-plugin.js';
 export { createCMSPlugin } from './cms/index.js';
 export { createLogsPlugin } from './logs-plugin.js';
 export { createMaintenancePlugin } from './maintenance-plugin.js';
-export { MaintenanceManagementPage, MaintenanceStatusWidget, SeedManagementPage, SeedList, SeedExecutorUI, SeedHistory, } from './maintenance/index.js';
+// Maintenance UI components are intentionally not exported from the plugins
+// barrel because they require React UI peers at module-load time. Import them
+// from the package's UI entry points instead.
 export { createConfigPlugin } from './config-plugin.js';
 export { createDiagnosticsPlugin } from './diagnostics-plugin.js';
 export { createFrontendAppPlugin } from './frontend-app-plugin.js';

@@ -45,8 +45,14 @@
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
-import pg from 'pg';
-const { Pool } = pg;
+let PoolCtor = null;
+async function getPoolCtor() {
+    if (!PoolCtor) {
+        const pg = await import('pg');
+        PoolCtor = pg.default?.Pool ?? pg.Pool;
+    }
+    return PoolCtor;
+}
 // Global registry of PostgreSQL instances by name
 const instances = new Map();
 /**
@@ -85,8 +91,9 @@ export function isManagedDatabase(host) {
 /**
  * Helper to create an admin pool for database operations
  */
-function createAdminPool(config) {
-    return new Pool({
+async function createAdminPool(config) {
+    const PoolClass = await getPoolCtor();
+    return new PoolClass({
         user: config.adminUser,
         password: config.adminPassword,
         host: config.host,
@@ -122,7 +129,8 @@ async function ensureDatabaseExists(adminPool, database, owner) {
  * Grant all permissions to user on database
  */
 async function grantPermissions(adminPool, database, user) {
-    const tempPool = new Pool({
+    const PoolClass = await getPoolCtor();
+    const tempPool = new PoolClass({
         user: adminPool.options.user,
         password: adminPool.options.password,
         host: adminPool.options.host,
@@ -193,7 +201,7 @@ export function hasPostgres(name = 'default') {
 export function createPostgresPlugin(config, instanceName = 'default') {
     let pool = null;
     const pluginId = `postgres:${instanceName}`;
-    const createInstance = () => {
+    const createInstance = async () => {
         if (!pool) {
             if (config.pool) {
                 // Use pre-configured pool (e.g., pg-mem for testing)
@@ -201,7 +209,8 @@ export function createPostgresPlugin(config, instanceName = 'default') {
             }
             else if (config.url) {
                 // Create pool from URL
-                pool = new Pool({
+                const PoolClass = await getPoolCtor();
+                pool = new PoolClass({
                     connectionString: config.url,
                     max: config.maxConnections ?? 20,
                     min: config.minConnections ?? 2,
@@ -296,7 +305,7 @@ export function createPostgresPlugin(config, instanceName = 'default') {
         async onStart(_pluginConfig, registry) {
             const logger = registry.getLogger(pluginId);
             // Create and register the instance
-            const instance = createInstance();
+            const instance = await createInstance();
             instances.set(instanceName, instance);
             // Register maintenance widget FIRST (before connection attempt)
             // This ensures the widget is available even if database connection fails
@@ -327,7 +336,7 @@ export function createPostgresPlugin(config, instanceName = 'default') {
                     logger.info(`Attempting auto-repair for "${instanceName}"...`);
                     try {
                         const connParams = parseConnectionUrl(config.url);
-                        const adminPool = createAdminPool({
+                        const adminPool = await createAdminPool({
                             adminUser: config.adminUser,
                             adminPassword: config.adminPassword,
                             host: connParams.host,
@@ -468,7 +477,7 @@ export function createPostgresPlugin(config, instanceName = 'default') {
                                 message: 'Admin credentials required. Provide adminUser and adminPassword.',
                             });
                         }
-                        const adminPool = createAdminPool({
+                        const adminPool = await createAdminPool({
                             adminUser: effectiveAdminUser,
                             adminPassword: effectiveAdminPassword,
                             host: connParams.host,
@@ -521,7 +530,7 @@ export function createPostgresPlugin(config, instanceName = 'default') {
                                 message: 'Admin credentials required. Provide adminUser and adminPassword.',
                             });
                         }
-                        const adminPool = createAdminPool({
+                        const adminPool = await createAdminPool({
                             adminUser: effectiveAdminUser,
                             adminPassword: effectiveAdminPassword,
                             host: connParams.host,
