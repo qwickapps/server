@@ -46,10 +46,18 @@
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
 
-import pg from 'pg';
+import type { Pool, PoolClient, QueryResult } from 'pg';
 import type { Plugin, PluginConfig, PluginRegistry } from '../core/plugin-registry.js';
 
-const { Pool } = pg;
+let PoolCtor: typeof Pool | null = null;
+
+async function getPoolCtor(): Promise<typeof Pool> {
+  if (!PoolCtor) {
+    const pg = await import('pg');
+    PoolCtor = pg.default?.Pool ?? pg.Pool;
+  }
+  return PoolCtor;
+}
 
 /**
  * Configuration for the PostgreSQL plugin
@@ -59,7 +67,7 @@ export interface PostgresPluginConfig {
   url?: string;
 
   /** Pre-configured pg.Pool instance (alternative to url) */
-  pool?: pg.Pool;
+  pool?: Pool;
 
   /** Maximum number of clients in the pool (default: 20) */
   maxConnections?: number;
@@ -102,7 +110,7 @@ export interface PostgresPluginConfig {
   healthCheckUrl?: string;
 
   /** Called when a client connects (for setup like setting search_path) */
-  onConnect?: (client: pg.PoolClient) => Promise<void>;
+  onConnect?: (client: PoolClient) => Promise<void>;
 
   /** Called on pool errors */
   onError?: (error: Error) => void;
@@ -131,14 +139,14 @@ export interface PostgresPluginConfig {
 /**
  * Transaction callback function
  */
-export type TransactionCallback<T> = (client: pg.PoolClient) => Promise<T>;
+export type TransactionCallback<T> = (client: PoolClient) => Promise<T>;
 
 /**
  * PostgreSQL instance returned by the plugin
  */
 export interface PostgresInstance {
   /** Get a client from the pool (remember to release it!) */
-  getClient(): Promise<pg.PoolClient>;
+  getClient(): Promise<PoolClient>;
 
   /** Execute a query and return rows */
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
@@ -147,7 +155,7 @@ export interface PostgresInstance {
   queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | null>;
 
   /** Execute a query and return the full result (includes rowCount, etc.) */
-  queryRaw(sql: string, params?: unknown[]): Promise<pg.QueryResult>;
+  queryRaw(sql: string, params?: unknown[]): Promise<QueryResult>;
 
   /**
    * Execute multiple queries in a transaction
@@ -164,7 +172,7 @@ export interface PostgresInstance {
   transaction<T>(callback: TransactionCallback<T>): Promise<T>;
 
   /** Get the underlying pool (for advanced use cases) */
-  getPool(): pg.Pool;
+  getPool(): Pool;
 
   /** Get pool statistics */
   getStats(): { total: number; idle: number; waiting: number };
@@ -258,14 +266,15 @@ export function isManagedDatabase(host: string): boolean {
 /**
  * Helper to create an admin pool for database operations
  */
-function createAdminPool(config: {
+async function createAdminPool(config: {
   adminUser: string;
   adminPassword: string;
   host: string;
   port: number;
   adminDatabase?: string;
-}): pg.Pool {
-  return new Pool({
+}): Promise<Pool> {
+  const PoolClass = await getPoolCtor();
+  return new PoolClass({
     user: config.adminUser,
     password: config.adminPassword,
     host: config.host,
@@ -281,7 +290,7 @@ function createAdminPool(config: {
  * Ensure database user exists with password
  */
 async function ensureUserExists(
-  adminPool: pg.Pool,
+  adminPool: Pool,
   user: string,
   password: string
 ): Promise<void> {
@@ -305,7 +314,7 @@ async function ensureUserExists(
  * Ensure database exists with correct owner
  */
 async function ensureDatabaseExists(
-  adminPool: pg.Pool,
+  adminPool: Pool,
   database: string,
   owner: string
 ): Promise<void> {
@@ -325,11 +334,12 @@ async function ensureDatabaseExists(
  * Grant all permissions to user on database
  */
 async function grantPermissions(
-  adminPool: pg.Pool,
+  adminPool: Pool,
   database: string,
   user: string
 ): Promise<void> {
-  const tempPool = new Pool({
+  const PoolClass = await getPoolCtor();
+  const tempPool = new PoolClass({
     user: adminPool.options.user as string,
     password: adminPool.options.password as string,
     host: adminPool.options.host as string,
@@ -404,10 +414,10 @@ export function createPostgresPlugin(
   config: PostgresPluginConfig,
   instanceName = 'default'
 ): Plugin {
-  let pool: pg.Pool | null = null;
+  let pool: Pool | null = null;
   const pluginId = `postgres:${instanceName}`;
 
-  const createInstance = (): PostgresInstance => {
+  const createInstance = async (): Promise<PostgresInstance> => {
     if (!pool) {
       if (config.pool) {
         // Use pre-configured pool (e.g., pg-mem for testing)
@@ -418,7 +428,8 @@ export function createPostgresPlugin(
         // SCRAM-SHA-256-PLUS support) and which would cause every auth attempt
         // to fail when connecting through Neon's pgbouncer pooler.
         const connectionString = sanitizeConnectionUrl(config.url);
-        pool = new Pool({
+        const PoolClass = await getPoolCtor();
+        pool = new PoolClass({
           connectionString,
           max: config.maxConnections ?? 20,
           min: config.minConnections ?? 2,
@@ -450,7 +461,7 @@ export function createPostgresPlugin(
     }
 
     const instance: PostgresInstance = {
-      async getClient(): Promise<pg.PoolClient> {
+      async getClient(): Promise<PoolClient> {
         if (!pool) throw new Error('Database pool not initialized');
         return pool.connect();
       },
@@ -466,7 +477,7 @@ export function createPostgresPlugin(
         return rows[0] ?? null;
       },
 
-      async queryRaw(sql: string, params?: unknown[]): Promise<pg.QueryResult> {
+      async queryRaw(sql: string, params?: unknown[]): Promise<QueryResult> {
         if (!pool) throw new Error('Database pool not initialized');
         return pool.query(sql, params);
       },
@@ -486,7 +497,7 @@ export function createPostgresPlugin(
         }
       },
 
-      getPool(): pg.Pool {
+      getPool(): Pool {
         if (!pool) throw new Error('Database pool not initialized');
         return pool;
       },
@@ -519,7 +530,7 @@ export function createPostgresPlugin(
       const logger = registry.getLogger(pluginId);
 
       // Create and register the instance
-      const instance = createInstance();
+      const instance = await createInstance();
       instances.set(instanceName, instance);
 
       // Register maintenance widget FIRST (before connection attempt)
@@ -556,7 +567,7 @@ export function createPostgresPlugin(
 
           try {
             const connParams = parseConnectionUrl(config.url!);
-            const adminPool = createAdminPool({
+            const adminPool = await createAdminPool({
               adminUser: config.adminUser!,
               adminPassword: config.adminPassword!,
               host: connParams.host,
@@ -711,7 +722,7 @@ export function createPostgresPlugin(
               });
             }
 
-            const adminPool = createAdminPool({
+            const adminPool = await createAdminPool({
               adminUser: effectiveAdminUser,
               adminPassword: effectiveAdminPassword,
               host: connParams.host,
@@ -772,7 +783,7 @@ export function createPostgresPlugin(
               });
             }
 
-            const adminPool = createAdminPool({
+            const adminPool = await createAdminPool({
               adminUser: effectiveAdminUser,
               adminPassword: effectiveAdminPassword,
               host: connParams.host,
@@ -814,9 +825,10 @@ export function createPostgresPlugin(
         // a separate direct endpoint should be used for the probe.
         // Otherwise, fall back to the main instance pool (which already has
         // channel_binding stripped via sanitizeConnectionUrl above).
-        let healthCheckPool: pg.Pool | null = null;
+        let healthCheckPool: Pool | null = null;
         if (config.healthCheckUrl) {
-          healthCheckPool = new Pool({
+          const PoolClass = await getPoolCtor();
+          healthCheckPool = new PoolClass({
             connectionString: sanitizeConnectionUrl(config.healthCheckUrl),
             max: 1,
             min: 0,
