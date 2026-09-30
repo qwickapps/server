@@ -107,8 +107,6 @@ export function createControlPanel(options) {
     const healthManager = new HealthManager(logger);
     let server = null;
     const startTime = Date.now();
-    // Initialize the new plugin registry
-    const pluginRegistry = createPluginRegistry(app, router, logger, healthManager, getControlPanelLogger);
     // Security middleware
     app.use(helmet({
         contentSecurityPolicy: false, // Allow inline scripts for simple UI
@@ -146,6 +144,9 @@ export function createControlPanel(options) {
         logger.debug(`${req.method} ${req.path}`);
         next();
     });
+    // Initialize the plugin registry after core middleware so dynamically
+    // registered app middleware still runs before consumer-defined routes.
+    const pluginRegistry = createPluginRegistry(app, router, logger, healthManager, getControlPanelLogger);
     // CRITICAL: QwickApps Server APIs always mount at /qapi regardless of mountPath
     // This avoids conflicts with application-level APIs (e.g., Payload CMS uses /api)
     // /qapi = QwickApps framework APIs (SuperTokens, health, postgres, cache, etc.)
