@@ -41,7 +41,6 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
     type: 'system' as const,
 
     async onStart(_pluginConfig: PluginConfig, registry: PluginRegistry): Promise<void> {
-      const app = registry.getApp();
       const router = registry.getRouter();
 
       // Store adapters for helper access
@@ -58,18 +57,18 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
       // Initialize the primary adapter
       const primaryMiddleware = config.adapter.initialize();
       if (Array.isArray(primaryMiddleware)) {
-        primaryMiddleware.forEach((mw) => app.use(mw));
+        registry.addAppMiddleware(...primaryMiddleware);
       } else {
-        app.use(primaryMiddleware);
+        registry.addAppMiddleware(primaryMiddleware);
       }
 
       // Initialize fallback adapters
       for (const fallback of fallbackAdapters) {
         const fallbackMiddleware = fallback.initialize();
         if (Array.isArray(fallbackMiddleware)) {
-          fallbackMiddleware.forEach((mw) => app.use(mw));
+          registry.addAppMiddleware(...fallbackMiddleware);
         } else {
-          app.use(fallbackMiddleware);
+          registry.addAppMiddleware(fallbackMiddleware);
         }
       }
 
@@ -83,8 +82,18 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
         router.use(authBasePath, primaryMiddleware);
       }
 
-      // Add the auth checking middleware to router (not app)
-      // This ensures it processes requests to /api/* routes
+      // Populate auth for direct app routes without enforcing authentication.
+      // /qapi keeps using the router-scoped middleware below so exclusions are
+      // matched against mount-relative paths and getUser() only runs once.
+      const appAuthMiddleware = createAuthMiddleware(false);
+      registry.addAppMiddleware((req, res, next) => {
+        if (req.path === '/qapi' || req.path.startsWith('/qapi/')) {
+          return next();
+        }
+        return appAuthMiddleware(req, res, next);
+      });
+
+      // Preserve authentication and exclusion behavior for /qapi routes.
       router.use(createAuthMiddleware());
 
       // Register auth status route
@@ -134,7 +143,7 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
   /**
    * Create the auth checking middleware
    */
-  function createAuthMiddleware(): RequestHandler {
+  function createAuthMiddleware(enforceAuth = true): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthenticatedRequest;
 
@@ -210,7 +219,7 @@ export function createAuthPlugin(config: AuthPluginConfig): Plugin {
       }
 
       // Check if auth is required but user is not authenticated
-      if (authRequired && !authenticated) {
+      if (enforceAuth && authRequired && !authenticated) {
         log('Auth required but not authenticated', { path: req.path });
 
         // Use custom handler if provided
