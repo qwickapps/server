@@ -32,4 +32,7 @@ jobs:
       - name: Run Codex
         uses: openai/codex-action@v1
         with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          # NOTE(workflow-lint): fixed from `openai_api_key` (underscore) — actionlint
+          # confirmed openai/codex-action@v1 only defines the hyphenated
+          # `openai-api-key` input, so the key was never actually reaching the action.
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}

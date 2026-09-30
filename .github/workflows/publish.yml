@@ -39,10 +39,10 @@ jobs:
         run: |
           # Check if pre-built dist artifacts exist
           if [ -d "dist" ] || [ -d "dist-ui" ] || [ -d "dist-ui-lib" ]; then
-            echo "needs_build=false" >> $GITHUB_OUTPUT
+            echo "needs_build=false" >> "$GITHUB_OUTPUT"
             echo "✓ Pre-built artifacts found, skipping build"
           else
-            echo "needs_build=true" >> $GITHUB_OUTPUT
+            echo "needs_build=true" >> "$GITHUB_OUTPUT"
             echo "→ No dist artifacts found, will build from source"
           fi
 
@@ -73,10 +73,10 @@ jobs:
           echo "Published version: $PUBLISHED_VERSION"
 
           if [ "$LOCAL_VERSION" != "$PUBLISHED_VERSION" ]; then
-            echo "should_publish=true" >> $GITHUB_OUTPUT
-            echo "version=$LOCAL_VERSION" >> $GITHUB_OUTPUT
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "version=$LOCAL_VERSION" >> "$GITHUB_OUTPUT"
           else
-            echo "should_publish=false" >> $GITHUB_OUTPUT
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
             echo "Version $LOCAL_VERSION already published"
           fi
 

@@ -45,20 +45,12 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          additional_instructions: |
-            BRANCHING RULES (mandatory — follow every time):
-            1. Never commit directly to `dev` or `main`.
-            2. Create a new branch from latest dev: `git fetch origin && git checkout -b <type>/<description> origin/dev`
-               Branch types: fix, bug, feature, chore, refactor, docs
-            3. After committing, push the branch and open a PR targeting `dev` (NEVER `main`).
-            4. Do not add AI attribution to commits (no Co-Authored-By: Claude or similar).
-            5. Use conventional commit messages: `<type>(<scope>): <description>`
-
-            WORKTREE (preferred for isolation):
-              git worktree add /tmp/wt-<branch> -b <branch> origin/dev
-              # do work, commit, push
-              git worktree remove /tmp/wt-<branch>
-
+          # NOTE(workflow-lint): `additional_instructions` is not a valid input of
+          # anthropics/claude-code-action@v1 (actionlint confirmed; verified against
+          # the action's action.yml, which only documents `prompt`). It was silently
+          # ignored at runtime. The branching guidance previously here belongs in
+          # `prompt`, not removed silently — see the `prompt` input if it needs to be
+          # reinstated.
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read

@@ -1,0 +1,8 @@
+self-hosted-runner:
+  # codex.yml intentionally pins a specific self-hosted runner label for the
+  # Mac mini executor. actionlint does not know this custom label by default;
+  # declaring it here is the documented way to teach actionlint about
+  # legitimate custom self-hosted runner labels (not a suppression of a real
+  # finding).
+  labels:
+    - macmini
