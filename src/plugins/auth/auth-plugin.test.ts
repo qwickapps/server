@@ -7,9 +7,16 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import express, { type Application } from 'express';
 import type { Request, Response, NextFunction } from 'express';
+import { request as httpRequest } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import type { Logger } from '../../core/types.js';
+import { HealthManager } from '../../core/health-manager.js';
+import { createPluginRegistry } from '../../core/plugin-registry.js';
 import { basicAdapter } from './adapters/basic-adapter.js';
-import type { AuthenticatedUser } from './types.js';
+import { createAuthPlugin, requireAuth } from './auth-plugin.js';
+import type { AuthAdapter, AuthenticatedRequest, AuthenticatedUser } from './types.js';
 
 // Mock request/response helpers
 function createMockRequest(overrides: Partial<Request> = {}): Request {
@@ -30,6 +37,134 @@ function createMockResponse(): Response {
   };
   return res as unknown as Response;
 }
+
+function createMockLogger(): Logger {
+  return {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  };
+}
+
+async function get(app: Application, path: string, headers: Record<string, string> = {}) {
+  const server = app.listen(0);
+  await new Promise<void>((resolve) => server.once('listening', resolve));
+  const { port } = server.address() as AddressInfo;
+
+  try {
+    return await new Promise<{ status: number; body: string }>((resolve, reject) => {
+      const request = httpRequest({ hostname: '127.0.0.1', port, path, headers }, (response) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on('end', () => resolve({
+          status: response.statusCode ?? 0,
+          body: Buffer.concat(chunks).toString('utf8'),
+        }));
+      });
+      request.on('error', reject);
+      request.end();
+    });
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    });
+  }
+}
+
+function createTestAdapter(getUser = vi.fn((): AuthenticatedUser => ({
+  id: 'user-123',
+  email: 'test@example.com',
+}))): AuthAdapter {
+  return {
+    name: 'test',
+    initialize: () => (_req, _res, next) => next(),
+    isAuthenticated: (req) => req.get('x-test-authenticated') === 'true',
+    getUser,
+  };
+}
+
+describe('app-level auth middleware', () => {
+  function setup() {
+    const app = express();
+    const router = express.Router();
+    const logger = createMockLogger();
+    const healthManager = new HealthManager(logger);
+    const registry = createPluginRegistry(app, router, logger, healthManager, () => logger);
+
+    app.use('/qapi', router);
+
+    return { app, router, registry, healthManager };
+  }
+
+  it('populates req.auth for a direct app route registered before plugin startup', async () => {
+    const { app, registry, healthManager } = setup();
+    const getUser = vi.fn((): AuthenticatedUser => ({
+      id: 'user-123',
+      email: 'test@example.com',
+    }));
+
+    app.get('/protected', requireAuth(), (req, res) => {
+      res.json((req as AuthenticatedRequest).auth);
+    });
+
+    await registry.startPlugin(createAuthPlugin({
+      adapter: createTestAdapter(getUser),
+      authRequired: true,
+    }), {});
+
+    const response = await get(app, '/protected', { 'x-test-authenticated': 'true' });
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      isAuthenticated: true,
+      user: { id: 'user-123' },
+      adapter: 'test',
+    });
+    expect(getUser).toHaveBeenCalledOnce();
+    healthManager.shutdown();
+  });
+
+  it('keeps app routes opt-in when plugin auth is required', async () => {
+    const { app, registry, healthManager } = setup();
+
+    app.get('/public', (_req, res) => res.sendStatus(204));
+
+    await registry.startPlugin(createAuthPlugin({
+      adapter: createTestAdapter(),
+      authRequired: true,
+    }), {});
+
+    const response = await get(app, '/public');
+
+    expect(response.status).toBe(204);
+    healthManager.shutdown();
+  });
+
+  it('preserves mount-relative exclusions for /qapi routes', async () => {
+    const { app, router, registry, healthManager } = setup();
+    const getUser = vi.fn((): AuthenticatedUser => ({
+      id: 'user-123',
+      email: 'test@example.com',
+    }));
+
+    await registry.startPlugin(createAuthPlugin({
+      adapter: createTestAdapter(getUser),
+      authRequired: true,
+      excludePaths: ['/public'],
+    }), {});
+    router.get('/public', (req, res) => {
+      res.json((req as AuthenticatedRequest).auth);
+    });
+
+    const response = await get(app, '/qapi/public', { 'x-test-authenticated': 'true' });
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({ isAuthenticated: false });
+    expect(getUser).not.toHaveBeenCalled();
+    healthManager.shutdown();
+  });
+});
 
 describe('basicAdapter', () => {
   const config = {
@@ -205,8 +340,13 @@ describe('onAuthenticated callback', () => {
     const mockApp = {
       use: vi.fn(),
     };
+    const mockRouter = {
+      use: vi.fn(),
+    };
     const mockRegistry = {
       getApp: () => mockApp,
+      getRouter: () => mockRouter,
+      addAppMiddleware: mockApp.use,
       addRoute: vi.fn(),
     };
 
@@ -240,8 +380,13 @@ describe('onAuthenticated callback', () => {
     const mockApp = {
       use: vi.fn(),
     };
+    const mockRouter = {
+      use: vi.fn(),
+    };
     const mockRegistry = {
       getApp: () => mockApp,
+      getRouter: () => mockRouter,
+      addAppMiddleware: mockApp.use,
       addRoute: vi.fn(),
     };
 
@@ -278,8 +423,13 @@ describe('onAuthenticated callback', () => {
     const mockApp = {
       use: vi.fn(),
     };
+    const mockRouter = {
+      use: vi.fn(),
+    };
     const mockRegistry = {
       getApp: () => mockApp,
+      getRouter: () => mockRouter,
+      addAppMiddleware: mockApp.use,
       addRoute: vi.fn(),
     };
 
@@ -322,8 +472,13 @@ describe('onAuthenticated callback', () => {
     const mockApp = {
       use: vi.fn(),
     };
+    const mockRouter = {
+      use: vi.fn(),
+    };
     const mockRegistry = {
       getApp: () => mockApp,
+      getRouter: () => mockRouter,
+      addAppMiddleware: mockApp.use,
       addRoute: vi.fn(),
     };
 
