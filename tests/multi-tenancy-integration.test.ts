@@ -14,6 +14,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createUsersPlugin } from '../src/plugins/users/users-plugin.js';
 import { createTenantsPlugin } from '../src/plugins/tenants/tenants-plugin.js';
+import { autoCreateUserTenant } from '../src/plugins/tenants/index.js';
 import { postgresUserStore } from '../src/plugins/users/stores/postgres-store.js';
 import { postgresTenantStore } from '../src/plugins/tenants/stores/postgres-store.js';
 import type { PluginRegistry } from '../src/core/plugin-registry.js';
@@ -45,6 +46,12 @@ function createMockRegistry(): PluginRegistry {
     },
     addRoute: vi.fn(),
     registerHealthCheck: vi.fn(),
+    getLogger: vi.fn().mockReturnValue({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    }),
     _addPlugin: (plugin: any) => {
       plugins.set(plugin.id, plugin);
     },
@@ -150,7 +157,7 @@ describe('Multi-Tenancy Integration Tests', () => {
       });
 
       // Auto-create tenant (simulating users plugin behavior)
-      await tenantsPlugin.autoCreateUserTenant(user.id);
+      await autoCreateUserTenant(user.id);
 
       // Verify user created
       expect(user.id).toBe('user-alice');
@@ -225,7 +232,7 @@ describe('Multi-Tenancy Integration Tests', () => {
         email: 'bob@example.com',
       });
 
-      await tenantsPlugin.autoCreateUserTenant(user.id);
+      await autoCreateUserTenant(user.id);
 
       // Verify tenant name is email when no name provided
       const tenantCalls = mockTenantPool.query.mock.calls.filter(call =>
@@ -625,7 +632,7 @@ describe('Multi-Tenancy Integration Tests', () => {
       });
 
       const user = await userStore.create({ email: 'test@example.com' });
-      await tenantsPlugin.autoCreateUserTenant(user.id);
+      await autoCreateUserTenant(user.id);
 
       // Verify metadata was passed to CREATE
       const tenantCalls = mockTenantPool.query.mock.calls.filter(call =>

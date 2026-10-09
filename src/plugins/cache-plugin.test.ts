@@ -146,7 +146,7 @@ describe('Cache Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       const logger = mockRegistry.getLogger('cache:test');
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(logger.debug).toHaveBeenCalledWith(
         expect.stringContaining('connected')
       );
     });

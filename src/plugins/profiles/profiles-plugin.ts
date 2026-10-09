@@ -92,7 +92,7 @@ export function createProfilesPlugin(config: Partial<ProfilesPluginConfig> = {})
       const logger = registry.getLogger('profiles');
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! Profiles plugin disabled.');
         registry.registerHealthCheck({
           name: 'profiles-store',
