@@ -10,6 +10,7 @@
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
+import express from 'express';
 // =============================================================================
 // Plugin Registry Implementation
 // =============================================================================
@@ -43,6 +44,8 @@ export class PluginRegistryImpl {
         this.eventHandlers = new Set();
         this.app = app;
         this.router = router;
+        this.appMiddlewareRouter = express.Router();
+        this.app.use(this.appMiddlewareRouter);
         this.logger = logger;
         this.healthManager = healthManager;
         this.loggerFactory = loggerFactory;
@@ -235,6 +238,9 @@ export class PluginRegistryImpl {
     // ---------------------------------------------------------------------------
     // Express integration
     // ---------------------------------------------------------------------------
+    addAppMiddleware(...handlers) {
+        this.appMiddlewareRouter.use(...handlers);
+    }
     getApp() {
         return this.app;
     }

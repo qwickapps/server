@@ -10,7 +10,7 @@
  *
  * Copyright (c) 2025 QwickApps.com. All rights reserved.
  */
-import type { RequestHandler, Application, Router } from 'express';
+import { type RequestHandler, type Application, type Router } from 'express';
 import type { Logger, HealthCheck } from './types.js';
 import { HealthManager } from './health-manager.js';
 /**
@@ -351,6 +351,8 @@ export interface PluginRegistry {
     runMaintenanceAction(pluginId: string, actionId: string): Promise<MaintenanceActionResult>;
     /** Clear maintenance state for a plugin (used after successful fix) */
     clearMaintenance(pluginId: string): void;
+    /** Register middleware that must run before application-level routes */
+    addAppMiddleware(...handlers: RequestHandler[]): void;
     /** Get the Express app (for advanced use cases) */
     getApp(): Application;
     /** Get the Express router (for advanced use cases) */
@@ -377,6 +379,7 @@ export declare class PluginRegistryImpl implements PluginRegistry {
     private eventHandlers;
     private app;
     private router;
+    private appMiddlewareRouter;
     private logger;
     private healthManager;
     private loggerFactory;
@@ -400,6 +403,7 @@ export declare class PluginRegistryImpl implements PluginRegistry {
     subscribe(handler: PluginEventHandler): () => void;
     emit(event: PluginEvent): void;
     registerHealthCheck(check: HealthCheck): void;
+    addAppMiddleware(...handlers: RequestHandler[]): void;
     getApp(): Application;
     getRouter(): Router;
     getLogger(pluginId: string): Logger;
