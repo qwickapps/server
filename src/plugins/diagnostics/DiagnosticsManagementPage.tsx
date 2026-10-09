@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
-import { StatCard } from '@qwickapps/react-framework';
+import { PluginStatCard as StatCard } from '@qwickapps/react-framework';
 
 export interface DiagnosticsManagementPageProps {
   apiPrefix?: string;
