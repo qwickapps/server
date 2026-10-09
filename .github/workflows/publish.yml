@@ -82,7 +82,7 @@ jobs:
 
       - name: Publish to npm
         if: steps.version.outputs.should_publish == 'true'
-        run: npm publish --access public --ignore-scripts
+        run: npx -y npm@11 stage publish --access public --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
