@@ -11,48 +11,31 @@ import { ApiKeysManagementPage } from './ApiKeysManagementPage';
 describe('ApiKeysManagementPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ keys: [] }),
+    });
   });
 
   it('renders page title', () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
-      () => Promise.resolve({
-        ok: true,
-        json: async () => ([]),
-      })
-    );
-
     render(<ApiKeysManagementPage apiPrefix="/api/api-keys" />);
 
     expect(screen.getByText('API Keys Management')).toBeInTheDocument();
   });
 
   it('fetches API keys on mount', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
-      () => Promise.resolve({
-        ok: true,
-        json: async () => ([]),
-      })
-    );
-
     render(<ApiKeysManagementPage apiPrefix="/api/api-keys" />);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalledWith('/api/api-keys');
     });
   });
 
-  it('renders with custom apiPrefix', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
-      () => Promise.resolve({
-        ok: true,
-        json: async () => ([]),
-      })
-    );
-
+  it('uses a custom apiPrefix', async () => {
     render(<ApiKeysManagementPage apiPrefix="/custom/api-keys" />);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalledWith('/custom/api-keys');
     });
   });
 });
