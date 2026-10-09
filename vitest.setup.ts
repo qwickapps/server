@@ -143,21 +143,25 @@ vi.mock('@qwickapps/react-framework', () => ({
       )),
       children
     ),
-  DataTable: ({ columns, data }: any) =>
-    React.createElement(
+  DataTable: ({ columns = [], data }: any) => {
+    const rows = Array.isArray(data) ? data : [];
+    return React.createElement(
       'table',
       null,
       React.createElement('thead', null,
-        React.createElement('tr', null, columns && columns.map((col: any) =>
+        React.createElement('tr', null, columns.map((col: any) =>
           React.createElement('th', { key: col.key }, col.label)
         ))
       ),
-      React.createElement('tbody', null, data && data.map((row: any, i: number) =>
+      React.createElement('tbody', null, rows.map((row: any, i: number) =>
         React.createElement('tr', { key: i })
       ))
-    ),
+    );
+  },
   StatCard: ({ label, value }: any) =>
     React.createElement('div', null, `${label}: ${value}`),
+  PluginStatCard: ({ label, value, subValue }: any) =>
+    React.createElement('div', null, `${label}: ${value}${subValue ? ` ${subValue}` : ''}`),
   PluginConfigPanel: ({ children }: any) =>
     React.createElement('div', null, children),
 }));
