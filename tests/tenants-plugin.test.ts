@@ -46,7 +46,7 @@ function createMockStore(overrides: Partial<TenantStore> = {}): TenantStore {
       totalPages: 0,
     }),
     getTenantsForUser: vi.fn().mockResolvedValue([]),
-    getTenantForUser: vi.fn().mockResolvedValue(null),
+    getTenantForUser: vi.fn().mockResolvedValue({ user_role: 'owner' }),
     addMember: vi.fn().mockResolvedValue({
       id: 'membership-1',
       tenant_id: 'tenant-123',
@@ -209,7 +209,7 @@ describe('Tenants Plugin', () => {
       const calls = (mockRegistry.addRoute as any).mock.calls;
       const firstRoute = calls[0][0];
 
-      expect(firstRoute.path).toBe('/'); // Default prefix
+      expect(firstRoute.path).toBe('/tenants');
     });
 
     it('should use custom apiPrefix', async () => {
@@ -299,11 +299,11 @@ describe('Tenants Plugin', () => {
       });
     });
 
-    describe('GET /tenants (list/search)', () => {
-      it('should search tenants with query parameters', async () => {
+    describe('GET /tenants (list current user tenants)', () => {
+      it('should return the authenticated user\'s tenants', async () => {
         const handler = routeHandlers.get('get:/tenants');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           query: {
             q: 'test',
             type: 'organization',
@@ -322,23 +322,15 @@ describe('Tenants Plugin', () => {
 
         await handler(mockReq, mockRes);
 
-        expect(mockStore.search).toHaveBeenCalledWith({
-          query: 'test',
-          type: 'organization',
-          owner_id: 'user-123',
-          page: 2,
-          limit: 10,
-          sortBy: 'name',
-          sortOrder: 'asc',
-        });
+        expect(mockStore.getTenantsForUser).toHaveBeenCalledWith('user-123');
 
         expect(mockRes.json).toHaveBeenCalled();
       });
 
-      it('should use default pagination values', async () => {
+      it('should return a scoped response without query parameters', async () => {
         const handler = routeHandlers.get('get:/tenants');
 
-        const mockReq = { query: {} };
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } }, query: {} };
         const mockRes = {
           json: vi.fn(),
           status: vi.fn().mockReturnThis(),
@@ -346,20 +338,13 @@ describe('Tenants Plugin', () => {
 
         await handler(mockReq, mockRes);
 
-        expect(mockStore.search).toHaveBeenCalledWith(
-          expect.objectContaining({
-            page: 1,
-            limit: 20,
-            sortBy: 'created_at',
-            sortOrder: 'desc',
-          })
-        );
+        expect(mockStore.getTenantsForUser).toHaveBeenCalledWith('user-123');
       });
 
-      it('should limit max page size to 100', async () => {
+      it('should ignore query pagination for the scoped tenant list', async () => {
         const handler = routeHandlers.get('get:/tenants');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           query: { limit: '500' },
         };
 
@@ -370,9 +355,7 @@ describe('Tenants Plugin', () => {
 
         await handler(mockReq, mockRes);
 
-        expect(mockStore.search).toHaveBeenCalledWith(
-          expect.objectContaining({ limit: 100 })
-        );
+        expect(mockStore.getTenantsForUser).toHaveBeenCalledWith('user-123');
       });
     });
 
@@ -389,7 +372,7 @@ describe('Tenants Plugin', () => {
 
         mockStore.getById = vi.fn().mockResolvedValue(mockTenant);
 
-        const mockReq = { params: { id: 'tenant-123' } };
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } }, params: { id: 'tenant-123' } };
         const mockRes = {
           json: vi.fn(),
           status: vi.fn().mockReturnThis(),
@@ -406,7 +389,7 @@ describe('Tenants Plugin', () => {
 
         mockStore.getById = vi.fn().mockResolvedValue(null);
 
-        const mockReq = { params: { id: 'nonexistent' } };
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } }, params: { id: 'nonexistent' } };
         const mockRes = {
           json: vi.fn(),
           status: vi.fn().mockReturnThis(),
@@ -423,7 +406,7 @@ describe('Tenants Plugin', () => {
       it('should create tenant with valid input', async () => {
         const handler = routeHandlers.get('post:/tenants');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           body: {
             name: 'New Org',
             type: 'organization',
@@ -452,7 +435,7 @@ describe('Tenants Plugin', () => {
       it('should validate required name', async () => {
         const handler = routeHandlers.get('post:/tenants');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           body: { type: 'organization', owner_id: 'user-123' },
         };
 
@@ -470,7 +453,7 @@ describe('Tenants Plugin', () => {
       it('should validate required type', async () => {
         const handler = routeHandlers.get('post:/tenants');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           body: { name: 'Test', owner_id: 'user-123' },
         };
 
@@ -485,10 +468,10 @@ describe('Tenants Plugin', () => {
         expect(mockRes.json).toHaveBeenCalledWith({ error: 'Tenant type is required' });
       });
 
-      it('should validate required owner_id', async () => {
+      it('should default owner_id to the authenticated user', async () => {
         const handler = routeHandlers.get('post:/tenants');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           body: { name: 'Test', type: 'organization' },
         };
 
@@ -499,14 +482,16 @@ describe('Tenants Plugin', () => {
 
         await handler(mockReq, mockRes);
 
-        expect(mockRes.status).toHaveBeenCalledWith(400);
-        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Owner ID is required' });
+        expect(mockStore.create).toHaveBeenCalledWith(
+          expect.objectContaining({ owner_id: 'user-123' })
+        );
+        expect(mockRes.status).toHaveBeenCalledWith(201);
       });
 
       it('should validate tenant type', async () => {
         const handler = routeHandlers.get('post:/tenants');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           body: {
             name: 'Test',
             type: 'invalid-type',
@@ -532,7 +517,7 @@ describe('Tenants Plugin', () => {
       it('should add member with valid role', async () => {
         const handler = routeHandlers.get('post:/tenants/:tenantId/members');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           params: { tenantId: 'tenant-123' },
           body: { user_id: 'user-456', role: 'admin' },
         };
@@ -556,7 +541,7 @@ describe('Tenants Plugin', () => {
       it('should validate role value', async () => {
         const handler = routeHandlers.get('post:/tenants/:tenantId/members');
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           params: { tenantId: 'tenant-123' },
           body: { user_id: 'user-456', role: 'invalid-role' },
         };
@@ -581,7 +566,7 @@ describe('Tenants Plugin', () => {
 
         mockStore.removeMember = vi.fn().mockResolvedValue(true);
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           params: { tenantId: 'tenant-123', userId: 'user-456' },
         };
 
@@ -603,7 +588,7 @@ describe('Tenants Plugin', () => {
 
         mockStore.removeMember = vi.fn().mockResolvedValue(false);
 
-        const mockReq = {
+        const mockReq = { auth: { isAuthenticated: true, user: { id: 'user-123' } },
           params: { tenantId: 'tenant-123', userId: 'user-456' },
         };
 

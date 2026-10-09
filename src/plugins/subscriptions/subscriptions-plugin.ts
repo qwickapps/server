@@ -55,7 +55,7 @@ export function createSubscriptionsPlugin(config: Partial<SubscriptionsPluginCon
       const logger = registry.getLogger('subscriptions');
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! Subscriptions plugin disabled.');
         registry.registerHealthCheck({
           name: 'subscriptions-store',

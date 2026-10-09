@@ -61,7 +61,7 @@ export function createEntitlementsPlugin(config: Partial<EntitlementsPluginConfi
       const logger = registry.getLogger('entitlements');
 
       // Check for postgres in registry (needed for default source)
-      if (!hasPostgres()) {
+      if (!config.source && !hasPostgres()) {
         logger.warn('No Database! Entitlements plugin disabled.');
         registry.registerHealthCheck({
           name: 'entitlements-source',

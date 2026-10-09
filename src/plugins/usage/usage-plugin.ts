@@ -70,7 +70,7 @@ export function createUsagePlugin(config: Partial<UsagePluginConfig> = {}): Plug
       const logger = registry.getLogger('usage');
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! Usage plugin disabled.');
         registry.registerHealthCheck({
           name: 'usage-store',
