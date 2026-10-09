@@ -60,7 +60,7 @@ describe('Usage Log Store', () => {
       await store.initialize();
 
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TABLE IF NOT EXISTS api_key_usage_logs')
+        expect.stringContaining('CREATE TABLE IF NOT EXISTS "public"."api_key_usage_logs"')
       );
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('PARTITION BY RANGE (timestamp)')
@@ -82,7 +82,7 @@ describe('Usage Log Store', () => {
       );
     });
 
-    it('should create initial partitions (current + 2 future months)', async () => {
+    it('should create three upcoming partition intervals', async () => {
       const store = createPostgresUsageLogStore({
         pool: mockPool,
         autoCreateTables: true,
@@ -92,12 +92,13 @@ describe('Usage Log Store', () => {
 
       await store.initialize();
 
-      // Should create 3 partitions
+      // The default partition is separate; initialization creates three 30-day ranges.
       const partitionCalls = (mockPool.query as any).mock.calls.filter((call: any[]) =>
-        call[0].includes('CREATE TABLE IF NOT EXISTS api_key_usage_logs_')
+        call[0].includes('CREATE TABLE IF NOT EXISTS "public"."api_key_usage_logs_') &&
+        call[0].includes('FOR VALUES FROM')
       );
 
-      expect(partitionCalls.length).toBeGreaterThanOrEqual(3);
+      expect(partitionCalls).toHaveLength(3);
     });
 
     it('should create index on key_id and timestamp', async () => {
@@ -148,7 +149,7 @@ describe('Usage Log Store', () => {
       await store.log(entry);
 
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO api_key_usage_logs'),
+        expect.stringContaining('INSERT INTO "public"."api_key_usage_logs"'),
         expect.arrayContaining([
           entry.key_id,
           entry.endpoint,
@@ -182,11 +183,10 @@ describe('Usage Log Store', () => {
       );
     });
 
-    it('should create partition if it does not exist', async () => {
+    it('should propagate insert errors', async () => {
       const store = createPostgresUsageLogStore({
         pool: mockPool,
-        autoCreateTables: true,
-        autoCreatePartitions: true,
+        autoCreateTables: false,
       });
 
       const entry: UsageLogEntry = {
@@ -196,17 +196,9 @@ describe('Usage Log Store', () => {
         timestamp: new Date('2025-12-26'),
       };
 
-      // First call fails (partition doesn't exist), second succeeds
-      mockPool.query
-        .mockRejectedValueOnce(new Error('partition does not exist'))
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // Create partition
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // Insert
+      mockPool.query.mockRejectedValueOnce(new Error('partition does not exist'));
 
-      await store.log(entry);
-
-      expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TABLE IF NOT EXISTS api_key_usage_logs_')
-      );
+      await expect(store.log(entry)).rejects.toThrow('partition does not exist');
     });
   });
 
@@ -237,7 +229,7 @@ describe('Usage Log Store', () => {
       await store.logBatch(entries);
 
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO api_key_usage_logs'),
+        expect.stringContaining('INSERT INTO "public"."api_key_usage_logs"'),
         expect.any(Array)
       );
     });
@@ -295,8 +287,8 @@ describe('Usage Log Store', () => {
       await store.getKeyUsage('key-123', { limit: 50, offset: 100 });
 
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('LIMIT $'),
-        expect.arrayContaining([50, 100])
+        expect.stringContaining('LIMIT 50 OFFSET 100'),
+        ['key-123']
       );
     });
 
@@ -331,7 +323,7 @@ describe('Usage Log Store', () => {
 
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('endpoint'),
-        expect.arrayContaining(['/api/qwickbrain'])
+        expect.arrayContaining(['%/api/qwickbrain%'])
       );
     });
 
@@ -375,17 +367,28 @@ describe('Usage Log Store', () => {
         autoCreateTables: false,
       });
 
-      const mockStats = {
-        total_calls: '150',
+      const totalStats = {
+        total: '150',
         last_used: new Date('2025-12-26'),
-        calls_by_status: JSON.stringify({ '200': 120, '404': 20, '500': 10 }),
-        calls_by_endpoint: JSON.stringify({
-          '/api/test': 100,
-          '/api/qwickbrain': 50,
-        }),
       };
 
-      mockPool.query.mockResolvedValue({ rows: [mockStats], rowCount: 1 });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [totalStats], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [
+            { status_code: 200, count: '120' },
+            { status_code: 404, count: '20' },
+            { status_code: 500, count: '10' },
+          ],
+          rowCount: 3,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            { endpoint: '/api/test', count: '100' },
+            { endpoint: '/api/qwickbrain', count: '50' },
+          ],
+          rowCount: 2,
+        });
 
       const result = await store.getKeyStats('key-123');
 
@@ -404,7 +407,10 @@ describe('Usage Log Store', () => {
         autoCreateTables: false,
       });
 
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ total: '0', last_used: null }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await store.getKeyStats('key-unused');
 

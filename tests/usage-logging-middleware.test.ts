@@ -285,6 +285,7 @@ describe('Usage Logging Middleware', () => {
       },
     } as any);
     const res = createMockResponse();
+    const originalSend = res.send;
 
     // Mock store.log to reject
     (mockStore.log as any).mockRejectedValue(new Error('Database error'));
@@ -301,7 +302,7 @@ describe('Usage Logging Middleware', () => {
     );
 
     // Response should still be sent
-    expect(res.send).toHaveBeenCalled();
+    expect(originalSend).toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });
@@ -317,6 +318,7 @@ describe('Usage Logging Middleware', () => {
       },
     } as any);
     const res = createMockResponse();
+    const originalSend = res.send;
 
     // Create a slow mock
     const slowLog = vi.fn(() => new Promise(resolve => setTimeout(resolve, 1000)));
@@ -326,7 +328,7 @@ describe('Usage Logging Middleware', () => {
     res.send({ data: 'test' });
 
     // Response should be sent immediately, not waiting for log
-    expect(res.send).toHaveBeenCalled();
+    expect(originalSend).toHaveBeenCalled();
     expect(slowLog).not.toHaveBeenCalled(); // Not called yet (setImmediate)
   });
 
