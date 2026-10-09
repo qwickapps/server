@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { PluginManagementPage } from '@qwickapps/server/ui';
-import { DataTable, StatCard, type Column } from '@qwickapps/react-framework';
+import { DataTable, PluginStatCard as StatCard, type Column } from '@qwickapps/react-framework';
 
 export interface PostgresManagementPageProps {
   apiPrefix?: string;

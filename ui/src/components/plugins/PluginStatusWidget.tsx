@@ -22,7 +22,10 @@
  */
 
 import React from 'react';
-import { StatCard, StatCardProps } from '@qwickapps/react-framework';
+import {
+  PluginStatCard as StatCard,
+  type PluginStatCardProps as StatCardProps,
+} from '@qwickapps/react-framework';
 
 export interface PluginStatusWidgetProps {
   /** Plugin name */
