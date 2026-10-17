@@ -81,7 +81,7 @@ export function createParentalPlugin(config: Partial<ParentalPluginConfig> = {})
       const logger = registry.getLogger('parental');
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! Parental plugin disabled.');
         registry.registerHealthCheck({
           name: 'parental-store',

@@ -71,7 +71,7 @@ export function createApiKeysPlugin(config: Partial<ApiKeysPluginConfig> = {}): 
       }
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! API Keys plugin disabled.');
         registry.registerHealthCheck({
           name: 'api-keys-store',

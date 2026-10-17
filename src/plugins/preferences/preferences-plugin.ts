@@ -80,7 +80,7 @@ export function createPreferencesPlugin(config: Partial<PreferencesPluginConfig>
       }
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! Preferences plugin disabled.');
         registry.registerHealthCheck({
           name: 'preferences-store',

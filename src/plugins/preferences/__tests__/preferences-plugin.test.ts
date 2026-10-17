@@ -92,13 +92,16 @@ describe('Preferences Plugin', () => {
   });
 
   describe('onStart', () => {
-    it('should throw error if users plugin is not loaded', async () => {
+    it('should register an unhealthy check if users plugin is not loaded', async () => {
       const registryWithoutUsers = createMockRegistry(false);
       const plugin = createPreferencesPlugin({ store: mockStore });
 
-      await expect(plugin.onStart({}, registryWithoutUsers)).rejects.toThrow(
-        'Preferences plugin requires Users plugin to be loaded first'
+      await plugin.onStart({}, registryWithoutUsers);
+
+      expect(registryWithoutUsers.registerHealthCheck).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'preferences-store', type: 'custom' })
       );
+      expect(mockStore.initialize).not.toHaveBeenCalled();
     });
 
     it('should initialize store on start', async () => {
@@ -136,21 +139,21 @@ describe('Preferences Plugin', () => {
       // Check GET route
       expect(calls[0][0]).toMatchObject({
         method: 'get',
-        path: '/preferences',
+        path: '/',
         pluginId: 'preferences',
       });
 
       // Check PUT route
       expect(calls[1][0]).toMatchObject({
         method: 'put',
-        path: '/preferences',
+        path: '/',
         pluginId: 'preferences',
       });
 
       // Check DELETE route
       expect(calls[2][0]).toMatchObject({
         method: 'delete',
-        path: '/preferences',
+        path: '/',
         pluginId: 'preferences',
       });
     });

@@ -29,6 +29,7 @@ type MockPluginRegistry = {
   hasPlugin: ReturnType<typeof vi.fn>;
   addRoute: ReturnType<typeof vi.fn>;
   registerHealthCheck: ReturnType<typeof vi.fn>;
+  getLogger: ReturnType<typeof vi.fn>;
 };
 
 type MockApiKeyStore = {
@@ -59,12 +60,18 @@ function createMockRegistry(): MockPluginRegistry {
     hasPlugin: vi.fn(),
     addRoute: vi.fn(),
     registerHealthCheck: vi.fn(),
+    getLogger: vi.fn().mockReturnValue({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    }),
   };
 }
 
 function createMockStore(): MockApiKeyStore {
   return {
-    initialize: vi.fn().mockResolvedValue(undefined),
+    initialize: vi.fn().mockResolvedValue({ success: true }),
     create: vi.fn(),
     list: vi.fn(),
     get: vi.fn(),
@@ -137,7 +144,7 @@ describe('API Keys Plugin - Lifecycle', () => {
   });
 
   describe('onStart', () => {
-    it('should throw error if users plugin is not loaded', async () => {
+    it('should register an unhealthy check when users plugin is not loaded', async () => {
       mockRegistry.hasPlugin.mockReturnValue(false);
 
       const config: ApiKeysPluginConfig = {
@@ -146,11 +153,13 @@ describe('API Keys Plugin - Lifecycle', () => {
 
       plugin = createApiKeysPlugin(config);
 
-      await expect(
-        plugin.onStart?.({}, mockRegistry as unknown as PluginRegistry)
-      ).rejects.toThrow('API Keys plugin requires Users plugin to be loaded first');
+      await plugin.onStart?.({}, mockRegistry as unknown as PluginRegistry);
 
       expect(mockRegistry.hasPlugin).toHaveBeenCalledWith('users');
+      expect(mockRegistry.registerHealthCheck).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'api-keys-store', type: 'custom' })
+      );
+      expect(mockStore.initialize).not.toHaveBeenCalled();
     });
 
     it('should initialize the store when users plugin is loaded', async () => {
@@ -203,19 +212,19 @@ describe('API Keys Plugin - Lifecycle', () => {
 
       // Verify each route (paths are relative to plugin slug, framework adds /api/api-keys prefix)
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'post', path: '/', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'post', path: '/api-keys', pluginId: 'api-keys' })
       );
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'get', path: '/', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'get', path: '/api-keys', pluginId: 'api-keys' })
       );
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'get', path: '/:id', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'get', path: '/api-keys/:id', pluginId: 'api-keys' })
       );
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'put', path: '/:id', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'put', path: '/api-keys/:id', pluginId: 'api-keys' })
       );
       expect(mockRegistry.addRoute).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'delete', path: '/:id', pluginId: 'api-keys' })
+        expect.objectContaining({ method: 'delete', path: '/api-keys/:id', pluginId: 'api-keys' })
       );
     });
 

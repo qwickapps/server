@@ -62,7 +62,7 @@ export function createDevicesPlugin(config: Partial<DevicesPluginConfig> = {}): 
       const logger = registry.getLogger('devices');
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! Devices plugin disabled.');
         registry.registerHealthCheck({
           name: 'devices-store',

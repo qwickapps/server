@@ -62,7 +62,7 @@ export function createUsersPlugin(config: Partial<UsersPluginConfig> = {}): Plug
       const logger = registry.getLogger('users');
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! Users plugin disabled.');
         registry.registerHealthCheck({
           name: 'users-store',

@@ -52,6 +52,7 @@ type MockPluginRegistry = {
   hasPlugin: ReturnType<typeof vi.fn>;
   addRoute: ReturnType<typeof vi.fn>;
   registerHealthCheck: ReturnType<typeof vi.fn>;
+  getLogger: ReturnType<typeof vi.fn>;
 };
 
 // ========================================
@@ -79,7 +80,7 @@ function createMockNext(): NextFunction {
 
 function createMockStore(): MockApiKeyStore {
   return {
-    initialize: vi.fn().mockResolvedValue(undefined),
+    initialize: vi.fn().mockResolvedValue({ success: true }),
     verify: vi.fn(),
     recordUsage: vi.fn().mockResolvedValue(undefined),
     shutdown: vi.fn().mockResolvedValue(undefined),
@@ -96,6 +97,12 @@ function createMockRegistry(): MockPluginRegistry {
     hasPlugin: vi.fn().mockReturnValue(true),
     addRoute: vi.fn(),
     registerHealthCheck: vi.fn(),
+    getLogger: vi.fn().mockReturnValue({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    }),
   };
 }
 

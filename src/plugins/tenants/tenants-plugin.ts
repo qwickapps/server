@@ -55,7 +55,7 @@ export function createTenantsPlugin(config: Partial<TenantsPluginConfig> = {}): 
       const logger = registry.getLogger('tenants');
 
       // Check for postgres in registry
-      if (!hasPostgres()) {
+      if (!config.store && !hasPostgres()) {
         logger.warn('No Database! Tenants plugin disabled.');
         registry.registerHealthCheck({
           name: 'tenants-store',

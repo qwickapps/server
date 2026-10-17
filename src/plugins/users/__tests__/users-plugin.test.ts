@@ -159,9 +159,8 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       // GET /, GET /:id, POST /, POST /invite, PUT /:id, DELETE /:id
-      // + GET /:id/info, POST /sync, GET /stats
-      // (paths are relative to plugin slug, framework adds /api/users prefix)
-      expect(mockRegistry.addRoute).toHaveBeenCalledTimes(9);
+      // + GET /:id/info, POST /sync, GET /stats, POST /:id/rotate-token
+      expect(mockRegistry.addRoute).toHaveBeenCalledTimes(10);
     });
 
     it('should register /users/:id/info route', async () => {
@@ -169,12 +168,12 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       const calls = (mockRegistry.addRoute as any).mock.calls;
-      const infoRoute = calls.find((c: any) => c[0].path === '/:id/info');
+      const infoRoute = calls.find((c: any) => c[0].path === '/users/:id/info');
 
       expect(infoRoute).toBeDefined();
       expect(infoRoute[0]).toMatchObject({
         method: 'get',
-        path: '/:id/info',
+        path: '/users/:id/info',
         pluginId: 'users',
       });
     });
@@ -184,12 +183,12 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       const calls = (mockRegistry.addRoute as any).mock.calls;
-      const syncRoute = calls.find((c: any) => c[0].path === '/sync');
+      const syncRoute = calls.find((c: any) => c[0].path === '/users/sync');
 
       expect(syncRoute).toBeDefined();
       expect(syncRoute[0]).toMatchObject({
         method: 'post',
-        path: '/sync',
+        path: '/users/sync',
         pluginId: 'users',
       });
     });
@@ -377,7 +376,7 @@ describe('Users Plugin', () => {
 
       // Find the handler for /users/:id/info
       const calls = (registryWithPlugins.addRoute as any).mock.calls;
-      const infoRoute = calls.find((c: any) => c[0].path === '/:id/info');
+      const infoRoute = calls.find((c: any) => c[0].path === '/users/:id/info');
       const handler = infoRoute[0].handler;
 
       // Mock request and response
@@ -406,7 +405,7 @@ describe('Users Plugin', () => {
 
       // Find the handler
       const calls = (registryNoPlugins.addRoute as any).mock.calls;
-      const infoRoute = calls.find((c: any) => c[0].path === '/:id/info');
+      const infoRoute = calls.find((c: any) => c[0].path === '/users/:id/info');
       const handler = infoRoute[0].handler;
 
       const req = { params: { id: mockUser.id } } as any;
@@ -428,7 +427,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       const calls = (mockRegistry.addRoute as any).mock.calls;
-      const infoRoute = calls.find((c: any) => c[0].path === '/:id/info');
+      const infoRoute = calls.find((c: any) => c[0].path === '/users/:id/info');
       const handler = infoRoute[0].handler;
 
       const req = { params: { id: 'non-existent' } } as any;
@@ -462,7 +461,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, registryWithBans);
 
       const calls = (registryWithBans.addRoute as any).mock.calls;
-      const infoRoute = calls.find((c: any) => c[0].path === '/:id/info');
+      const infoRoute = calls.find((c: any) => c[0].path === '/users/:id/info');
       const handler = infoRoute[0].handler;
 
       const req = { params: { id: mockUser.id } } as any;
@@ -495,7 +494,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, registryWithPlugins);
 
       const calls = (registryWithPlugins.addRoute as any).mock.calls;
-      const infoRoute = calls.find((c: any) => c[0].path === '/:id/info');
+      const infoRoute = calls.find((c: any) => c[0].path === '/users/:id/info');
       const handler = infoRoute[0].handler;
 
       const req = { params: { id: mockUser.id } } as any;
@@ -531,7 +530,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, registryWithPlugins);
 
       const calls = (registryWithPlugins.addRoute as any).mock.calls;
-      const syncRoute = calls.find((c: any) => c[0].path === '/sync');
+      const syncRoute = calls.find((c: any) => c[0].path === '/users/sync');
       const handler = syncRoute[0].handler;
 
       const req = {
@@ -562,7 +561,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       const calls = (mockRegistry.addRoute as any).mock.calls;
-      const syncRoute = calls.find((c: any) => c[0].path === '/sync');
+      const syncRoute = calls.find((c: any) => c[0].path === '/users/sync');
       const handler = syncRoute[0].handler;
 
       const req = {
@@ -587,7 +586,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       const calls = (mockRegistry.addRoute as any).mock.calls;
-      const syncRoute = calls.find((c: any) => c[0].path === '/sync');
+      const syncRoute = calls.find((c: any) => c[0].path === '/users/sync');
       const handler = syncRoute[0].handler;
 
       const req = {
@@ -613,7 +612,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       const calls = (mockRegistry.addRoute as any).mock.calls;
-      const syncRoute = calls.find((c: any) => c[0].path === '/sync');
+      const syncRoute = calls.find((c: any) => c[0].path === '/users/sync');
       const handler = syncRoute[0].handler;
 
       const req = {
@@ -638,7 +637,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, mockRegistry);
 
       const calls = (mockRegistry.addRoute as any).mock.calls;
-      const syncRoute = calls.find((c: any) => c[0].path === '/sync');
+      const syncRoute = calls.find((c: any) => c[0].path === '/users/sync');
       const handler = syncRoute[0].handler;
 
       const req = {
@@ -669,7 +668,7 @@ describe('Users Plugin', () => {
       await plugin.onStart({}, registryWithPlugins);
 
       const calls = (registryWithPlugins.addRoute as any).mock.calls;
-      const syncRoute = calls.find((c: any) => c[0].path === '/sync');
+      const syncRoute = calls.find((c: any) => c[0].path === '/users/sync');
       const handler = syncRoute[0].handler;
 
       const req = {
