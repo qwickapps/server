@@ -154,7 +154,7 @@ describe('Config Plugin', () => {
     expect(plugin.name).toBe('Config Plugin');
   });
 
-  it('should register /config and /config/validate routes', async () => {
+  it('should register root and validation routes relative to the config prefix', async () => {
     const { createConfigPlugin } = await import('../src/plugins/config-plugin.js');
 
     const plugin = createConfigPlugin({
@@ -165,8 +165,8 @@ describe('Config Plugin', () => {
     await plugin.onStart({}, mockRegistry);
 
     expect(mockRegistry.addRoute).toHaveBeenCalledTimes(2);
-    expect(mockRegistry.routes.has('/config')).toBe(true);
-    expect(mockRegistry.routes.has('/config/validate')).toBe(true);
+    expect(mockRegistry.routes.has('/')).toBe(true);
+    expect(mockRegistry.routes.has('/validate')).toBe(true);
   });
 
   it('should return visible env vars', async () => {
@@ -179,11 +179,11 @@ describe('Config Plugin', () => {
 
     await plugin.onStart({}, mockRegistry);
 
-    const configRoute = mockRegistry.routes.get('/config');
+    const configRoute = mockRegistry.routes.get('/');
     const req = createMockRequest();
     const res = createMockResponse();
 
-    configRoute?.handler(req as any, res, vi.fn());
+    await configRoute?.handler(req as any, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith({
       environment: 'test',
@@ -203,11 +203,11 @@ describe('Config Plugin', () => {
 
     await plugin.onStart({}, mockRegistry);
 
-    const configRoute = mockRegistry.routes.get('/config');
+    const configRoute = mockRegistry.routes.get('/');
     const req = createMockRequest();
     const res = createMockResponse();
 
-    configRoute?.handler(req as any, res, vi.fn());
+    await configRoute?.handler(req as any, res, vi.fn());
 
     const responseData = res.json.mock.calls[0][0];
     expect(responseData.config.TEST_SECRET).not.toBe('super-secret-password');
@@ -224,11 +224,11 @@ describe('Config Plugin', () => {
 
     await plugin.onStart({}, mockRegistry);
 
-    const configRoute = mockRegistry.routes.get('/config');
+    const configRoute = mockRegistry.routes.get('/');
     const req = createMockRequest();
     const res = createMockResponse();
 
-    configRoute?.handler(req as any, res, vi.fn());
+    await configRoute?.handler(req as any, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith({
       environment: 'test',
@@ -250,11 +250,11 @@ describe('Config Plugin', () => {
 
       await plugin.onStart({}, mockRegistry);
 
-      const validateRoute = mockRegistry.routes.get('/config/validate');
+      const validateRoute = mockRegistry.routes.get('/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
-      validateRoute?.handler(req as any, res, vi.fn());
+      await validateRoute?.handler(req as any, res, vi.fn());
 
       const responseData = res.json.mock.calls[0][0];
       expect(responseData.valid).toBe(false);
@@ -275,11 +275,11 @@ describe('Config Plugin', () => {
 
       await plugin.onStart({}, mockRegistry);
 
-      const validateRoute = mockRegistry.routes.get('/config/validate');
+      const validateRoute = mockRegistry.routes.get('/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
-      validateRoute?.handler(req as any, res, vi.fn());
+      await validateRoute?.handler(req as any, res, vi.fn());
 
       const responseData = res.json.mock.calls[0][0];
       expect(responseData.valid).toBe(false);
@@ -301,11 +301,11 @@ describe('Config Plugin', () => {
 
       await plugin.onStart({}, mockRegistry);
 
-      const validateRoute = mockRegistry.routes.get('/config/validate');
+      const validateRoute = mockRegistry.routes.get('/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
-      validateRoute?.handler(req as any, res, vi.fn());
+      await validateRoute?.handler(req as any, res, vi.fn());
 
       const responseData = res.json.mock.calls[0][0];
       expect(responseData.valid).toBe(false);
@@ -330,11 +330,11 @@ describe('Config Plugin', () => {
 
       await plugin.onStart({}, mockRegistry);
 
-      const validateRoute = mockRegistry.routes.get('/config/validate');
+      const validateRoute = mockRegistry.routes.get('/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
-      validateRoute?.handler(req as any, res, vi.fn());
+      await validateRoute?.handler(req as any, res, vi.fn());
 
       const responseData = res.json.mock.calls[0][0];
       expect(responseData.valid).toBe(true);
@@ -353,11 +353,11 @@ describe('Config Plugin', () => {
 
       await plugin.onStart({}, mockRegistry);
 
-      const validateRoute = mockRegistry.routes.get('/config/validate');
+      const validateRoute = mockRegistry.routes.get('/validate');
       const req = createMockRequest();
       const res = createMockResponse();
 
-      validateRoute?.handler(req as any, res, vi.fn());
+      await validateRoute?.handler(req as any, res, vi.fn());
 
       const responseData = res.json.mock.calls[0][0];
       expect(responseData.valid).toBe(true);
@@ -401,10 +401,10 @@ describe('maskValue function', () => {
 
     await plugin.onStart({}, mockRegistry);
 
-    const configRoute = mockRegistry.routes.get('/config');
+    const configRoute = mockRegistry.routes.get('/');
     const res = createMockResponse();
 
-    configRoute?.handler(createMockRequest() as any, res, vi.fn());
+    await configRoute?.handler(createMockRequest() as any, res, vi.fn());
 
     const responseData = res.json.mock.calls[0][0];
     expect(responseData.config.SHORT).toBe('****');
@@ -423,10 +423,10 @@ describe('maskValue function', () => {
 
     await plugin.onStart({}, mockRegistry);
 
-    const configRoute = mockRegistry.routes.get('/config');
+    const configRoute = mockRegistry.routes.get('/');
     const res = createMockResponse();
 
-    configRoute?.handler(createMockRequest() as any, res, vi.fn());
+    await configRoute?.handler(createMockRequest() as any, res, vi.fn());
 
     const responseData = res.json.mock.calls[0][0];
     const masked = responseData.config.LONGER_SECRET;

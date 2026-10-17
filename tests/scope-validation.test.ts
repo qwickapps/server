@@ -147,16 +147,17 @@ describe('Scope Validation', () => {
       expect(isValidScopeFormat('a-b-c:x-y-z')).toBe(true);
     });
 
-    it('should reject starting or ending with dashes', () => {
-      expect(isValidScopeFormat('-plugin:action')).toBe(false);
-      expect(isValidScopeFormat('plugin-:action')).toBe(false);
-      expect(isValidScopeFormat('plugin:action-')).toBe(false);
-      expect(isValidScopeFormat('plugin:-action')).toBe(false);
+    it('should accept dashes at any position allowed by the persistence schema', () => {
+      // Keep this aligned with plugin-scope-store's CHECK regex: [a-z0-9-]+:[a-z0-9-]+.
+      expect(isValidScopeFormat('-plugin:action')).toBe(true);
+      expect(isValidScopeFormat('plugin-:action')).toBe(true);
+      expect(isValidScopeFormat('plugin:action-')).toBe(true);
+      expect(isValidScopeFormat('plugin:-action')).toBe(true);
     });
 
-    it('should reject consecutive dashes', () => {
-      expect(isValidScopeFormat('plugin--name:action')).toBe(false);
-      expect(isValidScopeFormat('plugin:action--name')).toBe(false);
+    it('should accept consecutive dashes allowed by the persistence schema', () => {
+      expect(isValidScopeFormat('plugin--name:action')).toBe(true);
+      expect(isValidScopeFormat('plugin:action--name')).toBe(true);
     });
 
     it('should handle minimum valid length scopes', () => {
