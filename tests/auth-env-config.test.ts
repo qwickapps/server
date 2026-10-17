@@ -238,6 +238,9 @@ describe('parseSupertokensEnv', () => {
       apiBasePath: '/auth',
       websiteBasePath: '/auth',
       enableEmailPassword: true,
+      enablePasswordless: false,
+      resendApiKey: undefined,
+      resendFromEmail: undefined,
     });
   });
 
