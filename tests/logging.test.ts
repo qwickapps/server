@@ -5,17 +5,19 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { resolve } from 'node:path';
+
+const fsMocks = vi.hoisted(() => ({
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  appendFileSync: vi.fn(),
+}));
 
 // Mock the fs module
-vi.mock('node:fs', async () => {
-  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
-  return {
-    ...actual,
-    existsSync: vi.fn(),
-    mkdirSync: vi.fn(),
-    appendFileSync: vi.fn(),
-  };
-});
+vi.mock('node:fs', () => ({
+  ...fsMocks,
+  default: fsMocks,
+}));
 
 // Mock @qwickapps/logging
 vi.mock('@qwickapps/logging', () => ({
@@ -106,6 +108,7 @@ describe('LoggingSubsystem', () => {
 
       expect(subsystem.isFileLoggingEnabled()).toBe(true);
       expect(subsystem.getLogDir()).toContain('test-logs');
+      expect(mockMkdirSync).toHaveBeenCalledWith(resolve('./test-logs'), { recursive: true });
     });
   });
 
