@@ -60,7 +60,7 @@ describe('Plugin Scope Store', () => {
       await store.initialize();
 
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TABLE IF NOT EXISTS plugin_scopes')
+        expect.stringContaining('CREATE TABLE IF NOT EXISTS "public"."plugin_scopes"')
       );
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('CHECK (name ~ \'^[a-z0-9-]+:[a-z0-9-]+$\')')
@@ -78,10 +78,10 @@ describe('Plugin Scope Store', () => {
       await store.initialize();
 
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE INDEX IF NOT EXISTS idx_plugin_scopes_name')
+        expect.stringContaining('CREATE INDEX IF NOT EXISTS idx_plugin_scopes_name ON "public"."plugin_scopes"')
       );
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE INDEX IF NOT EXISTS idx_plugin_scopes_plugin_id')
+        expect.stringContaining('CREATE INDEX IF NOT EXISTS idx_plugin_scopes_plugin_id ON "public"."plugin_scopes"')
       );
     });
 
@@ -96,12 +96,16 @@ describe('Plugin Scope Store', () => {
       await store.initialize();
 
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO plugin_scopes'),
-        expect.arrayContaining([
-          expect.stringContaining('system:read'),
-          expect.stringContaining('system:write'),
-          expect.stringContaining('system:admin'),
-        ])
+        expect.stringContaining('INSERT INTO "public"."plugin_scopes"')
+      );
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining("('system', 'system:read'")
+      );
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining("('system', 'system:write'")
+      );
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining("('system', 'system:admin'")
       );
     });
 
@@ -138,12 +142,16 @@ describe('Plugin Scope Store', () => {
       ];
 
       mockClient.query.mockResolvedValue({ rows: [], rowCount: 2 });
+      mockPool.query.mockResolvedValue({
+        rows: scopes.map(scope => ({ ...scope, plugin_id: 'qwickbrain' })),
+        rowCount: scopes.length,
+      });
 
       await store.registerScopes('qwickbrain', scopes);
 
       expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO plugin_scopes'),
-        expect.arrayContaining(['qwickbrain:read', 'qwickbrain'])
+        expect.stringContaining('INSERT INTO "public"."plugin_scopes"'),
+        ['qwickbrain', 'qwickbrain:read', 'Read access to QwickBrain', 'read']
       );
     });
 
@@ -161,17 +169,17 @@ describe('Plugin Scope Store', () => {
       ];
 
       mockClient.query.mockResolvedValue({ rows: [], rowCount: 1 });
-
-      await store.registerScopes('test', scopes);
-
-      // Verify cache is updated by checking isValidScope
       mockPool.query.mockResolvedValue({
-        rows: [{ name: 'test:action', plugin_id: 'test', description: 'Test action' }],
+        rows: [{ name: 'test:action', plugin_id: 'test', description: 'Test action', category: null }],
         rowCount: 1,
       });
 
+      await store.registerScopes('test', scopes);
+
+      // Verify the refreshed cache serves validation without another query.
       const isValid = await store.isValidScope('test:action');
       expect(isValid).toBe(true);
+      expect(mockPool.query).toHaveBeenCalledTimes(1);
     });
 
     it('should handle upsert conflicts (ON CONFLICT DO UPDATE)', async () => {
@@ -188,12 +196,16 @@ describe('Plugin Scope Store', () => {
       ];
 
       mockClient.query.mockResolvedValue({ rows: [], rowCount: 1 });
+      mockPool.query.mockResolvedValue({
+        rows: [{ name: 'existing:scope', plugin_id: 'existing', description: 'Updated description', category: null }],
+        rowCount: 1,
+      });
 
       await store.registerScopes('existing', scopes);
 
       expect(mockClient.query).toHaveBeenCalledWith(
         expect.stringContaining('ON CONFLICT (name) DO UPDATE'),
-        expect.anything()
+        ['existing', 'existing:scope', 'Updated description', null]
       );
     });
   });
@@ -233,7 +245,7 @@ describe('Plugin Scope Store', () => {
       expect(result[1].name).toBe('qwickbrain:execute');
     });
 
-    it('should use cache for subsequent calls', async () => {
+    it('should query the database on subsequent calls', async () => {
       const store = createPostgresPluginScopeStore({
         pool: mockPool,
         autoCreateTables: false,
@@ -255,9 +267,9 @@ describe('Plugin Scope Store', () => {
       await store.getAllScopes();
       expect(mockPool.query).toHaveBeenCalledTimes(1);
 
-      // Second call - uses cache
+      // Public reads query the database each time.
       await store.getAllScopes();
-      expect(mockPool.query).toHaveBeenCalledTimes(1); // Still 1, not 2
+      expect(mockPool.query).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -300,14 +312,13 @@ describe('Plugin Scope Store', () => {
         rowCount: 1,
       });
 
-      // First call - loads all scopes into cache
-      await store.getAllScopes();
-      expect(mockPool.query).toHaveBeenCalledTimes(1);
-
-      // isValidScope uses cache
+      // First validation loads all scopes into cache.
       const isValid = await store.isValidScope('test:scope');
       expect(isValid).toBe(true);
-      expect(mockPool.query).toHaveBeenCalledTimes(1); // No additional query
+
+      // Subsequent validation uses the populated cache.
+      await store.isValidScope('test:scope');
+      expect(mockPool.query).toHaveBeenCalledTimes(1);
     });
   });
 
