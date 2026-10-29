@@ -20,7 +20,7 @@ describe('UsageStatusWidget', () => {
 
     render(<UsageStatusWidget apiPrefix="/api/usage" />);
 
-    expect(screen.getByText(/Usage Tracking Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('UsageStatusWidget', () => {
     render(<UsageStatusWidget apiPrefix="/api/usage" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Usage service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

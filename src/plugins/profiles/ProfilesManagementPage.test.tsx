@@ -23,7 +23,7 @@ describe('ProfilesManagementPage', () => {
 
     render(<ProfilesManagementPage apiPrefix="/api/profiles" />);
 
-    expect(screen.getByText('User Profiles Management')).toBeInTheDocument();
+    expect(screen.getByText('Profiles Management')).toBeInTheDocument();
   });
 
   it('fetches profiles on mount', async () => {

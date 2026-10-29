@@ -20,7 +20,7 @@ describe('QwickbrainStatusWidget', () => {
 
     render(<QwickbrainStatusWidget apiPrefix="/api/qwickbrain" />);
 
-    expect(screen.getByText(/QwickBrain AI Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('QwickbrainStatusWidget', () => {
     render(<QwickbrainStatusWidget apiPrefix="/api/qwickbrain" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/QwickBrain service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

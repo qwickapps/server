@@ -23,7 +23,7 @@ describe('PreferencesManagementPage', () => {
 
     render(<PreferencesManagementPage apiPrefix="/api/preferences" />);
 
-    expect(screen.getByText('User Preferences Management')).toBeInTheDocument();
+    expect(screen.getByText('Preferences Management')).toBeInTheDocument();
   });
 
   it('fetches preferences on mount', async () => {

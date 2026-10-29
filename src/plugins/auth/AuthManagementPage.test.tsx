@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AuthManagementPage } from './AuthManagementPage';
 
 describe('AuthManagementPage', () => {
@@ -26,7 +26,7 @@ describe('AuthManagementPage', () => {
     expect(screen.getByText('Authentication Management')).toBeInTheDocument();
   });
 
-  it('fetches auth data on mount', async () => {
+  it('does not fetch data until a data tab is selected', () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
       () => Promise.resolve({
         ok: true,
@@ -36,12 +36,10 @@ describe('AuthManagementPage', () => {
 
     render(<AuthManagementPage apiPrefix="/api/auth" />);
 
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
-    });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('renders with custom apiPrefix', async () => {
+  it('uses the custom apiPrefix when loading providers', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
       () => Promise.resolve({
         ok: true,
@@ -51,8 +49,10 @@ describe('AuthManagementPage', () => {
 
     render(<AuthManagementPage apiPrefix="/custom/auth" />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Providers' }));
+
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalledWith('/custom/auth/providers');
     });
   });
 });

@@ -20,7 +20,7 @@ describe('ParentalStatusWidget', () => {
 
     render(<ParentalStatusWidget apiPrefix="/api/parental" />);
 
-    expect(screen.getByText(/Parental Controls Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('ParentalStatusWidget', () => {
     render(<ParentalStatusWidget apiPrefix="/api/parental" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Parental service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

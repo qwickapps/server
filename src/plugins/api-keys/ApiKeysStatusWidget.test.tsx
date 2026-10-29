@@ -20,7 +20,7 @@ describe('ApiKeysStatusWidget', () => {
 
     render(<ApiKeysStatusWidget apiPrefix="/api/api-keys" />);
 
-    expect(screen.getByText(/API Keys Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -59,7 +59,7 @@ describe('ApiKeysStatusWidget', () => {
     render(<ApiKeysStatusWidget apiPrefix="/api/api-keys" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/API keys service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

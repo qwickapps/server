@@ -20,7 +20,7 @@ describe('PostgresStatusWidget', () => {
 
     render(<PostgresStatusWidget apiPrefix="/api/postgres" />);
 
-    expect(screen.getByText(/PostgreSQL Database Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {

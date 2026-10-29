@@ -20,7 +20,7 @@ describe('DevicesStatusWidget', () => {
 
     render(<DevicesStatusWidget apiPrefix="/api/devices" />);
 
-    expect(screen.getByText(/Devices Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('DevicesStatusWidget', () => {
     render(<DevicesStatusWidget apiPrefix="/api/devices" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Devices service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

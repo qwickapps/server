@@ -20,7 +20,7 @@ describe('NotificationsStatusWidget', () => {
 
     render(<NotificationsStatusWidget apiPrefix="/api/notifications" />);
 
-    expect(screen.getByText(/Notifications Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('NotificationsStatusWidget', () => {
     render(<NotificationsStatusWidget apiPrefix="/api/notifications" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Notifications service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

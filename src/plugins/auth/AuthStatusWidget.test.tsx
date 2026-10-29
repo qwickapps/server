@@ -20,7 +20,7 @@ describe('AuthStatusWidget', () => {
 
     render(<AuthStatusWidget apiPrefix="/api/auth" />);
 
-    expect(screen.getByText(/Authentication Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -59,7 +59,7 @@ describe('AuthStatusWidget', () => {
     render(<AuthStatusWidget apiPrefix="/api/auth" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Auth service unavailable/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 
