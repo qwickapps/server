@@ -109,6 +109,7 @@ describe('PluginRegistry', () => {
         type: 'plugin:started',
         pluginId: 'test-1',
         config: { foo: 'bar' },
+        plugin,
       });
     });
 

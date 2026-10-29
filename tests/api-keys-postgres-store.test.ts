@@ -56,10 +56,13 @@ describe('API Keys PostgreSQL Store', () => {
         enableRLS: false,
       });
 
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ missing_column: false, row_count: 0 }], rowCount: 1 });
 
-      await store.initialize();
+      const result = await store.initialize();
 
+      expect(result).toEqual({ success: true });
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TABLE IF NOT EXISTS')
       );
@@ -75,10 +78,16 @@ describe('API Keys PostgreSQL Store', () => {
         enableRLS: true,
       });
 
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ missing_column: false, row_count: 0 }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await store.initialize();
+      const result = await store.initialize();
 
+      expect(result).toEqual({ success: true });
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('ENABLE ROW LEVEL SECURITY')
       );

@@ -5,19 +5,19 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { existsSync, mkdirSync, appendFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+const fsMocks = vi.hoisted(() => ({
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  appendFileSync: vi.fn(),
+}));
+
 // Mock the fs module
-vi.mock('node:fs', async () => {
-  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
-  return {
-    ...actual,
-    existsSync: vi.fn(),
-    mkdirSync: vi.fn(),
-    appendFileSync: vi.fn(),
-  };
-});
+vi.mock('node:fs', () => ({
+  ...fsMocks,
+  default: fsMocks,
+}));
 
 // Mock @qwickapps/logging
 vi.mock('@qwickapps/logging', () => ({
@@ -44,13 +44,15 @@ vi.mock('@qwickapps/logging', () => ({
 }));
 
 describe('LoggingSubsystem', () => {
-  const mockExistsSync = vi.mocked(existsSync);
-  const mockMkdirSync = vi.mocked(mkdirSync);
-  const mockAppendFileSync = vi.mocked(appendFileSync);
+  let mockExistsSync: ReturnType<typeof vi.fn>;
+  let mockMkdirSync: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+    const fs = await import('node:fs');
+    mockExistsSync = vi.mocked(fs.existsSync);
+    mockMkdirSync = vi.mocked(fs.mkdirSync);
     // Reset environment variables
     delete process.env.LOG_LEVEL;
     delete process.env.LOG_DIR;
@@ -97,16 +99,16 @@ describe('LoggingSubsystem', () => {
       expect(subsystem).toBeDefined();
     });
 
-    it('should create log directory if it does not exist', async () => {
+    it('should configure file logging when the log directory does not exist', async () => {
       mockExistsSync.mockReturnValue(false);
 
       const { initializeLogging } = await import('../src/core/logging.js');
 
-      initializeLogging({ logDir: './test-logs', fileLogging: true });
+      const subsystem = initializeLogging({ logDir: './test-logs', fileLogging: true });
 
-      expect(mockMkdirSync).toHaveBeenCalledWith(expect.stringContaining('test-logs'), {
-        recursive: true,
-      });
+      expect(subsystem.isFileLoggingEnabled()).toBe(true);
+      expect(subsystem.getLogDir()).toContain('test-logs');
+      expect(mockMkdirSync).toHaveBeenCalledWith(resolve('./test-logs'), { recursive: true });
     });
   });
 
@@ -188,25 +190,30 @@ describe('LoggingSubsystem', () => {
 });
 
 describe('FileLogTransport', () => {
-  const mockExistsSync = vi.mocked(existsSync);
-  const mockMkdirSync = vi.mocked(mkdirSync);
-  const mockAppendFileSync = vi.mocked(appendFileSync);
+  let mockExistsSync: ReturnType<typeof vi.fn>;
+  let mockMkdirSync: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+    const fs = await import('node:fs');
+    mockExistsSync = vi.mocked(fs.existsSync);
+    mockMkdirSync = vi.mocked(fs.mkdirSync);
     mockExistsSync.mockReturnValue(true);
   });
 
-  it('should write log entries to app.log', async () => {
+  it('should expose app and error log paths when file logging is enabled', async () => {
     mockExistsSync.mockReturnValue(false);
 
     const { initializeLogging, getControlPanelLogger } = await import('../src/core/logging.js');
 
     initializeLogging({ fileLogging: true, logDir: './test-logs' });
 
-    // The FileLogTransport is created internally - we verify via mock calls
-    expect(mockMkdirSync).toHaveBeenCalled();
+    const subsystem = initializeLogging({ fileLogging: true, logDir: './test-logs' });
+    expect(subsystem.getLogPaths()).toMatchObject({
+      appLog: expect.stringContaining('app.log'),
+      errorLog: expect.stringContaining('error.log'),
+    });
   });
 });
 
@@ -219,7 +226,7 @@ describe('Environment variable configuration', () => {
   it('should use LOG_DIR from environment', async () => {
     process.env.LOG_DIR = './env-logs';
 
-    const mockExistsSync = vi.mocked(existsSync);
+    const mockExistsSync = vi.mocked((await import('node:fs')).existsSync);
     mockExistsSync.mockReturnValue(true);
 
     const { initializeLogging } = await import('../src/core/logging.js');
@@ -232,7 +239,7 @@ describe('Environment variable configuration', () => {
   it('should disable file logging when LOG_FILE is false', async () => {
     process.env.LOG_FILE = 'false';
 
-    const mockExistsSync = vi.mocked(existsSync);
+    const mockExistsSync = vi.mocked((await import('node:fs')).existsSync);
     mockExistsSync.mockReturnValue(true);
 
     const { initializeLogging } = await import('../src/core/logging.js');
