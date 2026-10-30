@@ -23,7 +23,7 @@ describe('CacheManagementPage', () => {
 
     render(<CacheManagementPage apiPrefix="/api/cache" />);
 
-    expect(screen.getByText('Redis Cache Management')).toBeInTheDocument();
+    expect(screen.getByText('Redis Cache')).toBeInTheDocument();
   });
 
   it('fetches cache data on mount', async () => {
@@ -37,7 +37,7 @@ describe('CacheManagementPage', () => {
     render(<CacheManagementPage apiPrefix="/api/cache" />);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/cache/stats');
+      expect(global.fetch).toHaveBeenCalledWith('/api/cache/keys?pattern=*');
     });
   });
 
@@ -51,7 +51,7 @@ describe('CacheManagementPage', () => {
 
     render(<CacheManagementPage apiPrefix="/api/cache" />);
 
-    expect(screen.getByRole('tab', { name: /Overview/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Keys/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Browse' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stats' })).toBeInTheDocument();
   });
 });

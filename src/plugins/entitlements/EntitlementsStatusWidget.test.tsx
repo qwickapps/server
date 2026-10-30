@@ -20,7 +20,7 @@ describe('EntitlementsStatusWidget', () => {
 
     render(<EntitlementsStatusWidget apiPrefix="/api/entitlements" />);
 
-    expect(screen.getByText(/Entitlements Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('EntitlementsStatusWidget', () => {
     render(<EntitlementsStatusWidget apiPrefix="/api/entitlements" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Entitlements service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

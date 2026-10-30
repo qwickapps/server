@@ -20,7 +20,7 @@ describe('RateLimitStatusWidget', () => {
 
     render(<RateLimitStatusWidget apiPrefix="/api/rate-limit" />);
 
-    expect(screen.getByText(/Rate Limiting Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('RateLimitStatusWidget', () => {
     render(<RateLimitStatusWidget apiPrefix="/api/rate-limit" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Rate limit service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

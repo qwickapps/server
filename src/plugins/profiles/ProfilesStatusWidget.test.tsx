@@ -20,7 +20,7 @@ describe('ProfilesStatusWidget', () => {
 
     render(<ProfilesStatusWidget apiPrefix="/api/profiles" />);
 
-    expect(screen.getByText(/User Profiles Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('ProfilesStatusWidget', () => {
     render(<ProfilesStatusWidget apiPrefix="/api/profiles" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Profiles service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

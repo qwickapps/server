@@ -205,8 +205,10 @@ describe('onAuthenticated callback', () => {
     const mockApp = {
       use: vi.fn(),
     };
+    const mockRouter = { use: vi.fn() };
     const mockRegistry = {
       getApp: () => mockApp,
+      getRouter: () => mockRouter,
       addRoute: vi.fn(),
     };
 
@@ -214,7 +216,7 @@ describe('onAuthenticated callback', () => {
     await plugin.onStart?.({} as never, mockRegistry as never);
 
     // Get the auth middleware (last middleware added)
-    const authMiddleware = mockApp.use.mock.calls[mockApp.use.mock.calls.length - 1][0];
+    const authMiddleware = mockRouter.use.mock.calls[mockRouter.use.mock.calls.length - 1][0];
 
     // Call middleware
     const req = createMockRequest();
@@ -240,14 +242,16 @@ describe('onAuthenticated callback', () => {
     const mockApp = {
       use: vi.fn(),
     };
+    const mockRouter = { use: vi.fn() };
     const mockRegistry = {
       getApp: () => mockApp,
+      getRouter: () => mockRouter,
       addRoute: vi.fn(),
     };
 
     await plugin.onStart?.({} as never, mockRegistry as never);
 
-    const authMiddleware = mockApp.use.mock.calls[mockApp.use.mock.calls.length - 1][0];
+    const authMiddleware = mockRouter.use.mock.calls[mockRouter.use.mock.calls.length - 1][0];
 
     const req = createMockRequest();
     const res = createMockResponse();
@@ -278,14 +282,16 @@ describe('onAuthenticated callback', () => {
     const mockApp = {
       use: vi.fn(),
     };
+    const mockRouter = { use: vi.fn() };
     const mockRegistry = {
       getApp: () => mockApp,
+      getRouter: () => mockRouter,
       addRoute: vi.fn(),
     };
 
     await plugin.onStart?.({} as never, mockRegistry as never);
 
-    const authMiddleware = mockApp.use.mock.calls[mockApp.use.mock.calls.length - 1][0];
+    const authMiddleware = mockRouter.use.mock.calls[mockRouter.use.mock.calls.length - 1][0];
 
     const req = createMockRequest();
     const res = createMockResponse();
@@ -322,14 +328,16 @@ describe('onAuthenticated callback', () => {
     const mockApp = {
       use: vi.fn(),
     };
+    const mockRouter = { use: vi.fn() };
     const mockRegistry = {
       getApp: () => mockApp,
+      getRouter: () => mockRouter,
       addRoute: vi.fn(),
     };
 
     await plugin.onStart?.({} as never, mockRegistry as never);
 
-    const authMiddleware = mockApp.use.mock.calls[mockApp.use.mock.calls.length - 1][0];
+    const authMiddleware = mockRouter.use.mock.calls[mockRouter.use.mock.calls.length - 1][0];
 
     const req = createMockRequest();
     const res = createMockResponse();

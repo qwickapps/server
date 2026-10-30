@@ -23,7 +23,7 @@ describe('DevicesManagementPage', () => {
 
     render(<DevicesManagementPage apiPrefix="/api/devices" />);
 
-    expect(screen.getByText('Device Management')).toBeInTheDocument();
+    expect(screen.getByText('Devices Management')).toBeInTheDocument();
   });
 
   it('fetches devices on mount', async () => {

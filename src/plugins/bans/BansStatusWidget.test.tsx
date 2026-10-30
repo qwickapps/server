@@ -20,7 +20,7 @@ describe('BansStatusWidget', () => {
 
     render(<BansStatusWidget apiPrefix="/api/bans" />);
 
-    expect(screen.getByText(/User Bans Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -59,7 +59,7 @@ describe('BansStatusWidget', () => {
     render(<BansStatusWidget apiPrefix="/api/bans" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Bans service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

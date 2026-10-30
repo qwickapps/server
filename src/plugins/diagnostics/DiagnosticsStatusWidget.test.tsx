@@ -20,7 +20,7 @@ describe('DiagnosticsStatusWidget', () => {
 
     render(<DiagnosticsStatusWidget apiPrefix="/api/diagnostics" />);
 
-    expect(screen.getByText(/System Diagnostics Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {

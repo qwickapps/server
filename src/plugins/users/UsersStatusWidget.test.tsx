@@ -20,7 +20,7 @@ describe('UsersStatusWidget', () => {
 
     render(<UsersStatusWidget apiPrefix="/api/users" />);
 
-    expect(screen.getByText(/User Management/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {

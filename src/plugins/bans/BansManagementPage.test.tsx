@@ -23,7 +23,7 @@ describe('BansManagementPage', () => {
 
     render(<BansManagementPage apiPrefix="/api/bans" />);
 
-    expect(screen.getByText('User Bans Management')).toBeInTheDocument();
+    expect(screen.getByText('Bans Management')).toBeInTheDocument();
   });
 
   it('fetches bans on mount', async () => {

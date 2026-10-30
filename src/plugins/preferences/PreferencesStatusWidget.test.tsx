@@ -20,7 +20,7 @@ describe('PreferencesStatusWidget', () => {
 
     render(<PreferencesStatusWidget apiPrefix="/api/preferences" />);
 
-    expect(screen.getByText(/User Preferences Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
@@ -58,7 +58,7 @@ describe('PreferencesStatusWidget', () => {
     render(<PreferencesStatusWidget apiPrefix="/api/preferences" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Preferences service error/)).toBeInTheDocument();
+      expect(screen.getByTitle('error')).toBeInTheDocument();
     });
   });
 

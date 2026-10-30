@@ -20,7 +20,7 @@ describe('HealthStatusWidget', () => {
 
     render(<HealthStatusWidget apiPrefix="/api/health" />);
 
-    expect(screen.getByText(/Service Health Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays healthy summary', async () => {

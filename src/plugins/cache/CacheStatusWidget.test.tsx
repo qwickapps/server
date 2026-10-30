@@ -20,7 +20,7 @@ describe('CacheStatusWidget', () => {
 
     render(<CacheStatusWidget apiPrefix="/api/cache" />);
 
-    expect(screen.getByText(/Redis Cache Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {

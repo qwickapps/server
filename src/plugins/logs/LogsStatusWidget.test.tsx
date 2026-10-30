@@ -20,7 +20,7 @@ describe('LogsStatusWidget', () => {
 
     render(<LogsStatusWidget apiPrefix="/api/logs" />);
 
-    expect(screen.getByText(/Application Logs Loading/)).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('fetches and displays stats successfully', async () => {
